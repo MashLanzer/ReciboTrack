@@ -37,7 +37,9 @@ function LoginForm() {
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
   const [loading, setLoading] = useState(false)
-  const [googleLoading, setGoogleLoading] = useState(true) // true mientras esperamos redirect result
+  // googleLoading solo es true cuando el usuario hizo click en Google
+  // o cuando venimos procesando un redirect de Google con usuario real
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   // Función para guardar cookie de sesión (1 semana)
   async function saveSession(): Promise<void> {
@@ -45,7 +47,6 @@ function LoginForm() {
       const user = getFirebaseAuth().currentUser
       if (!user) return
       const idToken = await user.getIdToken()
-      // Cookie válida 7 días para no interrumpir el flujo de trabajo
       document.cookie = `session=${idToken}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
     } catch {
       // Si falla, el AuthGuard maneja el redirect
@@ -67,12 +68,23 @@ function LoginForm() {
   }
 
   // Verificar si venimos de un redirect de Google OAuth
+  // Usamos un timeout de 4s para no bloquear la UI si Firebase se cuelga
+  // (ocurre cuando Tracking Prevention bloquea el storage de Google)
   useEffect(() => {
+    let cancelled = false
+    const timeout = setTimeout(() => {
+      // Si después de 4s no hay resultado, dejamos la UI libre
+      if (!cancelled) setGoogleLoading(false)
+    }, 4000)
+
     async function checkRedirectResult() {
       try {
         const auth = getFirebaseAuth()
         const result = await getRedirectResult(auth)
+        if (cancelled) return
+        clearTimeout(timeout)
         if (result?.user) {
+          setGoogleLoading(true)
           await initUserProfile(
             result.user.uid,
             result.user.displayName ?? "",
@@ -82,16 +94,19 @@ function LoginForm() {
           router.push(from)
         }
       } catch (err: unknown) {
+        if (cancelled) return
+        clearTimeout(timeout)
         const code = (err as { code?: string }).code
         if (code && code !== "auth/no-current-user") {
           toast.error("Error al iniciar sesión con Google")
-          console.error(err)
         }
       } finally {
-        setGoogleLoading(false)
+        if (!cancelled) setGoogleLoading(false)
       }
     }
+
     checkRedirectResult()
+    return () => { cancelled = true; clearTimeout(timeout) }
   }, [from, router])
 
   async function handleGoogle() {
@@ -214,7 +229,7 @@ function LoginForm() {
               minLength={6}
             />
           </div>
-          <Button type="submit" className="w-full" disabled={loading || googleLoading}>
+          <Button type="submit" className="w-full" disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {mode === "login" ? "Iniciar sesión" : "Crear cuenta"}
           </Button>
