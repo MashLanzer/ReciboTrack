@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import {
   useRecurring,
   useAddRecurring,
@@ -12,7 +12,7 @@ import {
 import { useAddExpense } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
 import { useQuery } from "@tanstack/react-query"
-import { collection, query as fbQuery, where, orderBy, limit, getDocs } from "firebase/firestore"
+import { collection, query as fbQuery, orderBy, limit, getDocs } from "firebase/firestore"
 import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
@@ -40,6 +40,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Calendar,
+  List,
   Loader2,
   TrendingDown,
   ChevronDown,
@@ -47,6 +48,8 @@ import {
   History,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { addDays, addWeeks, addMonths, addYears, startOfDay, format, isSameDay, isToday, isTomorrow } from "date-fns"
+import { es } from "date-fns/locale"
 import { PAYMENT_METHODS, CURRENCIES, DEFAULT_CATEGORIES } from "@/lib/constants"
 import type { RecurringTemplate, RecurringFrequency } from "@/types"
 import { Timestamp } from "firebase/firestore"
@@ -142,6 +145,7 @@ export default function RecurringPage() {
   const [form, setForm] = useState<RecurringForm>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [registeringId, setRegisteringId] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list")
 
   const allCategories = categories.length > 0 ? categories : DEFAULT_CATEGORIES
 
@@ -267,10 +271,35 @@ export default function RecurringPage() {
             {templates.length} activo{templates.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <Button onClick={openCreate} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nuevo
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          {templates.length > 0 && (
+            <div className="flex items-center border rounded-lg p-0.5 bg-muted/50">
+              <Button
+                variant={viewMode === "list" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => setViewMode("list")}
+                title="Vista de lista"
+              >
+                <List className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={viewMode === "calendar" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => setViewMode("calendar")}
+                title="Vista de calendario"
+              >
+                <Calendar className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+          <Button onClick={openCreate} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nuevo
+          </Button>
+        </div>
       </div>
 
       {/* Summary card */}
@@ -287,6 +316,17 @@ export default function RecurringPage() {
             <p className="text-xs text-muted-foreground">sumando todos los recurrentes normalizados al mes</p>
           </div>
         </div>
+      )}
+
+      {/* Calendar view */}
+      {!isLoading && viewMode === "calendar" && templates.length > 0 && (
+        <CalendarView
+          templates={templates}
+          categories={allCategories}
+          registeringId={registeringId}
+          onRegister={handleRegister}
+          onEdit={openEdit}
+        />
       )}
 
       {/* Loading */}
@@ -315,71 +355,76 @@ export default function RecurringPage() {
         </div>
       )}
 
-      {/* Overdue section */}
-      {overdue.length > 0 && (
-        <Section
-          title="Vencidos"
-          icon={<AlertTriangle className="h-4 w-4 text-destructive" />}
-          count={overdue.length}
-          accent="destructive"
-        >
-          {overdue.map((t) => (
-            <RecurringItem
-              key={t.id}
-              template={t}
-              categories={allCategories}
-              registeringId={registeringId}
-              onRegister={handleRegister}
-              onSnooze={handleSnooze}
-              onEdit={openEdit}
-              onDelete={handleDelete}
-            />
-          ))}
-        </Section>
-      )}
+      {/* List sections */}
+      {!isLoading && viewMode === "list" && (
+        <>
+          {/* Overdue section */}
+          {overdue.length > 0 && (
+            <Section
+              title="Vencidos"
+              icon={<AlertTriangle className="h-4 w-4 text-destructive" />}
+              count={overdue.length}
+              accent="destructive"
+            >
+              {overdue.map((t) => (
+                <RecurringItem
+                  key={t.id}
+                  template={t}
+                  categories={allCategories}
+                  registeringId={registeringId}
+                  onRegister={handleRegister}
+                  onSnooze={handleSnooze}
+                  onEdit={openEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </Section>
+          )}
 
-      {/* Due soon section */}
-      {soon.length > 0 && (
-        <Section
-          title="Próximos 7 días"
-          icon={<Clock className="h-4 w-4 text-amber-500" />}
-          count={soon.length}
-        >
-          {soon.map((t) => (
-            <RecurringItem
-              key={t.id}
-              template={t}
-              categories={allCategories}
-              registeringId={registeringId}
-              onRegister={handleRegister}
-              onSnooze={handleSnooze}
-              onEdit={openEdit}
-              onDelete={handleDelete}
-            />
-          ))}
-        </Section>
-      )}
+          {/* Due soon section */}
+          {soon.length > 0 && (
+            <Section
+              title="Próximos 7 días"
+              icon={<Clock className="h-4 w-4 text-amber-500" />}
+              count={soon.length}
+            >
+              {soon.map((t) => (
+                <RecurringItem
+                  key={t.id}
+                  template={t}
+                  categories={allCategories}
+                  registeringId={registeringId}
+                  onRegister={handleRegister}
+                  onSnooze={handleSnooze}
+                  onEdit={openEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </Section>
+          )}
 
-      {/* Later section */}
-      {later.length > 0 && (
-        <Section
-          title="Más adelante"
-          icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
-          count={later.length}
-        >
-          {later.map((t) => (
-            <RecurringItem
-              key={t.id}
-              template={t}
-              categories={allCategories}
-              registeringId={registeringId}
-              onRegister={handleRegister}
-              onSnooze={handleSnooze}
-              onEdit={openEdit}
-              onDelete={handleDelete}
-            />
-          ))}
-        </Section>
+          {/* Later section */}
+          {later.length > 0 && (
+            <Section
+              title="Más adelante"
+              icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
+              count={later.length}
+            >
+              {later.map((t) => (
+                <RecurringItem
+                  key={t.id}
+                  template={t}
+                  categories={allCategories}
+                  registeringId={registeringId}
+                  onRegister={handleRegister}
+                  onSnooze={handleSnooze}
+                  onEdit={openEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </Section>
+          )}
+        </>
       )}
 
       {/* Create / Edit dialog */}
@@ -509,6 +554,228 @@ export default function RecurringPage() {
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+// ─── Calendar helpers ────────────────────────────────────────────────────────
+
+/** Returns all dates within [start, end] (inclusive) when this template is due */
+function getOccurrencesInRange(template: RecurringTemplate, start: Date, end: Date): Date[] {
+  const result: Date[] = []
+  let cursor = startOfDay(template.nextDueDate.toDate())
+  const s = startOfDay(start)
+  const e = startOfDay(end)
+
+  // Walk backward if nextDueDate is after start, to find the actual first occurrence
+  // that could fall in range. For weekly/biweekly we may need to look back.
+  // Easiest: advance from cursor forward until past end, collecting hits in range.
+
+  // If cursor is already past end, no occurrences
+  if (cursor > e) return []
+
+  // Collect forward from cursor (which may be before start)
+  let safety = 0
+  while (cursor <= e && safety < 500) {
+    safety++
+    if (cursor >= s) {
+      result.push(new Date(cursor))
+    }
+    // Advance by frequency
+    switch (template.frequency) {
+      case "weekly":   cursor = addDays(cursor, 7);   break
+      case "biweekly": cursor = addDays(cursor, 14);  break
+      case "monthly":  cursor = addMonths(cursor, 1); break
+      case "yearly":   cursor = addYears(cursor, 1);  break
+    }
+  }
+
+  return result
+}
+
+// ─── CalendarView ─────────────────────────────────────────────────────────────
+
+function CalendarView({
+  templates,
+  categories,
+  registeringId,
+  onRegister,
+  onEdit,
+}: {
+  templates: RecurringTemplate[]
+  categories: { id: string; name: string; icon: string }[]
+  registeringId: string | null
+  onRegister: (t: RecurringTemplate) => void
+  onEdit: (t: RecurringTemplate) => void
+}) {
+  const today = startOfDay(new Date())
+  const end   = addDays(today, 29) // 30 days inclusive
+
+  // Build a map: "YYYY-MM-DD" → list of templates due that day, plus derived values
+  const { dayMap, sortedDays, windowTotal, daysWithPayments } = useMemo(() => {
+    const map: Map<string, RecurringTemplate[]> = new Map()
+
+    for (const t of templates) {
+      const occurrences = getOccurrencesInRange(t, today, end)
+      for (const date of occurrences) {
+        const key = format(date, "yyyy-MM-dd")
+        if (!map.has(key)) map.set(key, [])
+        map.get(key)!.push(t)
+      }
+    }
+
+    // Sorted list of days within the window that have payments
+    const days: Date[] = []
+    for (let i = 0; i < 30; i++) {
+      const d = addDays(today, i)
+      const key = format(d, "yyyy-MM-dd")
+      if (map.has(key)) days.push(d)
+    }
+
+    // Total spend across all occurrences in window
+    let total = 0
+    map.forEach((items) => items.forEach((t) => { total += t.total }))
+
+    return { dayMap: map, sortedDays: days, windowTotal: total, daysWithPayments: map.size }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templates])
+
+  if (sortedDays.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+          <Calendar className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          No hay vencimientos en los próximos 30 días
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Summary strip */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl border bg-card px-4 py-3">
+          <p className="text-xs text-muted-foreground">Días con pagos</p>
+          <p className="text-xl font-bold tabular-nums">{daysWithPayments}</p>
+          <p className="text-[10px] text-muted-foreground">en los próximos 30 días</p>
+        </div>
+        <div className="rounded-xl border bg-card px-4 py-3">
+          <p className="text-xs text-muted-foreground">Total estimado</p>
+          <p className="text-xl font-bold tabular-nums">${windowTotal.toFixed(2)}</p>
+          <p className="text-[10px] text-muted-foreground">suma de todos los vencimientos</p>
+        </div>
+      </div>
+
+      {/* Day timeline */}
+      <div className="space-y-3">
+        {sortedDays.map((day) => {
+          const key = format(day, "yyyy-MM-dd")
+          const items = dayMap.get(key) ?? []
+          const dayLabel = isToday(day)
+            ? "Hoy"
+            : isTomorrow(day)
+            ? "Mañana"
+            : format(day, "EEEE d 'de' MMMM", { locale: es })
+          const isSoon = !isToday(day) && day <= addDays(today, 7)
+
+          return (
+            <div key={key} className="flex gap-3">
+              {/* Date column */}
+              <div className="w-14 shrink-0 pt-3 text-right">
+                <p className={`text-xs font-bold tabular-nums leading-none ${
+                  isToday(day) ? "text-primary" : "text-foreground"
+                }`}>
+                  {format(day, "d")}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {format(day, "MMM", { locale: es })}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {format(day, "EEE", { locale: es })}
+                </p>
+              </div>
+
+              {/* Connector line + cards */}
+              <div className="flex-1 relative">
+                {/* Vertical line */}
+                <div className={`absolute left-0 top-0 bottom-0 w-px -ml-px ${
+                  isToday(day) ? "bg-primary" : "bg-border"
+                }`} />
+
+                {/* Dot */}
+                <div className={`absolute -left-[5px] top-4 h-2.5 w-2.5 rounded-full border-2 ${
+                  isToday(day)
+                    ? "bg-primary border-primary"
+                    : isSoon
+                    ? "bg-amber-500 border-amber-500"
+                    : "bg-muted border-border"
+                }`} />
+
+                <div className="pl-4 space-y-2 pb-3">
+                  {/* Day label */}
+                  <p className={`text-xs font-semibold capitalize pt-3 ${
+                    isToday(day) ? "text-primary" : "text-muted-foreground"
+                  }`}>
+                    {dayLabel}
+                  </p>
+
+                  {/* Template cards */}
+                  {items.map((t) => {
+                    const cat = categories.find((c) => c.id === t.category)
+                    const isRegistering = registeringId === t.id
+                    return (
+                      <div
+                        key={t.id}
+                        className="rounded-xl border bg-card px-3 py-2.5 flex items-center gap-3"
+                      >
+                        <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center text-sm shrink-0">
+                          {cat?.icon ?? "📦"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{t.merchant}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatCurrency(t.total, t.currency)} · {FREQUENCY_LABELS[t.frequency]}
+                          </p>
+                        </div>
+                        {/* Quick register (only for today) */}
+                        {isToday(day) && (
+                          <Button
+                            size="sm"
+                            className="h-7 px-2 text-xs gap-1 shrink-0"
+                            onClick={() => onRegister(t)}
+                            disabled={isRegistering}
+                          >
+                            {isRegistering
+                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              : <CheckCircle2 className="h-3 w-3" />
+                            }
+                            Pagar
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0 text-muted-foreground"
+                          onClick={() => onEdit(t)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <p className="text-xs text-muted-foreground text-center pb-2">
+        Mostrando vencimientos del {format(today, "d MMM", { locale: es })} al {format(end, "d MMM yyyy", { locale: es })}
+      </p>
     </div>
   )
 }
