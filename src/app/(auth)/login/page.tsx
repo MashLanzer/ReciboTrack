@@ -1,10 +1,9 @@
 "use client"
 
-import { Suspense, useState, useEffect } from "react"
+import { Suspense, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -37,86 +36,34 @@ function LoginForm() {
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
   const [loading, setLoading] = useState(false)
-  // googleLoading solo es true cuando el usuario hizo click en Google
-  // o cuando venimos procesando un redirect de Google con usuario real
   const [googleLoading, setGoogleLoading] = useState(false)
-
-  // Función para guardar cookie de sesión (1 semana)
-  async function saveSession(): Promise<void> {
-    try {
-      const user = getFirebaseAuth().currentUser
-      if (!user) return
-      const idToken = await user.getIdToken()
-      document.cookie = `session=${idToken}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
-    } catch {
-      // Si falla, el AuthGuard maneja el redirect
-    }
-  }
 
   async function initUserProfile(uid: string, displayName: string, email: string) {
     const ref = doc(getFirebaseDb(), "users", uid)
-    await setDoc(
-      ref,
-      {
-        displayName,
-        email,
-        photoURL: getFirebaseAuth().currentUser?.photoURL ?? null,
-        defaultCurrency: "USD",
-      },
-      { merge: true }
-    )
+    await setDoc(ref, {
+      displayName,
+      email,
+      photoURL: getFirebaseAuth().currentUser?.photoURL ?? null,
+      defaultCurrency: "USD",
+    }, { merge: true })
   }
-
-  // Verificar si venimos de un redirect de Google OAuth
-  // Usamos un timeout de 4s para no bloquear la UI si Firebase se cuelga
-  // (ocurre cuando Tracking Prevention bloquea el storage de Google)
-  useEffect(() => {
-    let cancelled = false
-    const timeout = setTimeout(() => {
-      // Si después de 4s no hay resultado, dejamos la UI libre
-      if (!cancelled) setGoogleLoading(false)
-    }, 4000)
-
-    async function checkRedirectResult() {
-      try {
-        const auth = getFirebaseAuth()
-        const result = await getRedirectResult(auth)
-        if (cancelled) return
-        clearTimeout(timeout)
-        if (result?.user) {
-          setGoogleLoading(true)
-          await initUserProfile(
-            result.user.uid,
-            result.user.displayName ?? "",
-            result.user.email ?? ""
-          )
-          await saveSession()
-          router.push(from)
-        }
-      } catch (err: unknown) {
-        if (cancelled) return
-        clearTimeout(timeout)
-        const code = (err as { code?: string }).code
-        if (code && code !== "auth/no-current-user") {
-          toast.error("Error al iniciar sesión con Google")
-        }
-      } finally {
-        if (!cancelled) setGoogleLoading(false)
-      }
-    }
-
-    checkRedirectResult()
-    return () => { cancelled = true; clearTimeout(timeout) }
-  }, [from, router])
 
   async function handleGoogle() {
     setGoogleLoading(true)
     try {
       const provider = new GoogleAuthProvider()
-      await signInWithRedirect(getFirebaseAuth(), provider)
-      // La página se redirige a Google — el resultado se procesa en useEffect al volver
-    } catch (err) {
-      toast.error("Error al iniciar sesión con Google")
+      const result = await signInWithPopup(getFirebaseAuth(), provider)
+      await initUserProfile(
+        result.user.uid,
+        result.user.displayName ?? "",
+        result.user.email ?? ""
+      )
+      router.push(from)
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code ?? ""
+      if (code !== "auth/popup-closed-by-user" && code !== "auth/cancelled-popup-request") {
+        toast.error("Error al iniciar sesión con Google")
+      }
       setGoogleLoading(false)
     }
   }
@@ -133,7 +80,6 @@ function LoginForm() {
       } else {
         await signInWithEmailAndPassword(getFirebaseAuth(), email, password)
       }
-      await saveSession()
       router.push(from)
     } catch (err: unknown) {
       const code = (err as { code?: string }).code

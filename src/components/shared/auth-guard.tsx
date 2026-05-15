@@ -1,30 +1,21 @@
 "use client"
 
 import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
 
   useEffect(() => {
     if (loading) return
-
     if (!user) {
-      router.push("/login")
-      return
+      router.push(`/login?from=${encodeURIComponent(pathname)}`)
     }
-
-    // Firebase recuerda la sesión entre visitas — renovar la cookie si no existe
-    const hasCookie = document.cookie.includes("session=")
-    if (!hasCookie) {
-      user.getIdToken().then((token) => {
-        document.cookie = `session=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
-      })
-    }
-  }, [user, loading, router])
+  }, [user, loading, router, pathname])
 
   if (loading) {
     return (
