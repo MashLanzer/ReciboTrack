@@ -1,0 +1,9 @@
+{
+  "appId": "com.recibotrack.app",
+  "appName": "ReciboTrack",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://recibotrack.vercel.app",
+    "androidScheme": "https"
+  }
+}

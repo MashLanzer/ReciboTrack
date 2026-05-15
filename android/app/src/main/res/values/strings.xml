@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ReciboTrack</string>
+    <string name="title_activity_main">ReciboTrack</string>
+    <string name="package_name">com.recibotrack.app</string>
+    <string name="custom_url_scheme">com.recibotrack.app</string>
+</resources>
