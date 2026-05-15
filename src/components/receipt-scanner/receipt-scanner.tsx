@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { useAddExpense } from "@/hooks/use-expenses"
 import { useUIStore } from "@/stores/ui-store"
@@ -48,7 +48,7 @@ const RECURRING_LABELS: Record<RecurringFrequency, string> = {
 }
 
 export function ReceiptScanner() {
-  const { scannerOpen, setScannerOpen } = useUIStore()
+  const { scannerOpen, setScannerOpen, sharedFile, setSharedFile } = useUIStore()
   const { user } = useAuth()
   const { data: categories = [] } = useCategories()
   const addExpense = useAddExpense()
@@ -69,6 +69,15 @@ export function ReceiptScanner() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
+
+  // Auto-process file shared via Web Share Target
+  useEffect(() => {
+    if (scannerOpen && sharedFile) {
+      setSharedFile(null)
+      processFile(sharedFile, false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scannerOpen, sharedFile])
 
   function resetState() {
     setStep("upload")

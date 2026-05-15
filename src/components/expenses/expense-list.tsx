@@ -19,12 +19,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
-import { Search, MoreHorizontal, Trash2, Edit, Copy, Image, ChevronLeft, ChevronRight, Filter, Tag, X } from "lucide-react"
+import { Search, MoreHorizontal, Trash2, Edit, Copy, Image, ChevronLeft, ChevronRight, Filter, Tag, X, Upload, Sheet, Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { useUIStore } from "@/stores/ui-store"
 import { ExpenseEditDialog } from "./expense-edit-dialog"
+import { CsvImport } from "./csv-import"
 import { exportToCSV, exportToPDF } from "./export-utils"
+import { exportToGoogleSheets } from "@/lib/google-sheets"
 import { ReceiptScanner } from "@/components/receipt-scanner/receipt-scanner"
 import { SwipeableRow } from "@/components/shared/swipeable-row"
 
@@ -38,6 +40,8 @@ interface Filters {
 export function ExpenseList() {
   const [filters, setFilters] = useState<Filters>({ search: "", category: "", tag: "", page: 1 })
   const [editExpense, setEditExpense] = useState<Expense | null>(null)
+  const [csvOpen, setCsvOpen] = useState(false)
+  const [sheetsLoading, setSheetsLoading] = useState(false)
 
   const { data, isLoading } = useExpenses({
     search: filters.search || undefined,
@@ -68,6 +72,19 @@ export function ExpenseList() {
       toast.success("Gasto eliminado")
     } catch {
       toast.error("Error al eliminar")
+    }
+  }
+
+  async function handleGoogleSheets() {
+    setSheetsLoading(true)
+    try {
+      const url = await exportToGoogleSheets(expenses, categories)
+      window.open(url, "_blank")
+      toast.success("Hoja de cálculo creada en Google Drive")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error exportando a Google Sheets")
+    } finally {
+      setSheetsLoading(false)
     }
   }
 
@@ -143,9 +160,17 @@ export function ExpenseList() {
             </SelectContent>
           </Select>
         )}
-        <div className="flex gap-2">
+        <div className="flex gap-1.5 flex-wrap">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setCsvOpen(true)}>
+            <Upload className="h-3.5 w-3.5" />
+            Importar
+          </Button>
           <Button variant="outline" size="sm" onClick={() => exportToCSV(expenses)}>CSV</Button>
           <Button variant="outline" size="sm" onClick={() => exportToPDF(expenses, categories)}>PDF</Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleGoogleSheets} disabled={sheetsLoading}>
+            {sheetsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sheet className="h-3.5 w-3.5" />}
+            Sheets
+          </Button>
         </div>
       </div>
 
@@ -290,6 +315,7 @@ export function ExpenseList() {
       )}
 
       <ExpenseEditDialog expense={editExpense} onClose={() => setEditExpense(null)} />
+      <CsvImport open={csvOpen} onClose={() => setCsvOpen(false)} />
       <ReceiptScanner />
     </div>
   )
