@@ -18,6 +18,7 @@ import { useAddRecurring } from "@/hooks/use-recurring"
 import { PAYMENT_METHODS, CURRENCIES } from "@/lib/constants"
 import type { OcrResultInput } from "@/lib/firebase/schemas"
 import type { ReceiptItem, RecurringFrequency } from "@/types"
+import { runReceiptOcr } from "@/lib/ocr/tesseract"
 import imageCompression from "browser-image-compression"
 import { cn } from "@/lib/utils"
 import { CameraCapture } from "./camera-capture"
@@ -59,6 +60,7 @@ export function ReceiptScanner() {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [allItems, setAllItems] = useState<ReceiptItem[]>([])
   const [scanCount, setScanCount] = useState(0)
+  const [ocrProgress, setOcrProgress] = useState(0)
   const [tagInput, setTagInput] = useState("")
   const [form, setForm] = useState<FormData>({
     merchant: "", date: "", total: "", subtotal: "", tax: "",
@@ -84,6 +86,7 @@ export function ReceiptScanner() {
     setImageUrl(null)
     setAllItems([])
     setScanCount(0)
+    setOcrProgress(0)
     setTagInput("")
     setForm({
       merchant: "", date: "", total: "", subtotal: "", tax: "",
@@ -134,21 +137,22 @@ export function ReceiptScanner() {
     }
 
     setStep("processing")
+    setOcrProgress(0)
 
     try {
-      // Compress — fallback to sync if web worker fails
+      // Compress before OCR to reduce memory usage
       let compressed: File
       try {
         compressed = await imageCompression(file, {
-          maxWidthOrHeight: 1600,
+          maxWidthOrHeight: 1800,
           useWebWorker: true,
-          maxSizeMB: 2,
+          maxSizeMB: 3,
         })
       } catch {
         compressed = await imageCompression(file, {
-          maxWidthOrHeight: 1600,
+          maxWidthOrHeight: 1800,
           useWebWorker: false,
-          maxSizeMB: 2,
+          maxSizeMB: 3,
         })
       }
 
@@ -156,49 +160,13 @@ export function ReceiptScanner() {
         setImageUrl(URL.createObjectURL(compressed))
       }
 
-      // Base64 encode
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onloadend = () => {
-          const result = reader.result as string
-          const b64 = result.split(",")[1]
-          if (!b64) reject(new Error("No se pudo leer la imagen"))
-          else resolve(b64)
-        }
-        reader.onerror = () => reject(new Error("Error leyendo el archivo"))
-        reader.readAsDataURL(compressed)
-      })
+      // OCR runs entirely in the browser — no server, no API key
+      const data: OcrResultInput = await runReceiptOcr(compressed, setOcrProgress)
 
-      // Timeout de 60 segundos para el OCR
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 60_000)
-
-      let response: Response
-      try {
-        response = await fetch("/api/ocr", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ base64, mediaType: compressed.type || "image/jpeg" }),
-          signal: controller.signal,
-        })
-      } finally {
-        clearTimeout(timeoutId)
-      }
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}))
-        throw new Error((err as { error?: string }).error ?? `Error del servidor (${response.status})`)
-      }
-
-      const data: OcrResultInput = await response.json()
       populateForm(data, isAdditional)
       setStep("confirm")
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        toast.error("Tiempo de espera agotado. Intenta con una imagen más pequeña o mejor iluminada.")
-      } else {
-        toast.error(err instanceof Error ? err.message : "Error procesando el recibo")
-      }
+      toast.error(err instanceof Error ? err.message : "Error procesando el recibo")
       setStep(scanCount > 0 ? "confirm" : "upload")
     }
   }
@@ -292,7 +260,7 @@ export function ReceiptScanner() {
           <DialogTitle>
             {step === "upload" && "Escanear recibo"}
             {step === "camera" && "Cámara"}
-            {step === "processing" && "Analizando con IA..."}
+            {step === "processing" && "Leyendo recibo..."}
             {step === "confirm" && (scanCount > 1 ? `Confirmar datos (${scanCount} scans)` : "Confirmar datos")}
           </DialogTitle>
         </DialogHeader>
@@ -360,7 +328,18 @@ export function ReceiptScanner() {
             )}
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-              <span>Claude está extrayendo los datos del recibo...</span>
+              <span>
+                {ocrProgress > 0
+                  ? `Extrayendo texto... ${ocrProgress}%`
+                  : "Cargando motor de reconocimiento..."}
+              </span>
+            </div>
+            {/* Progress bar */}
+            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-300 rounded-full"
+                style={{ width: `${ocrProgress || 5}%` }}
+              />
             </div>
             <div className="space-y-2">
               <Skeleton className="h-4 w-3/4" />
