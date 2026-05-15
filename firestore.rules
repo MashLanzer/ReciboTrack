@@ -78,6 +78,17 @@ service cloud.firestore {
       match /goals/{goalId} {
         allow read, write: if isOwner(userId);
       }
+
+      // Plantillas de gasto rápido
+      match /templates/{templateId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Metadatos del usuario: settings, preferencias, etc.
+      // Ruta: users/{uid}/meta/{docId}  (ej. meta/settings)
+      match /meta/{metaId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // ─── Grupos compartidos (/groups/{groupId}) ────────────────────────────────
