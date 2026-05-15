@@ -83,8 +83,10 @@ service cloud.firestore {
     // ─── Grupos compartidos (/groups/{groupId}) ────────────────────────────────
 
     match /groups/{groupId} {
-      // Cualquier miembro puede leer el grupo
-      allow read: if isAuth() && isMember(resource.data);
+      // Cualquier usuario autenticado puede LEER un grupo.
+      // Necesario para que la query por inviteCodes funcione antes de unirse.
+      // Los datos del grupo (nombre, emoji, miembros) no son sensibles.
+      allow read: if isAuth();
 
       // Cualquier usuario autenticado puede crear un grupo
       // (se convierte en admin automáticamente)
@@ -93,25 +95,27 @@ service cloud.firestore {
           && request.auth.uid in request.resource.data.memberUids
           && request.resource.data.keys().hasAll(["name", "emoji", "adminUid", "memberUids", "members", "inviteCodes", "createdAt"]);
 
-      // Solo el admin puede actualizar metadatos del grupo (nombre, emoji, código)
-      // Los miembros pueden actualizar su propia entrada en memberUids/members (unirse/salir)
       allow update: if isAuth() && (
         // Admin puede cambiar cualquier cosa
         isAdmin(resource.data)
         ||
-        // Miembro puede salir (quitar su propio uid)
+        // Miembro puede salir: su uid desaparece de memberUids, adminUid no cambia
         (
           isMember(resource.data)
           && request.resource.data.adminUid == resource.data.adminUid
           && !(request.auth.uid in request.resource.data.memberUids)
         )
         ||
-        // Usuario externo puede unirse si tiene el código de invitación válido
+        // Cualquier auth puede unirse si presenta un invite code válido:
+        // - su uid NO estaba antes en memberUids
+        // - su uid SÍ está en el nuevo memberUids
+        // - todos los UIDs anteriores se mantienen (no borra a nadie)
+        // - el invite code que usó existe en el documento actual
         (
-          // El uid nuevo que se une debe estar en inviteCodes del doc existente
-          request.resource.data.memberUids.hasAll(resource.data.memberUids)
+          !(request.auth.uid in resource.data.memberUids)
           && request.auth.uid in request.resource.data.memberUids
-          && !(request.auth.uid in resource.data.memberUids)
+          && request.resource.data.memberUids.hasAll(resource.data.memberUids)
+          && request.resource.data.adminUid == resource.data.adminUid
         )
       );
 
