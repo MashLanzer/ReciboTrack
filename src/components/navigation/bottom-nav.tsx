@@ -14,10 +14,11 @@ import {
   MoreHorizontal,
   Sun,
   Moon,
-  UserCircle,
   LogOut,
   X,
+  Search,
 } from "lucide-react"
+import { useUIStore } from "@/stores/ui-store"
 import { toast } from "sonner"
 
 export function BottomNav() {
@@ -25,6 +26,7 @@ export function BottomNav() {
   const router = useRouter()
   const { user } = useAuth()
   const { theme, setTheme } = useTheme()
+  const { setCommandOpen } = useUIStore()
   const [moreOpen, setMoreOpen] = useState(false)
 
   // Close panel on navigation
@@ -126,6 +128,15 @@ export function BottomNav() {
                 <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
               </div>
             </Link>
+
+            {/* Search */}
+            <button
+              onClick={() => { setMoreOpen(false); setCommandOpen(true) }}
+              className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <Search className="h-5 w-5" />
+              <span className="text-[10px] font-medium">Buscar</span>
+            </button>
 
             {/* Theme toggle */}
             <button

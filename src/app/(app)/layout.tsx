@@ -3,11 +3,13 @@ import { BottomNav } from "@/components/navigation/bottom-nav"
 import { AuthGuard } from "@/components/shared/auth-guard"
 import { NotificationInit } from "@/components/shared/notification-init"
 import { UpdateBanner } from "@/components/shared/update-banner"
+import { CommandPalette } from "@/components/shared/command-palette"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
       <NotificationInit />
+      <CommandPalette />
       <div className="flex flex-col min-h-screen">
         <TopNav />
         <UpdateBanner />

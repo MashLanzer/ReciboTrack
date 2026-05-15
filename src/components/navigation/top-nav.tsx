@@ -17,8 +17,9 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu"
-import { LogOut, Moon, Sun, UserCircle, ChevronDown } from "lucide-react"
+import { LogOut, Moon, Sun, UserCircle, ChevronDown, Search } from "lucide-react"
 import { useTheme } from "next-themes"
+import { useUIStore } from "@/stores/ui-store"
 import { toast } from "sonner"
 
 export function TopNav() {
@@ -26,6 +27,7 @@ export function TopNav() {
   const router = useRouter()
   const { user } = useAuth()
   const { theme, setTheme } = useTheme()
+  const { setCommandOpen } = useUIStore()
 
   async function handleSignOut() {
     try {
@@ -108,6 +110,19 @@ export function TopNav() {
       </nav>
 
       <div className="ml-auto flex items-center gap-2">
+        {/* Command palette trigger */}
+        <button
+          onClick={() => setCommandOpen(true)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-sm"
+          aria-label="Búsqueda global"
+        >
+          <Search className="h-3.5 w-3.5" />
+          <span className="hidden lg:inline text-xs">Buscar...</span>
+          <kbd className="hidden lg:inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded border bg-background text-[10px] font-mono text-muted-foreground">
+            ⌘K
+          </kbd>
+        </button>
+
         {/* Theme toggle */}
         <Button
           variant="ghost"
