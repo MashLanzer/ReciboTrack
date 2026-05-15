@@ -6,19 +6,21 @@ import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/
 import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "@/hooks/use-auth"
 import { useCategories } from "@/hooks/use-categories"
+import { useRecurring } from "@/hooks/use-recurring"
 import {
   getCurrentMonthRange,
   getPreviousMonthRange,
   percentChange,
   formatCurrency,
 } from "@/lib/utils"
-import { subMonths, format, startOfMonth, endOfMonth, getDaysInMonth, getDate } from "date-fns"
+import { subMonths, format, startOfMonth, endOfMonth, getDaysInMonth, getDate, addDays, addMonths, addYears, isBefore } from "date-fns"
 import { es } from "date-fns/locale"
 import type { Expense } from "@/types"
+import type { RecurringTemplate, RecurringFrequency } from "@/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
-import { TrendingUp, TrendingDown, Minus, ScanLine, ChevronDown, ChevronUp } from "lucide-react"
+import { TrendingUp, TrendingDown, Minus, ScanLine, ChevronDown, ChevronUp, RefreshCw, AlertCircle } from "lucide-react"
 import { useUIStore } from "@/stores/ui-store"
 import {
   ResponsiveContainer,
@@ -34,6 +36,31 @@ import {
   Line,
 } from "recharts"
 import { cn } from "@/lib/utils"
+
+// ─── Recurring projection helpers ─────────────────────────────────────────────
+
+function getOccurrencesInRange(template: RecurringTemplate, start: Date, end: Date): Date[] {
+  const result: Date[] = []
+  let cursor = new Date(template.nextDueDate.toDate())
+  cursor.setHours(0, 0, 0, 0)
+  const s = new Date(start); s.setHours(0, 0, 0, 0)
+  const e = new Date(end);   e.setHours(23, 59, 59, 999)
+
+  if (cursor > e) return []
+
+  let safety = 0
+  while (cursor <= e && safety < 200) {
+    safety++
+    if (cursor >= s) result.push(new Date(cursor))
+    switch (template.frequency as RecurringFrequency) {
+      case "weekly":   cursor = addDays(cursor, 7);   break
+      case "biweekly": cursor = addDays(cursor, 14);  break
+      case "monthly":  cursor = addMonths(cursor, 1); break
+      case "yearly":   cursor = addYears(cursor, 1);  break
+    }
+  }
+  return result
+}
 
 // ─── Data hooks ────────────────────────────────────────────────────────────────
 
@@ -97,6 +124,7 @@ export function DashboardStats() {
   const { data: all12 = [], isLoading } = use12MonthExpenses()
   const { data: prev = [] } = usePrevMonthExpenses()
   const { data: categories = [] } = useCategories()
+  const { data: recurringTemplates = [] } = useRecurring()
   const { setScannerOpen } = useUIStore()
   const [catExpanded, setCatExpanded] = useState(false)
   const [merchantExpanded, setMerchantExpanded] = useState(false)
@@ -272,6 +300,18 @@ export function DashboardStats() {
           </Card>
         ))}
       </div>
+
+      {/* ── Fixed expense projection ── */}
+      {recurringTemplates.length > 0 && (
+        <FixedProjectionCard
+          templates={recurringTemplates}
+          categories={categories}
+          monthStart={monthStart}
+          monthEnd={monthEnd}
+          currentSpend={currentTotal}
+          projectedTotal={projectedTotal}
+        />
+      )}
 
       {/* ── 12-month bar chart ── */}
       <Card>
@@ -484,6 +524,188 @@ export function DashboardStats() {
         </Card>
       )}
     </div>
+  )
+}
+
+// ─── Fixed Projection Card ─────────────────────────────────────────────────────
+
+function FixedProjectionCard({
+  templates,
+  categories,
+  monthStart,
+  monthEnd,
+  currentSpend,
+  projectedTotal,
+}: {
+  templates: RecurringTemplate[]
+  categories: { id: string; name: string; icon: string; color?: string }[]
+  monthStart: Date
+  monthEnd: Date
+  currentSpend: number
+  projectedTotal: number
+}) {
+  const today = new Date()
+
+  const { fixedThisMonth, pendingItems, paidCount } = useMemo(() => {
+    let fixedThisMonth = 0
+    const pending: Array<{ template: RecurringTemplate; dueDate: Date }> = []
+    let paidCount = 0
+
+    for (const t of templates) {
+      const occurrences = getOccurrencesInRange(t, monthStart, monthEnd)
+      for (const dueDate of occurrences) {
+        fixedThisMonth += t.total
+        // Pending = due date is today or in the future
+        if (!isBefore(dueDate, today) || dueDate.toDateString() === today.toDateString()) {
+          pending.push({ template: t, dueDate })
+        } else {
+          paidCount++
+        }
+      }
+    }
+
+    // Sort pending by due date ascending
+    pending.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+
+    return { fixedThisMonth, pendingItems: pending, paidCount }
+  }, [templates, monthStart, monthEnd, today])
+
+  const pendingAmount = pendingItems.reduce((s, { template: t }) => s + t.total, 0)
+  const committedTotal = currentSpend + pendingAmount
+  // Projection = whatever is higher: the daily-avg projection or what's already committed
+  const adjustedProjection = Math.max(projectedTotal, committedTotal)
+
+  // Bar proportions
+  const barMax = Math.max(adjustedProjection, committedTotal, 1)
+  const spendPct = Math.min((currentSpend / barMax) * 100, 100)
+  const pendingPct = Math.min((pendingAmount / barMax) * 100, 100 - spendPct)
+
+  const [expanded, setExpanded] = useState(false)
+  const visiblePending = expanded ? pendingItems : pendingItems.slice(0, 3)
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+            Proyección con gastos fijos
+          </CardTitle>
+          {pendingItems.length > 0 && (
+            <span className="flex items-center gap-1 text-[10px] text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full">
+              <AlertCircle className="h-3 w-3" />
+              {pendingItems.length} pendiente{pendingItems.length !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* KPI row */}
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Gastado</p>
+            <p className="text-sm font-bold tabular-nums mt-0.5">{formatCurrency(currentSpend)}</p>
+            <p className="text-[10px] text-muted-foreground">hasta hoy</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Pendiente fijo</p>
+            <p className="text-sm font-bold tabular-nums mt-0.5 text-amber-600">{formatCurrency(pendingAmount)}</p>
+            <p className="text-[10px] text-muted-foreground">{pendingItems.length} recurrente{pendingItems.length !== 1 ? "s" : ""}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Comprometido</p>
+            <p className="text-sm font-bold tabular-nums mt-0.5">{formatCurrency(committedTotal)}</p>
+            <p className="text-[10px] text-muted-foreground">vs {formatCurrency(adjustedProjection)} proy.</p>
+          </div>
+        </div>
+
+        {/* Stacked bar */}
+        <div className="space-y-1.5">
+          <div className="h-3 rounded-full bg-muted overflow-hidden flex">
+            <div
+              className="h-full bg-foreground transition-all"
+              style={{ width: `${spendPct}%` }}
+            />
+            <div
+              className="h-full bg-amber-500/60 transition-all"
+              style={{ width: `${pendingPct}%` }}
+            />
+          </div>
+          <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-foreground inline-block" />
+              Gastado
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-amber-500/60 inline-block" />
+              Pendiente fijo
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-muted-foreground/30 inline-block" />
+              Restante libre
+            </span>
+          </div>
+        </div>
+
+        {/* Pending list */}
+        {pendingItems.length > 0 && (
+          <div className="space-y-1 border-t pt-3">
+            <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+              Por pagar este mes
+            </p>
+            {visiblePending.map(({ template: t, dueDate }) => {
+              const cat = categories.find((c) => c.id === t.category)
+              const daysUntil = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+              const isToday = daysUntil === 0
+              const isSoon = daysUntil <= 3 && daysUntil >= 0
+              return (
+                <div key={`${t.id}-${dueDate.toISOString()}`} className="flex items-center gap-3 py-1.5">
+                  <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center text-xs shrink-0">
+                    {cat?.icon ?? "📦"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate">{t.merchant}</p>
+                    <p className={cn(
+                      "text-[10px]",
+                      isToday ? "text-destructive font-medium" :
+                      isSoon  ? "text-amber-600" :
+                                "text-muted-foreground"
+                    )}>
+                      {isToday
+                        ? "Vence hoy"
+                        : daysUntil === 1
+                        ? "Mañana"
+                        : `${format(dueDate, "d MMM", { locale: es })} · en ${daysUntil}d`}
+                    </p>
+                  </div>
+                  <p className="text-xs font-semibold tabular-nums shrink-0">
+                    {formatCurrency(t.total, t.currency)}
+                  </p>
+                </div>
+              )
+            })}
+            {pendingItems.length > 3 && (
+              <button
+                onClick={() => setExpanded((v) => !v)}
+                className="w-full flex items-center justify-center gap-1 pt-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {expanded
+                  ? <><ChevronUp className="h-3 w-3" /> Ver menos</>
+                  : <><ChevronDown className="h-3 w-3" /> Ver {pendingItems.length - 3} más</>}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Already paid summary */}
+        {paidCount > 0 && (
+          <p className="text-[10px] text-muted-foreground text-center border-t pt-2">
+            {paidCount} recurrente{paidCount !== 1 ? "s" : ""} ya vencido{paidCount !== 1 ? "s" : ""} este mes
+            · {formatCurrency(fixedThisMonth - pendingAmount)} comprometido
+          </p>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
