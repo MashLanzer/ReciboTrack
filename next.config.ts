@@ -3,6 +3,22 @@ import withPWA from "@ducanh2912/next-pwa";
 
 const nextConfig: NextConfig = {
   turbopack: {},
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          // Permite que los popups de OAuth (Google) se comuniquen con la app.
+          // "same-origin" (default de Next.js) bloquea window.opener del popup
+          // lo que impide que Firebase signInWithPopup complete el flujo de auth.
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin-allow-popups",
+          },
+        ],
+      },
+    ]
+  },
 };
 
 const withPWAConfig = withPWA({
