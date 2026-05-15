@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useUpdateExpense } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
 import { PAYMENT_METHODS, CURRENCIES } from "@/lib/constants"
-import type { Expense } from "@/types"
+import type { Expense, ReceiptItem } from "@/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,8 +12,10 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { Loader2, Plus, X } from "lucide-react"
+import { Loader2, Plus, X, ChevronDown, ChevronUp, ShoppingCart } from "lucide-react"
 import { format } from "date-fns"
+import { formatCurrency } from "@/lib/utils"
+import { CategorySuggestion } from "@/components/shared/category-suggestion"
 
 interface Props {
   expense: Expense | null
@@ -30,6 +32,8 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
     tags: [] as string[],
   })
   const [tagInput, setTagInput] = useState("")
+  const [items, setItems] = useState<ReceiptItem[]>([])
+  const [itemsOpen, setItemsOpen] = useState(false)
 
   useEffect(() => {
     if (expense) {
@@ -47,8 +51,22 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
         notes: expense.notes,
         tags: expense.tags ?? [],
       })
+      setItems(expense.items ?? [])
+      setItemsOpen((expense.items ?? []).length > 0)
     }
   }, [expense])
+
+  function addItem() {
+    setItems((prev) => [...prev, { name: "", price: 0, quantity: 1 }])
+  }
+
+  function updateItem(idx: number, field: keyof ReceiptItem, value: string | number) {
+    setItems((prev) => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it))
+  }
+
+  function removeItem(idx: number) {
+    setItems((prev) => prev.filter((_, i) => i !== idx))
+  }
 
   function addTag() {
     const t = tagInput.trim().toLowerCase()
@@ -65,11 +83,13 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
     e.preventDefault()
     if (!expense) return
     try {
+      const cleanItems = items.filter((it) => it.name.trim())
       await updateExpense.mutateAsync({
         id: expense.id,
         input: {
           merchant: form.merchant,
           date: new Date(form.date + "T12:00:00"),
+          items: cleanItems,
           total: parseFloat(form.total) || 0,
           subtotal: parseFloat(form.subtotal) || 0,
           tax: parseFloat(form.tax) || 0,
@@ -126,6 +146,11 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
                   ))}
                 </SelectContent>
               </Select>
+              <CategorySuggestion
+                merchant={form.merchant}
+                currentCategory={form.category}
+                onAccept={(cat) => setForm((f) => ({ ...f, category: cat }))}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Moneda</Label>
@@ -180,6 +205,78 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
               )}
             </div>
           </div>
+
+          {/* Line items */}
+          <div className="col-span-2 space-y-1.5 border rounded-lg p-3 bg-muted/30">
+            <button
+              type="button"
+              onClick={() => setItemsOpen((o) => !o)}
+              className="flex items-center justify-between w-full text-sm font-medium"
+            >
+              <span className="flex items-center gap-1.5">
+                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                Artículos
+                {items.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{items.length}</Badge>
+                )}
+              </span>
+              {itemsOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            </button>
+
+            {itemsOpen && (
+              <div className="space-y-2 mt-2">
+                {items.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-2">Sin artículos</p>
+                )}
+                {items.map((item, idx) => (
+                  <div key={idx} className="flex gap-1.5 items-center">
+                    <Input
+                      value={item.name}
+                      onChange={(e) => updateItem(idx, "name", e.target.value)}
+                      placeholder="Nombre"
+                      className="flex-1 h-8 text-xs"
+                    />
+                    <Input
+                      type="number"
+                      min={1}
+                      value={item.quantity}
+                      onChange={(e) => updateItem(idx, "quantity", parseInt(e.target.value) || 1)}
+                      className="w-14 h-8 text-xs tabular-nums text-center"
+                      title="Cantidad"
+                    />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={item.price}
+                      onChange={(e) => updateItem(idx, "price", parseFloat(e.target.value) || 0)}
+                      className="w-20 h-8 text-xs tabular-nums"
+                      title="Precio unitario"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeItem(idx)}
+                      className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {items.length > 0 && (
+                  <div className="flex justify-between text-xs text-muted-foreground pt-1 border-t">
+                    <span>{items.length} artículo{items.length !== 1 ? "s" : ""}</span>
+                    <span className="tabular-nums font-medium">
+                      {formatCurrency(items.reduce((s, it) => s + it.price * it.quantity, 0), form.currency)}
+                    </span>
+                  </div>
+                )}
+                <Button type="button" variant="outline" size="sm" className="w-full h-7 text-xs gap-1.5" onClick={addItem}>
+                  <Plus className="h-3.5 w-3.5" />
+                  Añadir artículo
+                </Button>
+              </div>
+            )}
+          </div>
+
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
             <Button type="submit" disabled={updateExpense.isPending}>

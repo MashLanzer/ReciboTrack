@@ -1,12 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { signOut } from "firebase/auth"
 import { getFirebaseAuth } from "@/lib/firebase/client"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
-import { NAV_ITEMS } from "./nav-items"
+import { NAV_ITEMS, MORE_ITEMS } from "./nav-items"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -15,8 +15,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu"
-import { LogOut, Moon, Sun } from "lucide-react"
+import { LogOut, Moon, Sun, UserCircle, ChevronDown } from "lucide-react"
 import { useTheme } from "next-themes"
 import { toast } from "sonner"
 
@@ -28,9 +29,9 @@ export function TopNav() {
 
   async function handleSignOut() {
     try {
-      document.cookie = "session=; Max-Age=0; path=/"
       await signOut(getFirebaseAuth())
-      router.push("/login")
+      document.cookie = "session=; path=/; Max-Age=0; SameSite=Lax"
+      window.location.href = "/login"
     } catch {
       toast.error("Error al cerrar sesión")
     }
@@ -40,6 +41,11 @@ export function TopNav() {
     ? user.displayName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : user?.email?.slice(0, 2).toUpperCase() ?? "?"
 
+  // Is any "more" item currently active?
+  const moreActive = MORE_ITEMS.some(
+    ({ href }) => pathname === href || pathname.startsWith(href + "/")
+  )
+
   return (
     <header className="hidden md:flex sticky top-0 z-40 h-14 items-center border-b bg-background/95 backdrop-blur-sm px-6 gap-6">
       <Link href="/dashboard" className="font-serif text-lg font-semibold tracking-tight mr-4">
@@ -47,6 +53,7 @@ export function TopNav() {
       </Link>
 
       <nav className="flex items-center gap-1">
+        {/* Main nav items */}
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + "/")
           return (
@@ -65,9 +72,43 @@ export function TopNav() {
             </Link>
           )
         })}
+
+        {/* "Más" dropdown — Recurrentes, Presupuestos, Categorías */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                moreActive
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+              )}
+            >
+              Más
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            {MORE_ITEMS.map(({ href, label, icon: Icon }) => {
+              const active = pathname === href || pathname.startsWith(href + "/")
+              return (
+                <DropdownMenuItem key={href} asChild>
+                  <Link
+                    href={href}
+                    className={cn("flex items-center gap-2 w-full", active && "font-semibold text-foreground")}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </Link>
+                </DropdownMenuItem>
+              )
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </nav>
 
       <div className="ml-auto flex items-center gap-2">
+        {/* Theme toggle */}
         <Button
           variant="ghost"
           size="icon"
@@ -78,6 +119,7 @@ export function TopNav() {
           <Moon className="h-4 w-4 hidden dark:block" />
         </Button>
 
+        {/* User avatar dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-9 w-9 rounded-full p-0">
@@ -87,11 +129,16 @@ export function TopNav() {
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <div className="px-2 py-1.5">
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuLabel className="font-normal pb-1">
               <p className="text-sm font-medium truncate">{user?.displayName ?? "Usuario"}</p>
               <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-            </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => router.push("/profile")}>
+              <UserCircle className="h-4 w-4" />
+              Perfil y ajustes
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
               <LogOut className="h-4 w-4" />

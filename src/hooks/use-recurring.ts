@@ -137,6 +137,25 @@ export function useSnoozeRecurring() {
   })
 }
 
+export function useUpdateRecurring() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, input }: { id: string; input: Partial<RecurringInput> }) => {
+      if (!user) throw new Error("No autenticado")
+      const ref = doc(getFirebaseDb(), "users", user.uid, "recurring", id)
+      const data: Record<string, unknown> = { ...input }
+      if (input.nextDueDate) data.nextDueDate = Timestamp.fromDate(input.nextDueDate)
+      await updateDoc(ref, data)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recurring", user?.uid] })
+      queryClient.invalidateQueries({ queryKey: ["recurring-due", user?.uid] })
+    },
+  })
+}
+
 export function useDeleteRecurring() {
   const { user } = useAuth()
   const queryClient = useQueryClient()

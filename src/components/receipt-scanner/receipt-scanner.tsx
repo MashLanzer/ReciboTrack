@@ -12,16 +12,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { Upload, Loader2, CheckCircle2, X, ScanLine, Plus, RefreshCw, ImageIcon } from "lucide-react"
+import { Upload, Loader2, CheckCircle2, X, ScanLine, Plus, RefreshCw, ImageIcon, FileText, Bookmark, BookmarkCheck, Trash2 } from "lucide-react"
 import { useCategories } from "@/hooks/use-categories"
 import { useAddRecurring } from "@/hooks/use-recurring"
+import { useTemplates, useAddTemplate, useDeleteTemplate, useIncrementTemplateUse } from "@/hooks/use-templates"
 import { PAYMENT_METHODS, CURRENCIES } from "@/lib/constants"
 import type { OcrResultInput } from "@/lib/firebase/schemas"
 import type { ReceiptItem, RecurringFrequency } from "@/types"
 import { runReceiptOcr as runTesseract } from "@/lib/ocr/tesseract"
+import { pdfFirstPageToBlob, pdfToStitchedImage } from "@/lib/ocr/pdf-utils"
 import imageCompression from "browser-image-compression"
+import heic2any from "heic2any"
 import { cn } from "@/lib/utils"
 import { CameraCapture } from "./camera-capture"
+import { CategorySuggestion } from "@/components/shared/category-suggestion"
 
 type Step = "upload" | "camera" | "processing" | "confirm"
 
@@ -52,8 +56,12 @@ export function ReceiptScanner() {
   const { scannerOpen, setScannerOpen, sharedFile, setSharedFile } = useUIStore()
   const { user } = useAuth()
   const { data: categories = [] } = useCategories()
+  const { data: templates = [] } = useTemplates()
   const addExpense = useAddExpense()
   const addRecurring = useAddRecurring()
+  const addTemplate = useAddTemplate()
+  const deleteTemplate = useDeleteTemplate()
+  const incrementTemplateUse = useIncrementTemplateUse()
 
   const [step, setStep] = useState<Step>("upload")
   const [dragOver, setDragOver] = useState(false)
@@ -68,6 +76,11 @@ export function ReceiptScanner() {
     reference: "", notes: "", tags: [], isRecurring: false,
     recurringFrequency: "monthly",
   })
+
+  // Template save dialog
+  const [templateDialog, setTemplateDialog] = useState(false)
+  const [templateName, setTemplateName] = useState("")
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
@@ -88,6 +101,9 @@ export function ReceiptScanner() {
     setScanCount(0)
     setOcrProgress(0)
     setTagInput("")
+    setTemplateDialog(false)
+    setTemplateName("")
+    setActiveTemplateId(null)
     setForm({
       merchant: "", date: "", total: "", subtotal: "", tax: "",
       category: "otros", paymentMethod: "", currency: "USD",
@@ -130,9 +146,18 @@ export function ReceiptScanner() {
     setScanCount((n) => n + 1)
   }
 
-  async function processFile(file: File, isAdditional = false) {
-    if (!file.type.startsWith("image/")) {
-      toast.error("Solo se aceptan imágenes")
+  async function processFile(rawFile: File, isAdditional = false) {
+    // Detectar HEIC por extensión también (algunos navegadores reportan type vacío)
+    const isHeic =
+      rawFile.type === "image/heic" ||
+      rawFile.type === "image/heif" ||
+      /\.(heic|heif)$/i.test(rawFile.name)
+
+    const isPdf = rawFile.type === "application/pdf"
+    const isImage = rawFile.type.startsWith("image/") || isHeic
+
+    if (!isImage && !isPdf) {
+      toast.error("Solo se aceptan imágenes (JPG, PNG, HEIC) o PDFs")
       return
     }
 
@@ -140,36 +165,62 @@ export function ReceiptScanner() {
     setOcrProgress(0)
 
     try {
-      // Compress before OCR to reduce memory usage
-      let compressed: File
-      try {
-        compressed = await imageCompression(file, {
-          maxWidthOrHeight: 1800,
-          useWebWorker: true,
-          maxSizeMB: 3,
-        })
-      } catch {
-        compressed = await imageCompression(file, {
-          maxWidthOrHeight: 1800,
-          useWebWorker: false,
-          maxSizeMB: 3,
-        })
+      // Convertir HEIC a JPEG antes de cualquier otra operación
+      // (los navegadores en Windows/Android no pueden leer HEIC nativamente)
+      let file = rawFile
+      if (isHeic) {
+        try {
+          const converted = await heic2any({ blob: rawFile, toType: "image/jpeg", quality: 0.92 })
+          const blob = Array.isArray(converted) ? converted[0] : converted
+          file = new File([blob], rawFile.name.replace(/\.heic?$/i, ".jpg"), { type: "image/jpeg" })
+        } catch {
+          toast.error("No se pudo convertir el archivo HEIC. Intenta exportarlo como JPG desde tu dispositivo.")
+          setStep("upload")
+          return
+        }
       }
 
-      if (!isAdditional) {
-        setImageUrl(URL.createObjectURL(compressed))
-      }
+      let fileToProcess: File | Blob = file
+      let previewUrl: string | null = null
 
-      // Intentar Gemini (servidor) — más preciso
-      // Si falla (sin internet, quota, error) → Tesseract en el browser
-      let data: OcrResultInput
-      const geminiAvailable = !!process.env.NEXT_PUBLIC_GEMINI_ENABLED
-
-      if (geminiAvailable) {
-        data = await runGeminiOcr(compressed)
+      if (isPdf) {
+        // Preview: solo la primera página (rápido, para mostrar al usuario)
+        // OCR: todas las páginas unidas (para que Gemini vea el documento completo)
+        const [previewBlob, ocrBlob] = await Promise.all([
+          pdfFirstPageToBlob(file),
+          pdfToStitchedImage(file),
+        ])
+        previewUrl = URL.createObjectURL(previewBlob)
+        fileToProcess = new File([ocrBlob], "receipt-pdf.jpg", { type: "image/jpeg" })
       } else {
-        data = await runTesseract(compressed, setOcrProgress)
+        // Imágenes: comprimir para balance calidad/tamaño
+        let compressed: File
+        try {
+          compressed = await imageCompression(file, {
+            maxWidthOrHeight: 2400,
+            useWebWorker: true,
+            maxSizeMB: 4,
+            initialQuality: 0.9,
+          })
+        } catch {
+          compressed = await imageCompression(file, {
+            maxWidthOrHeight: 2400,
+            useWebWorker: false,
+            maxSizeMB: 4,
+            initialQuality: 0.9,
+          })
+        }
+        fileToProcess = compressed
+        previewUrl = URL.createObjectURL(compressed)
       }
+
+      if (!isAdditional && previewUrl) {
+        setImageUrl(previewUrl)
+      }
+
+      // Gemini primero (soporta imágenes Y PDFs nativamente)
+      // Fallback a Tesseract solo si no hay internet o quota excedida
+      const data = await runGeminiOcr(fileToProcess as File)
 
       populateForm(data, isAdditional)
       setStep("confirm")
@@ -180,31 +231,32 @@ export function ReceiptScanner() {
   }
 
   // Llama al API route de Gemini con fallback a Tesseract
+  // Siempre recibe una imagen (los PDFs ya fueron convertidos antes de llegar aquí)
   async function runGeminiOcr(file: File): Promise<OcrResultInput> {
-    // Convertir a base64
     const base64 = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader()
       reader.onloadend = () => {
-        const b64 = (reader.result as string).split(",")[1]
+        const result = reader.result as string
+        const b64 = result.includes(",") ? result.split(",")[1] : result
         if (b64) resolve(b64)
-        else reject(new Error("No se pudo leer la imagen"))
+        else reject(new Error("No se pudo leer el archivo"))
       }
       reader.onerror = reject
       reader.readAsDataURL(file)
     })
 
+    const mediaType = file.type || "image/jpeg"
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 30_000)
+    const timeout = setTimeout(() => controller.abort(), 35_000)
 
     try {
       const res = await fetch("/api/ocr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ base64, mediaType: file.type || "image/jpeg" }),
+        body: JSON.stringify({ base64, mediaType }),
         signal: controller.signal,
       })
 
-      // Quota excedida o error del servidor → fallback silencioso a Tesseract
       if (res.status === 429 || !res.ok) {
         if (res.status !== 429) toast.info("Gemini no disponible, usando OCR local...")
         return runTesseract(file, setOcrProgress)
@@ -212,7 +264,6 @@ export function ReceiptScanner() {
 
       return await res.json() as OcrResultInput
     } catch {
-      // Sin internet o timeout → Tesseract
       toast.info("Sin conexión, usando OCR local...")
       return runTesseract(file, setOcrProgress)
     } finally {
@@ -236,7 +287,11 @@ export function ReceiptScanner() {
     e.preventDefault()
     setDragOver(false)
     const file = e.dataTransfer.files[0]
-    if (file) processFile(file, scanCount > 0)
+    if (!file) return
+    const isHeic = /\.(heic|heif)$/i.test(file.name) || file.type === "image/heic" || file.type === "image/heif"
+    const valid = file.type.startsWith("image/") || file.type === "application/pdf" || isHeic
+    if (!valid) { toast.error("Solo se aceptan imágenes (JPG, PNG, HEIC) o PDFs"); return }
+    processFile(file, scanCount > 0)
   }
 
   function addTag() {
@@ -248,6 +303,50 @@ export function ReceiptScanner() {
 
   function removeTag(tag: string) {
     setForm((f) => ({ ...f, tags: f.tags.filter((t) => t !== tag) }))
+  }
+
+  function applyTemplate(tpl: typeof templates[number]) {
+    const today = new Date().toISOString().split("T")[0]
+    setForm((f) => ({
+      ...f,
+      merchant: tpl.merchant,
+      total: tpl.total.toString(),
+      subtotal: tpl.subtotal.toString(),
+      tax: tpl.tax.toString(),
+      category: tpl.category,
+      paymentMethod: tpl.paymentMethod ?? "",
+      currency: tpl.currency,
+      notes: tpl.notes,
+      tags: tpl.tags,
+      date: f.date || today,
+    }))
+    setActiveTemplateId(tpl.id)
+    incrementTemplateUse.mutate(tpl.id)
+    setStep("confirm")
+  }
+
+  async function handleSaveTemplate() {
+    if (!templateName.trim()) return
+    const cat = categories.find((c) => c.id === form.category)
+    try {
+      await addTemplate.mutateAsync({
+        name: templateName.trim(),
+        merchant: form.merchant || "Sin nombre",
+        category: form.category,
+        total: parseFloat(form.total) || 0,
+        subtotal: parseFloat(form.subtotal) || 0,
+        tax: parseFloat(form.tax) || 0,
+        paymentMethod: form.paymentMethod || null,
+        currency: form.currency,
+        notes: form.notes,
+        tags: form.tags,
+      })
+      toast.success("Plantilla guardada")
+      setTemplateDialog(false)
+      setTemplateName("")
+    } catch {
+      toast.error("Error al guardar la plantilla")
+    }
   }
 
   async function handleConfirm() {
@@ -317,6 +416,40 @@ export function ReceiptScanner() {
         {/* UPLOAD */}
         {step === "upload" && (
           <div className="space-y-3">
+            {/* Plantillas de acceso rápido */}
+            {templates.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                  Acceso rápido
+                </p>
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                  {templates.map((tpl) => {
+                    const cat = categories.find((c) => c.id === tpl.category)
+                    return (
+                      <div key={tpl.id} className="relative shrink-0 group">
+                        <button
+                          onClick={() => applyTemplate(tpl)}
+                          className="flex flex-col items-start gap-0.5 px-3 py-2 rounded-xl border bg-card hover:bg-accent hover:border-primary transition-colors text-left min-w-[100px] max-w-[140px]"
+                        >
+                          <span className="text-lg leading-none">{cat?.icon ?? "📦"}</span>
+                          <span className="text-xs font-medium truncate w-full mt-1">{tpl.name}</span>
+                          <span className="text-[10px] text-muted-foreground tabular-nums">{tpl.currency} {tpl.total.toFixed(2)}</span>
+                        </button>
+                        {/* Delete button */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteTemplate.mutate(tpl.id) }}
+                          className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-destructive text-white items-center justify-center hidden group-hover:flex shadow-sm"
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="h-px bg-border" />
+              </div>
+            )}
+
             {/* Drop zone — desktop */}
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
@@ -329,14 +462,13 @@ export function ReceiptScanner() {
               )}
             >
               <Upload className="h-7 w-7 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm font-medium">Arrastra una foto aquí</p>
-              <p className="text-xs text-muted-foreground mt-1">o elige una opción abajo</p>
+              <p className="text-sm font-medium">Arrastra una foto o PDF aquí</p>
+              <p className="text-xs text-muted-foreground mt-1">JPG, PNG, HEIC, WEBP, PDF — o elige una opción abajo</p>
             </div>
 
-            {/* inputs ocultos */}
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileInput} className="hidden" />
-            {/* gallery: sin capture para forzar galería en móvil */}
-            <input ref={galleryInputRef} type="file" accept="image/*" onChange={handleGalleryInput} className="hidden" />
+            {/* inputs ocultos — accept explícito para HEIC y PDF */}
+            <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif,application/pdf" onChange={handleFileInput} className="hidden" />
+            <input ref={galleryInputRef} type="file" accept="image/*,.heic,.heif,application/pdf" onChange={handleGalleryInput} className="hidden" />
 
             {/* Botones de acción */}
             <div className="grid grid-cols-2 gap-2">
@@ -378,19 +510,16 @@ export function ReceiptScanner() {
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin shrink-0" />
               <span>
-                {process.env.NEXT_PUBLIC_GEMINI_ENABLED
-                  ? "Analizando con Gemini..."
-                  : ocrProgress > 0
-                    ? `Extrayendo texto... ${ocrProgress}%`
-                    : "Cargando motor de reconocimiento..."}
+                {ocrProgress > 0
+                  ? `Extrayendo texto... ${ocrProgress}%`
+                  : "Analizando recibo con IA..."}
               </span>
             </div>
-            {/* Progress bar — solo visible en modo Tesseract */}
-            {!process.env.NEXT_PUBLIC_GEMINI_ENABLED && (
+            {ocrProgress > 0 && (
               <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-primary transition-all duration-300 rounded-full"
-                  style={{ width: `${ocrProgress || 5}%` }}
+                  style={{ width: `${ocrProgress}%` }}
                 />
               </div>
             )}
@@ -405,9 +534,14 @@ export function ReceiptScanner() {
         {/* CONFIRM */}
         {step === "confirm" && (
           <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
-            {imageUrl && (
+            {imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={imageUrl} alt="Recibo" className="w-full max-h-28 object-contain rounded-lg bg-muted" />
+            ) : (
+              <div className="w-full h-16 rounded-lg bg-muted flex items-center justify-center gap-2 text-muted-foreground text-sm">
+                <FileText className="h-5 w-5" />
+                PDF cargado
+              </div>
             )}
 
             <div className="grid grid-cols-2 gap-3">
@@ -444,6 +578,11 @@ export function ReceiptScanner() {
                     ))}
                   </SelectContent>
                 </Select>
+                <CategorySuggestion
+                  merchant={form.merchant}
+                  currentCategory={form.category}
+                  onAccept={(cat) => setForm((f) => ({ ...f, category: cat }))}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Moneda</Label>
@@ -533,7 +672,7 @@ export function ReceiptScanner() {
             </div>
 
             {/* Acciones */}
-            <div className="flex gap-2 pt-1">
+            <div className="flex gap-2 pt-1 flex-wrap">
               <Button variant="outline" size="sm" className="gap-1.5"
                 onClick={() => { if (step === "confirm") setStep("upload") }}>
                 <RefreshCw className="h-3.5 w-3.5" />
@@ -549,11 +688,53 @@ export function ReceiptScanner() {
                 <ScanLine className="h-3.5 w-3.5" />
                 Cámara
               </Button>
-              <Button className="flex-1" onClick={handleConfirm} disabled={isSaving}>
+              {/* Save as template */}
+              {activeTemplateId ? (
+                <Button variant="outline" size="sm" className="gap-1.5 text-primary border-primary/40"
+                  disabled>
+                  <BookmarkCheck className="h-3.5 w-3.5" />
+                  Plantilla activa
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" className="gap-1.5"
+                  onClick={() => { setTemplateName(form.merchant); setTemplateDialog(true) }}>
+                  <Bookmark className="h-3.5 w-3.5" />
+                  Guardar plantilla
+                </Button>
+              )}
+              <Button className="flex-1 min-w-[80px]" onClick={handleConfirm} disabled={isSaving}>
                 {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 Guardar
               </Button>
             </div>
+
+            {/* Save-template mini dialog */}
+            {templateDialog && (
+              <div className="rounded-lg border bg-card p-3 space-y-2 shadow-sm">
+                <p className="text-xs font-medium">Nombre de la plantilla</p>
+                <div className="flex gap-2">
+                  <Input
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSaveTemplate() } }}
+                    placeholder="Ej: Café del trabajo"
+                    className="h-8 text-sm flex-1"
+                    autoFocus
+                  />
+                  <Button size="sm" className="h-8 px-3" onClick={handleSaveTemplate}
+                    disabled={addTemplate.isPending || !templateName.trim()}>
+                    {addTemplate.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Guardar"}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 px-2"
+                    onClick={() => { setTemplateDialog(false); setTemplateName("") }}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Guarda comercio, categoría, monto y método de pago para acceso rápido
+                </p>
+              </div>
+            )}
           </div>
         )}
       </DialogContent>

@@ -8,11 +8,13 @@ interface SwipeableRowProps {
   children: React.ReactNode
   onEdit?: () => void
   onDelete?: () => void
+  /** Disable swipe gestures (e.g. when in bulk-select mode) */
+  disabled?: boolean
   /** Píxeles mínimos para activar el swipe */
   threshold?: number
 }
 
-export function SwipeableRow({ children, onEdit, onDelete, threshold = 60 }: SwipeableRowProps) {
+export function SwipeableRow({ children, onEdit, onDelete, disabled = false, threshold = 60 }: SwipeableRowProps) {
   const startXRef = useRef<number | null>(null)
   const [offset, setOffset] = useState(0)
   const [revealed, setRevealed] = useState<"left" | "right" | null>(null)
@@ -26,11 +28,12 @@ export function SwipeableRow({ children, onEdit, onDelete, threshold = 60 }: Swi
   }, [])
 
   function onTouchStart(e: React.TouchEvent) {
+    if (disabled) return
     startXRef.current = e.touches[0].clientX
   }
 
   function onTouchMove(e: React.TouchEvent) {
-    if (startXRef.current === null) return
+    if (disabled || startXRef.current === null) return
     const dx = e.touches[0].clientX - startXRef.current
 
     // Only allow swipe left (negative dx) to reveal right actions

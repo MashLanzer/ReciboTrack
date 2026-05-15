@@ -6,8 +6,8 @@ import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/
 import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "@/hooks/use-auth"
 import { useCategories } from "@/hooks/use-categories"
-import { useGoals, useAddGoal, useUpdateGoalProgress, useDeleteGoal, type GoalInput, type GoalType } from "@/hooks/use-goals"
-import { formatCurrency, getCurrentMonthRange, getPreviousMonthRange, percentChange } from "@/lib/utils"
+import { useGoals, useAddGoal, useUpdateGoalProgress, useDeleteGoal, type GoalInput } from "@/hooks/use-goals"
+import { formatCurrency, percentChange } from "@/lib/utils"
 import { subMonths, format, startOfMonth, endOfMonth, getDate, getDaysInMonth } from "date-fns"
 import { es } from "date-fns/locale"
 import type { Expense } from "@/types"
@@ -21,10 +21,13 @@ import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { TrendingUp, TrendingDown, Minus, Plus, Trash2, Target, AlertTriangle, Check } from "lucide-react"
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts"
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
+  CartesianGrid, Cell, LineChart, Line, Legend,
+} from "recharts"
 import { CURRENCIES } from "@/lib/constants"
 
-// ─── Data hooks ────────────────────────────────────────────────────────────────
+// ─── Data hook — 6 months of expenses ─────────────────────────────────────────
 
 function use6MonthExpenses() {
   const { user } = useAuth()
@@ -42,23 +45,14 @@ function use6MonthExpenses() {
   })
 }
 
-function usePrevMonthExpenses() {
-  const { user } = useAuth()
-  return useQuery({
-    queryKey: ["expenses-prevmonth", user?.uid],
-    enabled: !!user,
-    queryFn: async () => {
-      if (!user) return []
-      const { start, end } = getPreviousMonthRange()
-      const col = collection(getFirebaseDb(), "users", user.uid, "expenses")
-      const q = query(col,
-        where("date", ">=", Timestamp.fromDate(start)),
-        where("date", "<=", Timestamp.fromDate(end)),
-        orderBy("date", "desc")
-      )
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
-    },
+// ─── Helper: get expenses for a given month offset (0 = current, 1 = prev…) ──
+function expensesForMonth(all: Expense[], offset: number): Expense[] {
+  const ref = subMonths(new Date(), offset)
+  const start = startOfMonth(ref)
+  const end = endOfMonth(ref)
+  return all.filter((e) => {
+    const d = e.date.toDate()
+    return d >= start && d <= end
   })
 }
 
@@ -79,12 +73,14 @@ function DeltaBadge({ value }: { value: number }) {
 
 export default function AnalyticsPage() {
   const { data: all6 = [], isLoading } = use6MonthExpenses()
-  const { data: prev = [] } = usePrevMonthExpenses()
   const { data: categories = [] } = useCategories()
   const { data: goals = [], isLoading: goalsLoading } = useGoals()
   const addGoal = useAddGoal()
   const updateProgress = useUpdateGoalProgress()
   const deleteGoal = useDeleteGoal()
+
+  // 0 = current month, 1 = last month, …, 5 = 5 months ago
+  const [selectedOffset, setSelectedOffset] = useState(0)
 
   const [goalDialog, setGoalDialog] = useState(false)
   const [progressDialog, setProgressDialog] = useState<{ id: string; current: number; name: string } | null>(null)
@@ -94,27 +90,81 @@ export default function AnalyticsPage() {
   })
 
   const today = new Date()
-  const { start: monthStart, end: monthEnd } = getCurrentMonthRange()
   const dayOfMonth = getDate(today)
   const daysInMonth = getDaysInMonth(today)
 
-  const current = useMemo(
-    () => all6.filter((e) => { const d = e.date.toDate(); return d >= monthStart && d <= monthEnd }),
-    [all6, monthStart, monthEnd]
-  )
-  const currentTotal = current.reduce((a, e) => a + e.total, 0)
-  const prevTotal = prev.reduce((a, e) => a + e.total, 0)
+  // Selected month and its comparison (one month earlier)
+  const selected = useMemo(() => expensesForMonth(all6, selectedOffset), [all6, selectedOffset])
+  const compared = useMemo(() => expensesForMonth(all6, selectedOffset + 1), [all6, selectedOffset])
 
-  // ── #15 Comparativa mes actual vs anterior por categoría ──────────────────
+  const selectedTotal = selected.reduce((a, e) => a + e.total, 0)
+  const comparedTotal = compared.reduce((a, e) => a + e.total, 0)
+
+  const selectedMonth = subMonths(today, selectedOffset)
+  const comparedMonth = subMonths(today, selectedOffset + 1)
+
+  // ── 6-month trend data (for the trend bar chart) ───────────────────────────
+  const trendData = useMemo(() => {
+    return Array.from({ length: 6 }, (_, i) => {
+      const offset = 5 - i // oldest first
+      const monthDate = subMonths(today, offset)
+      const monthExpenses = expensesForMonth(all6, offset)
+      return {
+        month: format(monthDate, "MMM", { locale: es }),
+        total: monthExpenses.reduce((a, e) => a + e.total, 0),
+        offset,
+        isSelected: offset === selectedOffset,
+      }
+    })
+  }, [all6, selectedOffset, today])
+
+  // ── Cumulative day-by-day chart ────────────────────────────────────────────
+  const cumulativeData = useMemo(() => {
+    const selStart = startOfMonth(selectedMonth)
+    const selEnd = endOfMonth(selectedMonth)
+    const cmpStart = startOfMonth(comparedMonth)
+
+    // Build daily totals for selected month
+    const selByDay: Record<number, number> = {}
+    selected.forEach((e) => {
+      const day = getDate(e.date.toDate())
+      selByDay[day] = (selByDay[day] ?? 0) + e.total
+    })
+
+    // Build daily totals for compared month
+    const cmpByDay: Record<number, number> = {}
+    compared.forEach((e) => {
+      const day = getDate(e.date.toDate())
+      cmpByDay[day] = (cmpByDay[day] ?? 0) + e.total
+    })
+
+    const days = getDaysInMonth(selectedMonth)
+    let selCum = 0
+    let cmpCum = 0
+    return Array.from({ length: days }, (_, i) => {
+      const day = i + 1
+      selCum += selByDay[day] ?? 0
+      cmpCum += cmpByDay[day] ?? 0
+      // Only show future days of current month as undefined (no projection)
+      const isFuture = selectedOffset === 0 && day > dayOfMonth
+      return {
+        day,
+        [format(selectedMonth, "MMM", { locale: es })]: isFuture ? null : selCum,
+        [format(comparedMonth, "MMM", { locale: es })]: cmpCum,
+      }
+    })
+  }, [selected, compared, selectedMonth, comparedMonth, selectedOffset, dayOfMonth])
+
+  // ── Category comparison ────────────────────────────────────────────────────
   const categoryComparison = useMemo(() => {
     const currMap: Record<string, { total: number; count: number }> = {}
     const prevMap: Record<string, { total: number; count: number }> = {}
-    current.forEach((e) => {
+    selected.forEach((e) => {
       if (!currMap[e.category]) currMap[e.category] = { total: 0, count: 0 }
       currMap[e.category].total += e.total
       currMap[e.category].count++
     })
-    prev.forEach((e) => {
+    compared.forEach((e) => {
       if (!prevMap[e.category]) prevMap[e.category] = { total: 0, count: 0 }
       prevMap[e.category].total += e.total
       prevMap[e.category].count++
@@ -131,29 +181,51 @@ export default function AnalyticsPage() {
         delta: percentChange(c.total, p.total),
       }
     }).sort((a, b) => b.current - a.current)
-  }, [current, prev, categories])
+  }, [selected, compared, categories])
 
-  // Chart data for comparison
+  // Chart data for comparison bar chart
   const comparisonChartData = categoryComparison.slice(0, 8).map((c) => ({
     name: c.icon + " " + c.name.slice(0, 8),
-    "Este mes": c.current,
-    "Mes anterior": c.prev,
+    [format(selectedMonth, "MMM", { locale: es })]: c.current,
+    [format(comparedMonth, "MMM", { locale: es })]: c.prev,
     color: c.color,
   }))
 
-  // ── #14 Límite diario ─────────────────────────────────────────────────────
+  const selLabel = format(selectedMonth, "MMM yyyy", { locale: es })
+  const cmpLabel = format(comparedMonth, "MMM yyyy", { locale: es })
+
+  // ── Daily limit (always uses current month) ───────────────────────────────
+  const currentMonthExpenses = useMemo(() => expensesForMonth(all6, 0), [all6])
+  const currentTotal = currentMonthExpenses.reduce((a, e) => a + e.total, 0)
   const dailyLimitGoal = goals.find((g) => g.type === "daily_limit" && g.isActive)
   const dailySpend = useMemo(() => {
     const todayStr = format(today, "yyyy-MM-dd")
-    return current
+    return currentMonthExpenses
       .filter((e) => format(e.date.toDate(), "yyyy-MM-dd") === todayStr)
       .reduce((a, e) => a + e.total, 0)
-  }, [current, today])
+  }, [currentMonthExpenses, today])
 
   const dailyAvgThisMonth = currentTotal / Math.max(dayOfMonth, 1)
   const projectedMonthEnd = dailyAvgThisMonth * daysInMonth
 
-  // ── #13 Metas de ahorro ────────────────────────────────────────────────────
+  // ── Daily heatmap: spending per day for current month ─────────────────────
+  const dailyHeatmap = useMemo(() => {
+    const byDay: Record<number, number> = {}
+    currentMonthExpenses.forEach((e) => {
+      const day = getDate(e.date.toDate())
+      byDay[day] = (byDay[day] ?? 0) + e.total
+    })
+    const limit = dailyLimitGoal?.targetAmount ?? null
+    const firstDayOfWeek = new Date(today.getFullYear(), today.getMonth(), 1).getDay() // 0=Sun
+    return { byDay, limit, firstDayOfWeek }
+  }, [currentMonthExpenses, dailyLimitGoal, today])
+
+  const daysOverLimit = useMemo(() => {
+    if (!dailyLimitGoal) return 0
+    return Object.values(dailyHeatmap.byDay).filter((v) => v > dailyLimitGoal.targetAmount).length
+  }, [dailyHeatmap, dailyLimitGoal])
+
+  // ── Saving goals ──────────────────────────────────────────────────────────
   const savingGoals = goals.filter((g) => g.type === "saving")
 
   async function handleAddGoal() {
@@ -205,48 +277,134 @@ export default function AnalyticsPage() {
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-5">
       <h1 className="font-serif text-2xl">Análisis</h1>
 
-      {/* ── #15 Comparativa este mes vs anterior ── */}
+      {/* ── Tendencia 6 meses (clickable to select month) ── */}
+      <Card>
+        <CardHeader className="pb-1">
+          <CardTitle className="text-sm font-medium">Tendencia — últimos 6 meses</CardTitle>
+          <p className="text-[11px] text-muted-foreground">Toca un mes para compararlo con el anterior</p>
+        </CardHeader>
+        <CardContent className="px-2 pb-3">
+          <ResponsiveContainer width="100%" height={130}>
+            <BarChart data={trendData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}
+              onClick={(d: any) => { if (d?.activePayload?.[0]) setSelectedOffset((d.activePayload[0].payload as typeof trendData[0]).offset) }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.06} vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false} width={30}
+                tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v} />
+              <Tooltip
+                formatter={(v) => formatCurrency(Number(v))}
+                contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }}
+              />
+              <Bar dataKey="total" radius={[4, 4, 0, 0]} cursor="pointer">
+                {trendData.map((entry) => (
+                  <Cell
+                    key={entry.offset}
+                    fillOpacity={entry.isSelected ? 1 : 0.35}
+                    fill="hsl(var(--foreground))"
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* ── Comparativa mes seleccionado vs anterior ── */}
       <Card>
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium">
-              Este mes vs mes anterior
-            </CardTitle>
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground">
-                {format(monthStart, "MMM", { locale: es })} <span className="font-semibold text-foreground">{formatCurrency(currentTotal)}</span>
-                {" · "}
-                {format(subMonths(today, 1), "MMM", { locale: es })} <span className="font-semibold text-foreground">{formatCurrency(prevTotal)}</span>
-              </p>
-              <DeltaBadge value={percentChange(currentTotal, prevTotal)} />
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <CardTitle className="text-sm font-medium capitalize">{selLabel} vs {cmpLabel}</CardTitle>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">{formatCurrency(selectedTotal)}</span> vs {formatCurrency(comparedTotal)}
+                </span>
+                <DeltaBadge value={percentChange(selectedTotal, comparedTotal)} />
+              </div>
+            </div>
+            {/* Month navigation */}
+            <div className="flex items-center gap-1">
+              <Button size="icon" variant="outline" className="h-7 w-7"
+                onClick={() => setSelectedOffset((o) => Math.min(o + 1, 4))}
+                disabled={selectedOffset >= 4}>
+                <TrendingDown className="h-3.5 w-3.5 rotate-90" />
+              </Button>
+              <span className="text-xs w-16 text-center font-medium capitalize">
+                {format(selectedMonth, "MMM yy", { locale: es })}
+              </span>
+              <Button size="icon" variant="outline" className="h-7 w-7"
+                onClick={() => setSelectedOffset((o) => Math.max(o - 1, 0))}
+                disabled={selectedOffset === 0}>
+                <TrendingUp className="h-3.5 w-3.5 rotate-90" />
+              </Button>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
-          {/* Bar chart */}
-          <div className="px-2 pb-2">
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={comparisonChartData} margin={{ top: 8, right: 8, bottom: 0, left: -12 }} barGap={2}>
+        <CardContent className="p-0 space-y-0">
+          {/* Cumulative spending curve */}
+          <div className="px-2 pt-1 pb-2">
+            <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-2 mb-1">Gasto acumulado por día</p>
+            <ResponsiveContainer width="100%" height={160}>
+              <LineChart data={cumulativeData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.06} vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} width={32} />
+                <XAxis dataKey="day" tick={{ fontSize: 9 }} axisLine={false} tickLine={false}
+                  tickFormatter={(v) => v % 5 === 0 || v === 1 ? String(v) : ""} />
+                <YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false} width={30}
+                  tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v} />
                 <Tooltip
                   formatter={(v) => formatCurrency(Number(v))}
                   contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }}
                 />
-                <Bar dataKey="Mes anterior" radius={[3, 3, 0, 0]} fillOpacity={0.25} fill="hsl(var(--foreground))" />
-                <Bar dataKey="Este mes" radius={[3, 3, 0, 0]} fillOpacity={0.85} fill="hsl(var(--foreground))" />
-              </BarChart>
+                <Legend wrapperStyle={{ fontSize: 10, paddingTop: 4 }} />
+                <Line
+                  type="monotone"
+                  dataKey={format(comparedMonth, "MMM", { locale: es })}
+                  stroke="hsl(var(--muted-foreground))"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 3"
+                  dot={false}
+                  connectNulls
+                />
+                <Line
+                  type="monotone"
+                  dataKey={format(selectedMonth, "MMM", { locale: es })}
+                  stroke="hsl(var(--foreground))"
+                  strokeWidth={2}
+                  dot={false}
+                  connectNulls
+                />
+              </LineChart>
             </ResponsiveContainer>
           </div>
+
+          {/* Category bar chart */}
+          {comparisonChartData.length > 0 && (
+            <div className="px-2 pb-2 border-t pt-2">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-2 mb-1">Por categoría</p>
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={comparisonChartData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }} barGap={2}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.06} vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false} width={30}
+                    tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v} />
+                  <Tooltip
+                    formatter={(v) => formatCurrency(Number(v))}
+                    contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }}
+                  />
+                  <Bar dataKey={format(comparedMonth, "MMM", { locale: es })} radius={[3, 3, 0, 0]} fillOpacity={0.3} fill="hsl(var(--foreground))" />
+                  <Bar dataKey={format(selectedMonth, "MMM", { locale: es })} radius={[3, 3, 0, 0]} fillOpacity={0.85} fill="hsl(var(--foreground))" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
 
           {/* Comparison table */}
           <table className="w-full text-sm border-t">
             <thead>
               <tr className="border-b">
                 <th className="text-left text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-4 py-2">Categoría</th>
-                <th className="text-right text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-2 py-2">Anterior</th>
-                <th className="text-right text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-2 py-2">Actual</th>
+                <th className="text-right text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-2 py-2 capitalize">{format(comparedMonth, "MMM", { locale: es })}</th>
+                <th className="text-right text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-2 py-2 capitalize">{format(selectedMonth, "MMM", { locale: es })}</th>
                 <th className="text-right text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-4 py-2">Δ</th>
               </tr>
             </thead>
@@ -271,33 +429,49 @@ export default function AnalyticsPage() {
             <tfoot>
               <tr className="border-t bg-muted/30">
                 <td className="px-4 py-2 text-xs font-semibold">Total</td>
-                <td className="text-right px-2 py-2 tabular-nums text-xs text-muted-foreground">{formatCurrency(prevTotal)}</td>
-                <td className="text-right px-2 py-2 tabular-nums text-xs font-bold">{formatCurrency(currentTotal)}</td>
-                <td className="text-right px-4 py-2"><DeltaBadge value={percentChange(currentTotal, prevTotal)} /></td>
+                <td className="text-right px-2 py-2 tabular-nums text-xs text-muted-foreground">{formatCurrency(comparedTotal)}</td>
+                <td className="text-right px-2 py-2 tabular-nums text-xs font-bold">{formatCurrency(selectedTotal)}</td>
+                <td className="text-right px-4 py-2"><DeltaBadge value={percentChange(selectedTotal, comparedTotal)} /></td>
               </tr>
             </tfoot>
           </table>
         </CardContent>
       </Card>
 
-      {/* ── #14 Límite de gasto diario ── */}
+      {/* ── #10 Límite de gasto diario con historial ── */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium">Gasto diario de hoy</CardTitle>
-            {!dailyLimitGoal && (
+            <div>
+              <CardTitle className="text-sm font-medium">Gasto diario</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {format(today, "MMMM yyyy", { locale: es })}
+              </p>
+            </div>
+            {!dailyLimitGoal ? (
               <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
                 onClick={() => { setGoalForm({ type: "daily_limit", name: "Límite diario", targetAmount: 50, currentAmount: 0, currency: "USD", deadline: null }); setGoalDialog(true) }}>
                 <Plus className="h-3 w-3" /> Configurar límite
               </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Límite: {formatCurrency(dailyLimitGoal.targetAmount)}/día</span>
+                <button onClick={() => handleDeleteGoal(dailyLimitGoal.id)}
+                  className="text-muted-foreground hover:text-destructive transition-colors">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             )}
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
+          {/* Stats row */}
           <div className="grid grid-cols-3 gap-3 text-center">
             <div>
               <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Hoy</p>
-              <p className="tabular-nums text-lg font-bold mt-0.5">{formatCurrency(dailySpend)}</p>
+              <p className={`tabular-nums text-lg font-bold mt-0.5 ${dailyLimitGoal && dailySpend >= dailyLimitGoal.targetAmount ? "text-destructive" : ""}`}>
+                {formatCurrency(dailySpend)}
+              </p>
             </div>
             <div>
               <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Promedio/día</p>
@@ -309,39 +483,127 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
+          {/* Today's progress bar */}
           {dailyLimitGoal && (
-            <div className="space-y-2 pt-1">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   {dailySpend >= dailyLimitGoal.targetAmount
-                    ? <AlertTriangle className="h-4 w-4 text-destructive" />
-                    : <Check className="h-4 w-4 text-green-600" />}
+                    ? <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                    : <Check className="h-3.5 w-3.5 text-green-600" />}
                   <span className="text-xs font-medium">
-                    Límite: {formatCurrency(dailyLimitGoal.targetAmount)}
+                    {dailySpend >= dailyLimitGoal.targetAmount
+                      ? `Superado por ${formatCurrency(dailySpend - dailyLimitGoal.targetAmount)}`
+                      : `${formatCurrency(Math.max(dailyLimitGoal.targetAmount - dailySpend, 0))} disponible hoy`}
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs tabular-nums text-muted-foreground">
-                    {formatCurrency(Math.max(dailyLimitGoal.targetAmount - dailySpend, 0))} restante
-                  </span>
-                  <button onClick={() => handleDeleteGoal(dailyLimitGoal.id)}
-                    className="text-muted-foreground hover:text-destructive transition-colors">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {Math.round((dailySpend / dailyLimitGoal.targetAmount) * 100)}%
+                </span>
               </div>
               <Progress
                 value={Math.min((dailySpend / dailyLimitGoal.targetAmount) * 100, 100)}
-                className="h-2"
+                className="h-1.5"
               />
-              {dailySpend >= dailyLimitGoal.targetAmount && (
-                <p className="text-xs text-destructive font-medium flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  Has superado tu límite diario por {formatCurrency(dailySpend - dailyLimitGoal.targetAmount)}
-                </p>
-              )}
             </div>
           )}
+
+          {/* Calendar heatmap */}
+          <div className="space-y-2">
+            {/* Day-of-week headers */}
+            <div className="grid grid-cols-7 gap-0.5">
+              {["D", "L", "M", "X", "J", "V", "S"].map((d) => (
+                <div key={d} className="text-center text-[10px] text-muted-foreground font-medium py-0.5">{d}</div>
+              ))}
+            </div>
+            {/* Calendar grid */}
+            <div className="grid grid-cols-7 gap-0.5">
+              {/* Empty cells for days before the 1st */}
+              {Array.from({ length: dailyHeatmap.firstDayOfWeek }, (_, i) => (
+                <div key={`empty-${i}`} />
+              ))}
+              {/* Day cells */}
+              {Array.from({ length: daysInMonth }, (_, i) => {
+                const day = i + 1
+                const spend = dailyHeatmap.byDay[day] ?? 0
+                const isFuture = day > dayOfMonth
+                const isToday = day === dayOfMonth
+                const isOver = dailyLimitGoal && spend > dailyLimitGoal.targetAmount
+                const hasSpend = spend > 0
+
+                let cellClass = "rounded aspect-square flex items-center justify-center text-[10px] font-medium relative group cursor-default"
+                if (isFuture) {
+                  cellClass += " bg-muted/30 text-muted-foreground/40"
+                } else if (isOver) {
+                  cellClass += " bg-destructive/20 text-destructive font-semibold"
+                } else if (hasSpend) {
+                  cellClass += " bg-green-500/20 text-green-700 dark:text-green-400"
+                } else {
+                  cellClass += " bg-muted/50 text-muted-foreground/60"
+                }
+                if (isToday) {
+                  cellClass += " ring-2 ring-primary ring-offset-1"
+                }
+
+                return (
+                  <div key={day} className={cellClass} title={spend > 0 ? formatCurrency(spend) : undefined}>
+                    {day}
+                    {/* Tooltip on hover */}
+                    {!isFuture && (
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:flex flex-col items-center z-10 pointer-events-none">
+                        <div className="bg-popover border rounded px-2 py-1 text-xs shadow-md whitespace-nowrap">
+                          <span className="font-semibold">{formatCurrency(spend)}</span>
+                          {dailyLimitGoal && (
+                            <span className={`ml-1 ${isOver ? "text-destructive" : "text-green-600"}`}>
+                              {isOver ? "▲" : "✓"}
+                            </span>
+                          )}
+                        </div>
+                        <div className="w-1.5 h-1.5 bg-popover border-b border-r rotate-45 -mt-1" />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Monthly summary when limit is set */}
+          {dailyLimitGoal && (
+            <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2">
+              <div className="flex items-center gap-1.5">
+                {daysOverLimit === 0
+                  ? <Check className="h-3.5 w-3.5 text-green-600" />
+                  : <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}
+                <span className="text-xs font-medium">
+                  {daysOverLimit === 0
+                    ? "Sin días sobre el límite este mes"
+                    : `${daysOverLimit} día${daysOverLimit !== 1 ? "s" : ""} sobre el límite`}
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                de {dayOfMonth} registrados
+              </span>
+            </div>
+          )}
+
+          {/* Legend */}
+          <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <div className="h-3 w-3 rounded bg-green-500/20" />
+              <span>Bajo el límite</span>
+            </div>
+            {dailyLimitGoal && (
+              <div className="flex items-center gap-1">
+                <div className="h-3 w-3 rounded bg-destructive/20" />
+                <span>Sobre el límite</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1">
+              <div className="h-3 w-3 rounded bg-muted/50" />
+              <span>Sin gasto</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

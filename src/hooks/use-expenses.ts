@@ -22,12 +22,15 @@ function expensesCollection(uid: string) {
   return collection(getFirebaseDb(), "users", uid, "expenses")
 }
 
+export type ExpenseSort = "date_desc" | "date_asc" | "amount_desc" | "amount_asc"
+
 export function useExpenses(filters?: {
   category?: string
   startDate?: Date
   endDate?: Date
   search?: string
   page?: number
+  sort?: ExpenseSort
 }) {
   const { user } = useAuth()
 
@@ -59,15 +62,31 @@ export function useExpenses(filters?: {
           (e) =>
             e.merchant.toLowerCase().includes(s) ||
             (e.reference?.toLowerCase().includes(s) ?? false) ||
-            (e.notes?.toLowerCase().includes(s) ?? false)
+            (e.notes?.toLowerCase().includes(s) ?? false) ||
+            (e.tags?.some((t) => t.toLowerCase().includes(s)) ?? false) ||
+            (e.items?.some((it) => it.name.toLowerCase().includes(s)) ?? false)
         )
       }
+
+      // Collect all unique tags before pagination so the filter dropdown is complete
+      const allTags = [...new Set(expenses.flatMap((e) => e.tags ?? []))].sort()
+
+      // Sort (Firestore returns date_desc by default; other sorts done client-side)
+      const sort = filters?.sort ?? "date_desc"
+      if (sort === "date_asc") {
+        expenses = [...expenses].reverse()
+      } else if (sort === "amount_desc") {
+        expenses = [...expenses].sort((a, b) => b.total - a.total)
+      } else if (sort === "amount_asc") {
+        expenses = [...expenses].sort((a, b) => a.total - b.total)
+      }
+      // date_desc: already ordered by Firestore
 
       const total = expenses.length
       const page = filters?.page ?? 1
       const paginated = expenses.slice((page - 1) * EXPENSES_PER_PAGE, page * EXPENSES_PER_PAGE)
 
-      return { expenses: paginated, total }
+      return { expenses: paginated, total, allTags }
     },
   })
 }

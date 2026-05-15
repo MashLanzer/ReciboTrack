@@ -41,19 +41,25 @@ function BalanceSummary({ expenses, currentUid, members }: {
     members.forEach((m) => { map[m.uid] = 0 })
 
     expenses.forEach((e) => {
-      const total = e.total
-      const splitUids = e.splitWith.length > 0 ? e.splitWith : [e.paidByUid]
-      const share = e.splitType === "equal" ? total / splitUids.length : total
-
-      // Payer lent money to others
       if (e.splitType === "equal") {
+        const splitUids = e.splitWith.length > 0 ? e.splitWith : [e.paidByUid]
+        const share = e.total / splitUids.length
         splitUids.forEach((uid) => {
           if (uid !== e.paidByUid) {
             map[e.paidByUid] = (map[e.paidByUid] ?? 0) + share
             map[uid] = (map[uid] ?? 0) - share
           }
         })
+      } else if (e.splitType === "custom" && e.customShares) {
+        // Each non-payer owes their designated share to the payer
+        Object.entries(e.customShares).forEach(([uid, amount]) => {
+          if (uid !== e.paidByUid && amount > 0) {
+            map[e.paidByUid] = (map[e.paidByUid] ?? 0) + amount
+            map[uid] = (map[uid] ?? 0) - amount
+          }
+        })
       }
+      // "full" = no split, no balance changes
     })
 
     return members.map((m) => ({ ...m, balance: map[m.uid] ?? 0 }))
@@ -104,8 +110,9 @@ function GroupDetail({ group, onBack }: { group: Group; onBack: () => void }) {
     merchant: "", date: new Date().toISOString().split("T")[0],
     total: "", subtotal: "", tax: "0", category: "otros",
     paymentMethod: "", currency: "USD", notes: "",
-    splitType: "equal" as "equal" | "full",
+    splitType: "equal" as "equal" | "full" | "custom",
     splitWith: group.members.map((m) => m.uid),
+    customShares: Object.fromEntries(group.members.map((m) => [m.uid, ""])) as Record<string, string>,
   })
 
   const inviteCode = group.inviteCodes?.[0] ?? "—"
@@ -123,6 +130,24 @@ function GroupDetail({ group, onBack }: { group: Group; onBack: () => void }) {
     if (!expenseForm.merchant || !expenseForm.total) {
       toast.error("Completa comercio y monto"); return
     }
+    const totalAmt = parseFloat(expenseForm.total) || 0
+
+    // Validate custom shares
+    if (expenseForm.splitType === "custom") {
+      const sharesSum = expenseForm.splitWith.reduce(
+        (acc, uid) => acc + (parseFloat(expenseForm.customShares[uid] ?? "0") || 0), 0
+      )
+      if (Math.abs(sharesSum - totalAmt) > 0.01) {
+        toast.error(`La suma de partes (${sharesSum.toFixed(2)}) no coincide con el total (${totalAmt.toFixed(2)})`); return
+      }
+    }
+
+    const customSharesPayload = expenseForm.splitType === "custom"
+      ? Object.fromEntries(
+          expenseForm.splitWith.map((uid) => [uid, parseFloat(expenseForm.customShares[uid] ?? "0") || 0])
+        )
+      : undefined
+
     try {
       await addExpense.mutateAsync({
         groupId: group.id,
@@ -130,9 +155,9 @@ function GroupDetail({ group, onBack }: { group: Group; onBack: () => void }) {
           merchant: expenseForm.merchant,
           date: new Date(expenseForm.date + "T12:00:00"),
           items: [],
-          subtotal: parseFloat(expenseForm.subtotal) || parseFloat(expenseForm.total) || 0,
+          subtotal: parseFloat(expenseForm.subtotal) || totalAmt,
           tax: parseFloat(expenseForm.tax) || 0,
-          total: parseFloat(expenseForm.total) || 0,
+          total: totalAmt,
           paymentMethod: expenseForm.paymentMethod || null,
           reference: null,
           category: expenseForm.category,
@@ -143,12 +168,25 @@ function GroupDetail({ group, onBack }: { group: Group; onBack: () => void }) {
         },
         splitWith: expenseForm.splitWith,
         splitType: expenseForm.splitType,
+        customShares: customSharesPayload,
       })
       toast.success("Gasto añadido al grupo")
       setAddOpen(false)
     } catch {
       toast.error("Error al añadir gasto")
     }
+  }
+
+  // Distribute total equally among selected members (helper for custom mode)
+  function distributeEqually() {
+    const total = parseFloat(expenseForm.total) || 0
+    const count = expenseForm.splitWith.length
+    if (count === 0) return
+    const share = (total / count).toFixed(2)
+    setExpenseForm((f) => ({
+      ...f,
+      customShares: Object.fromEntries(f.splitWith.map((uid) => [uid, share])),
+    }))
   }
 
   async function handleDelete(e: GroupExpense) {
@@ -214,8 +252,17 @@ function GroupDetail({ group, onBack }: { group: Group; onBack: () => void }) {
           ) : expenses.map((e) => {
             const cat = categories.find((c) => c.id === e.category)
             const isMyExpense = e.paidByUid === user?.uid
+            const myUid = user?.uid ?? ""
             const myShare = e.splitType === "equal" && e.splitWith.length > 0
-              ? e.total / e.splitWith.length : e.total
+              ? e.total / e.splitWith.length
+              : e.splitType === "custom" && e.customShares
+              ? (e.customShares[myUid] ?? 0)
+              : e.total
+            const splitLabel = e.splitType === "equal"
+              ? `÷${e.splitWith.length}`
+              : e.splitType === "custom"
+              ? "⚖️"
+              : null
             return (
               <div key={e.id} className="flex items-center gap-3 p-3 rounded-xl border hover:bg-accent/20 transition-colors group">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-base"
@@ -228,18 +275,20 @@ function GroupDetail({ group, onBack }: { group: Group; onBack: () => void }) {
                     <p className="text-xs text-muted-foreground">
                       {isMyExpense ? "Tú pagaste" : `Pagó ${e.paidByName}`}
                     </p>
-                    {e.splitType === "equal" && e.splitWith.length > 1 && (
+                    {splitLabel && (
                       <Badge variant="outline" className="text-[10px] h-4 px-1">
-                        ÷{e.splitWith.length}
+                        {splitLabel}
                       </Badge>
                     )}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="tabular-nums text-sm font-semibold">{formatCurrency(e.total, e.currency)}</p>
-                  {e.splitType === "equal" && e.splitWith.length > 1 && (
+                  {e.splitType !== "full" && e.splitWith.length > 1 && (
                     <p className="text-[11px] text-muted-foreground tabular-nums">
-                      {isMyExpense ? `cobras ${formatCurrency(myShare * (e.splitWith.length - 1), e.currency)}` : `tu parte ${formatCurrency(myShare, e.currency)}`}
+                      {isMyExpense
+                        ? `cobras ${formatCurrency(e.total - myShare, e.currency)}`
+                        : `tu parte ${formatCurrency(myShare, e.currency)}`}
                     </p>
                   )}
                 </div>
@@ -362,39 +411,91 @@ function GroupDetail({ group, onBack }: { group: Group; onBack: () => void }) {
             {/* Split type */}
             <div className="rounded-lg border p-3 space-y-3">
               <p className="text-xs font-medium">División del gasto</p>
-              <div className="grid grid-cols-2 gap-2">
-                {(["equal", "full"] as const).map((type) => (
+              <div className="grid grid-cols-3 gap-1.5">
+                {(["equal", "custom", "full"] as const).map((type) => (
                   <button key={type} onClick={() => setExpenseForm((f) => ({ ...f, splitType: type }))}
-                    className={`rounded-lg border p-2 text-xs text-center transition-colors ${expenseForm.splitType === type ? "border-foreground bg-accent" : "border-border"}`}>
-                    {type === "equal" ? "÷ Partes iguales" : "👤 Solo yo lo pagué"}
+                    className={`rounded-lg border p-2 text-[11px] text-center transition-colors leading-tight ${expenseForm.splitType === type ? "border-foreground bg-accent font-medium" : "border-border text-muted-foreground"}`}>
+                    {type === "equal" ? "÷ Iguales" : type === "custom" ? "⚖️ Personalizado" : "👤 Solo yo"}
                   </button>
                 ))}
               </div>
 
-              {expenseForm.splitType === "equal" && (
-                <div className="space-y-1">
+              {(expenseForm.splitType === "equal" || expenseForm.splitType === "custom") && (
+                <div className="space-y-2">
                   <p className="text-[11px] text-muted-foreground">¿Quiénes participan?</p>
-                  {group.members.map((m) => (
-                    <label key={m.uid} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={expenseForm.splitWith.includes(m.uid)}
-                        onChange={(e) => {
-                          setExpenseForm((f) => ({
-                            ...f,
-                            splitWith: e.target.checked
-                              ? [...f.splitWith, m.uid]
-                              : f.splitWith.filter((u) => u !== m.uid),
-                          }))
-                        }}
-                      />
-                      <span className="text-xs">{m.displayName}{m.uid === user?.uid ? " (tú)" : ""}</span>
-                    </label>
-                  ))}
-                  {expenseForm.splitWith.length > 0 && expenseForm.total && (
-                    <p className="text-[11px] text-muted-foreground pt-1">
-                      Parte por persona: {formatCurrency(parseFloat(expenseForm.total) / expenseForm.splitWith.length)}
+                  {group.members.map((m) => {
+                    const checked = expenseForm.splitWith.includes(m.uid)
+                    return (
+                      <div key={m.uid} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            setExpenseForm((f) => ({
+                              ...f,
+                              splitWith: e.target.checked
+                                ? [...f.splitWith, m.uid]
+                                : f.splitWith.filter((u) => u !== m.uid),
+                            }))
+                          }}
+                          className="shrink-0"
+                        />
+                        <span className="text-xs flex-1 truncate">
+                          {m.displayName}{m.uid === user?.uid ? " (tú)" : ""}
+                        </span>
+                        {expenseForm.splitType === "custom" && checked && (
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min={0}
+                            value={expenseForm.customShares[m.uid] ?? ""}
+                            onChange={(e) => setExpenseForm((f) => ({
+                              ...f,
+                              customShares: { ...f.customShares, [m.uid]: e.target.value },
+                            }))}
+                            className="w-24 h-7 text-xs tabular-nums text-right"
+                            placeholder="0.00"
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
+
+                  {/* Equal split preview */}
+                  {expenseForm.splitType === "equal" && expenseForm.splitWith.length > 0 && expenseForm.total && (
+                    <p className="text-[11px] text-muted-foreground pt-1 border-t">
+                      Parte por persona: <span className="font-medium tabular-nums">
+                        {formatCurrency(parseFloat(expenseForm.total) / expenseForm.splitWith.length, expenseForm.currency)}
+                      </span>
                     </p>
+                  )}
+
+                  {/* Custom split summary */}
+                  {expenseForm.splitType === "custom" && expenseForm.splitWith.length > 0 && (
+                    <div className="pt-1 border-t space-y-1">
+                      <div className="flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={distributeEqually}
+                          className="text-[11px] text-primary hover:underline"
+                        >
+                          Distribuir igualmente
+                        </button>
+                        {(() => {
+                          const total = parseFloat(expenseForm.total) || 0
+                          const sum = expenseForm.splitWith.reduce(
+                            (acc, uid) => acc + (parseFloat(expenseForm.customShares[uid] ?? "0") || 0), 0
+                          )
+                          const diff = total - sum
+                          const ok = Math.abs(diff) < 0.01
+                          return (
+                            <span className={`text-[11px] tabular-nums font-medium ${ok ? "text-green-600" : "text-destructive"}`}>
+                              {ok ? "✓ Correcto" : diff > 0 ? `Faltan ${formatCurrency(diff, expenseForm.currency)}` : `Excede ${formatCurrency(Math.abs(diff), expenseForm.currency)}`}
+                            </span>
+                          )
+                        })()}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}

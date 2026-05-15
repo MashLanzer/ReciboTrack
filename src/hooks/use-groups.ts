@@ -37,7 +37,8 @@ export interface GroupExpense extends Expense {
   paidByUid: string
   paidByName: string
   splitWith: string[] // array of UIDs who split this expense
-  splitType: "equal" | "full"
+  splitType: "equal" | "full" | "custom"
+  customShares?: Record<string, number> // uid → amount they owe (only for splitType "custom")
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -183,11 +184,13 @@ export function useAddGroupExpense() {
       input,
       splitWith,
       splitType = "equal",
+      customShares,
     }: {
       groupId: string
       input: ExpenseInput
       splitWith: string[]
-      splitType?: "equal" | "full"
+      splitType?: "equal" | "full" | "custom"
+      customShares?: Record<string, number>
     }) => {
       if (!user) throw new Error("No autenticado")
       const now = Timestamp.now()
@@ -198,6 +201,7 @@ export function useAddGroupExpense() {
         paidByName: user.displayName ?? user.email ?? "Yo",
         splitWith,
         splitType,
+        ...(customShares ? { customShares } : {}),
         groupId,
         createdAt: now,
         updatedAt: now,

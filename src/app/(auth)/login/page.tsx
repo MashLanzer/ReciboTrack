@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import {
   signInWithPopup,
   GoogleAuthProvider,
@@ -27,9 +27,10 @@ export default function LoginPage() {
 }
 
 function LoginForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
-  const from = searchParams.get("from") ?? "/dashboard"
+  const rawFrom = searchParams.get("from") ?? "/dashboard"
+  // Prevent redirect loops: if "from" points back to login, go to dashboard
+  const from = rawFrom.startsWith("/login") ? "/dashboard" : rawFrom
 
   const [mode, setMode] = useState<"login" | "register">("login")
   const [email, setEmail] = useState("")
@@ -39,6 +40,15 @@ function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false)
 
   const firebaseConfigured = !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+
+  function setSessionCookie() {
+    document.cookie = `session=1; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`
+  }
+
+  function navigateAfterLogin() {
+    // Full navigation avoids timing issues where AuthGuard reads stale auth state
+    window.location.href = from
+  }
 
   async function initUserProfile(uid: string, displayName: string, email: string) {
     const ref = doc(getFirebaseDb(), "users", uid)
@@ -56,33 +66,34 @@ function LoginForm() {
       const provider = new GoogleAuthProvider()
       const result = await signInWithPopup(getFirebaseAuth(), provider)
 
-      // initUserProfile no es crítico — si falla, el usuario igual entra
       try {
         await initUserProfile(
           result.user.uid,
           result.user.displayName ?? "",
           result.user.email ?? ""
         )
-      } catch { /* ignorar — perfil se puede crear después */ }
+      } catch { /* no crítico */ }
 
-      router.push(from)
+      setSessionCookie()
+      navigateAfterLogin()
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? ""
+      // Errores que el usuario canceló intencionalmente — no mostrar toast
       const IGNORED = ["auth/popup-closed-by-user", "auth/cancelled-popup-request"]
       if (!IGNORED.includes(code)) {
         const messages: Record<string, string> = {
           "auth/unauthorized-domain":
-            "Este dominio no está autorizado en Firebase. Ve a Firebase Console → Authentication → Settings → Authorized domains y agrega este dominio.",
+            "Dominio no autorizado en Firebase. Ve a Firebase Console → Authentication → Settings → Authorized domains.",
           "auth/operation-not-allowed":
-            "Google Sign-In no está habilitado en Firebase Console.",
+            "Google Sign-In no está habilitado. Actívalo en Firebase Console → Authentication → Sign-in method.",
           "auth/popup-blocked":
-            "El navegador bloqueó el popup. Permite popups para este sitio e intenta de nuevo.",
+            "El navegador bloqueó el popup. Permite popups para este sitio en la barra de dirección e intenta de nuevo. Si el problema persiste, desactiva el bloqueador de popups para este dominio.",
           "auth/network-request-failed":
             "Error de red. Verifica tu conexión a internet.",
+          "auth/internal-error":
+            "Error interno de Firebase. Revisa la consola del navegador para más detalles.",
         }
-        toast.error(messages[code] ?? `Error: ${code || "desconocido"}`, {
-          duration: 8000,
-        })
+        toast.error(messages[code] ?? `Error (${code || "desconocido"})`, { duration: 10000 })
       }
       setGoogleLoading(false)
     }
@@ -100,7 +111,8 @@ function LoginForm() {
       } else {
         await signInWithEmailAndPassword(getFirebaseAuth(), email, password)
       }
-      router.push(from)
+      setSessionCookie()
+      navigateAfterLogin()
     } catch (err: unknown) {
       const code = (err as { code?: string }).code
       const messages: Record<string, string> = {
@@ -109,8 +121,10 @@ function LoginForm() {
         "auth/user-not-found": "No existe una cuenta con ese email",
         "auth/invalid-credential": "Credenciales inválidas",
         "auth/weak-password": "La contraseña debe tener al menos 6 caracteres",
+        "auth/too-many-requests": "Demasiados intentos. Espera unos minutos e intenta de nuevo.",
+        "auth/network-request-failed": "Error de red. Verifica tu conexión a internet.",
       }
-      toast.error(code ? (messages[code] ?? "Error de autenticación") : "Error inesperado")
+      toast.error(code ? (messages[code] ?? `Error (${code})`) : "Error inesperado")
     } finally {
       setLoading(false)
     }
