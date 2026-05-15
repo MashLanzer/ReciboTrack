@@ -18,7 +18,7 @@ import { useAddRecurring } from "@/hooks/use-recurring"
 import { PAYMENT_METHODS, CURRENCIES } from "@/lib/constants"
 import type { OcrResultInput } from "@/lib/firebase/schemas"
 import type { ReceiptItem, RecurringFrequency } from "@/types"
-import { runReceiptOcr } from "@/lib/ocr/tesseract"
+import { runReceiptOcr as runTesseract } from "@/lib/ocr/tesseract"
 import imageCompression from "browser-image-compression"
 import { cn } from "@/lib/utils"
 import { CameraCapture } from "./camera-capture"
@@ -160,14 +160,63 @@ export function ReceiptScanner() {
         setImageUrl(URL.createObjectURL(compressed))
       }
 
-      // OCR runs entirely in the browser — no server, no API key
-      const data: OcrResultInput = await runReceiptOcr(compressed, setOcrProgress)
+      // Intentar Gemini (servidor) — más preciso
+      // Si falla (sin internet, quota, error) → Tesseract en el browser
+      let data: OcrResultInput
+      const geminiAvailable = !!process.env.NEXT_PUBLIC_GEMINI_ENABLED
+
+      if (geminiAvailable) {
+        data = await runGeminiOcr(compressed)
+      } else {
+        data = await runTesseract(compressed, setOcrProgress)
+      }
 
       populateForm(data, isAdditional)
       setStep("confirm")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error procesando el recibo")
       setStep(scanCount > 0 ? "confirm" : "upload")
+    }
+  }
+
+  // Llama al API route de Gemini con fallback a Tesseract
+  async function runGeminiOcr(file: File): Promise<OcrResultInput> {
+    // Convertir a base64
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const b64 = (reader.result as string).split(",")[1]
+        if (b64) resolve(b64)
+        else reject(new Error("No se pudo leer la imagen"))
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 30_000)
+
+    try {
+      const res = await fetch("/api/ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ base64, mediaType: file.type || "image/jpeg" }),
+        signal: controller.signal,
+      })
+
+      // Quota excedida o error del servidor → fallback silencioso a Tesseract
+      if (res.status === 429 || !res.ok) {
+        if (res.status !== 429) toast.info("Gemini no disponible, usando OCR local...")
+        return runTesseract(file, setOcrProgress)
+      }
+
+      return await res.json() as OcrResultInput
+    } catch {
+      // Sin internet o timeout → Tesseract
+      toast.info("Sin conexión, usando OCR local...")
+      return runTesseract(file, setOcrProgress)
+    } finally {
+      clearTimeout(timeout)
     }
   }
 
@@ -329,18 +378,22 @@ export function ReceiptScanner() {
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin shrink-0" />
               <span>
-                {ocrProgress > 0
-                  ? `Extrayendo texto... ${ocrProgress}%`
-                  : "Cargando motor de reconocimiento..."}
+                {process.env.NEXT_PUBLIC_GEMINI_ENABLED
+                  ? "Analizando con Gemini..."
+                  : ocrProgress > 0
+                    ? `Extrayendo texto... ${ocrProgress}%`
+                    : "Cargando motor de reconocimiento..."}
               </span>
             </div>
-            {/* Progress bar */}
-            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary transition-all duration-300 rounded-full"
-                style={{ width: `${ocrProgress || 5}%` }}
-              />
-            </div>
+            {/* Progress bar — solo visible en modo Tesseract */}
+            {!process.env.NEXT_PUBLIC_GEMINI_ENABLED && (
+              <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-300 rounded-full"
+                  style={{ width: `${ocrProgress || 5}%` }}
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-4 w-1/2" />
