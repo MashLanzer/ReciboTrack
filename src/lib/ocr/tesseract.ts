@@ -188,7 +188,7 @@ function parseReceiptText(raw: string): OcrResultInput {
   // ── Line items ─────────────────────────────────────────────────────────────
   const items: ReceiptItem[] = []
   // Lines that look like: "Producto nombre    12.50"
-  const itemRx = /^(.{3,35?}?)\s{2,}(\d[\d.,]+)\s*$/
+  const itemRx = /^(.{3,35}?)\s{2,}(\d[\d.,]+)\s*$/
 
   // Skip header/footer lines
   const skipItem = /total|subtotal|impuesto|tax|iva|igv|descuento|discount|cambio|change|pago|vuelto|propina|tip|gracias|thank|rif|fecha|hora|cajero/i

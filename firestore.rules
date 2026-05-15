@@ -42,7 +42,7 @@ service cloud.firestore {
           && d.total is number
           && d.total >= 0
           && d.paidByUid == request.auth.uid
-          && d.splitType in ["equal", "full"];
+          && d.splitType in ["equal", "full", "custom"];
     }
 
     // ─── Colecciones personales (/users/{uid}/*) ───────────────────────────────

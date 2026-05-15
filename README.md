@@ -1,12 +1,12 @@
 # ReciboTrack
 
-Aplicación web para escanear recibos con OCR (Claude Vision) y controlar gastos personales/negocio.
+Aplicación web para escanear recibos con OCR (Gemini Vision) y controlar gastos personales/negocio.
 
 ## Stack
 
 - Next.js 16 (App Router) + TypeScript
 - Firebase (Auth + Firestore + Storage)
-- Claude claude-sonnet-4-5 para OCR
+- Google Gemini 2.0 Flash para OCR (con fallback a Tesseract.js local)
 - Tailwind CSS v4 + diseño editorial minimalista
 
 ---
@@ -63,14 +63,14 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=tu-proyecto.appspot.com
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
 NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
 
-ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=AIza...
 ```
 
-### 7. Conseguir la API Key de Anthropic
+### 7. Conseguir la API Key de Google Gemini
 
-1. Ve a [console.anthropic.com](https://console.anthropic.com)
-2. **API Keys** → **Create Key**
-3. Copia la key y pégala como `ANTHROPIC_API_KEY` en `.env.local`
+1. Ve a [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+2. Click **Create API Key**
+3. Copia la key y pégala como `GEMINI_API_KEY` en `.env.local`
 
 ### 8. Correr en desarrollo
 
@@ -96,7 +96,7 @@ Sigue las instrucciones. Al final, agrega las variables de entorno:
 
 ```bash
 vercel env add NEXT_PUBLIC_FIREBASE_API_KEY
-vercel env add ANTHROPIC_API_KEY
+vercel env add GEMINI_API_KEY
 # etc para cada variable
 ```
 
@@ -137,7 +137,7 @@ src/
 ├── hooks/                     # Lógica de Firestore
 ├── lib/
 │   ├── firebase/              # Config + schemas zod
-│   └── ocr/                   # Integración Claude (server-only)
+│   └── ocr/                   # Tesseract.js (client fallback)
 └── stores/                    # Estado global (Zustand)
 ```
 
