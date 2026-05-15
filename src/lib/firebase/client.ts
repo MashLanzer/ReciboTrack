@@ -1,11 +1,5 @@
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app"
-import {
-  initializeAuth,
-  getAuth,
-  browserLocalPersistence,
-  browserPopupRedirectResolver,
-  type Auth,
-} from "firebase/auth"
+import { getAuth, type Auth } from "firebase/auth"
 import { getFirestore, type Firestore } from "firebase/firestore"
 import { getStorage, type FirebaseStorage } from "firebase/storage"
 
@@ -32,22 +26,8 @@ function ensureApp(): FirebaseApp {
 
 // Funciones lazy — Firebase solo se inicializa cuando se llama por primera vez
 export function getFirebaseAuth(): Auth {
-  if (!_auth) {
-    const app = ensureApp()
-    // initializeAuth con parámetros explícitos evita que Firebase cargue el
-    // iframe de Google en segundo plano, lo que elimina las advertencias de
-    // "Tracking Prevention blocked access to storage" en Edge/Safari/Firefox.
-    try {
-      _auth = initializeAuth(app, {
-        persistence: browserLocalPersistence,
-        popupRedirectResolver: browserPopupRedirectResolver,
-      })
-    } catch {
-      // Si ya fue inicializado (hot reload en dev), reusar la instancia existente
-      _auth = getAuth(app)
-    }
-  }
-  return _auth as Auth
+  if (!_auth) _auth = getAuth(ensureApp())
+  return _auth
 }
 
 export function getFirebaseDb(): Firestore {
