@@ -41,6 +41,18 @@ export interface GroupExpense extends Expense {
   customShares?: Record<string, number> // uid → amount they owe (only for splitType "custom")
 }
 
+export interface GroupSettlement {
+  id: string
+  groupId: string
+  fromUid: string   // who paid the debt
+  toUid: string     // who received (creditor)
+  amount: number
+  currency: string
+  note: string
+  date: Timestamp
+  createdAt: Timestamp
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function generateInviteCode(): string {
@@ -234,6 +246,114 @@ export function useRefreshInviteCode() {
         inviteCodes: [newCode],
       })
       return newCode
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
+  })
+}
+
+export function useUpdateGroupExpense() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      groupId, expenseId, input, splitWith, splitType, customShares,
+    }: {
+      groupId: string; expenseId: string
+      input: Partial<ExpenseInput> & { date?: Date }
+      splitWith: string[]; splitType: "equal" | "full" | "custom"
+      customShares?: Record<string, number>
+    }) => {
+      const ref = doc(getFirebaseDb(), "groups", groupId, "expenses", expenseId)
+      await updateDoc(ref, {
+        ...input,
+        ...(input.date ? { date: Timestamp.fromDate(input.date) } : {}),
+        splitWith,
+        splitType,
+        ...(customShares ? { customShares } : {}),
+        updatedAt: Timestamp.now(),
+      })
+    },
+    onSuccess: (_, { groupId }) => queryClient.invalidateQueries({ queryKey: ["group-expenses", groupId] }),
+  })
+}
+
+export function useGroupSettlements(groupId: string | null) {
+  return useQuery({
+    queryKey: ["group-settlements", groupId],
+    enabled: !!groupId,
+    staleTime: 1000 * 60,
+    queryFn: async () => {
+      if (!groupId) return []
+      const q = query(
+        collection(getFirebaseDb(), "groups", groupId, "settlements"),
+        orderBy("date", "desc")
+      )
+      const snap = await getDocs(q)
+      return snap.docs.map((d) => ({ id: d.id, groupId, ...d.data() }) as GroupSettlement)
+    },
+  })
+}
+
+export function useSettleDebt() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      groupId, fromUid, toUid, amount, currency, note,
+    }: {
+      groupId: string; fromUid: string; toUid: string
+      amount: number; currency: string; note?: string
+    }) => {
+      if (!user) throw new Error("No autenticado")
+      const now = Timestamp.now()
+      await addDoc(collection(getFirebaseDb(), "groups", groupId, "settlements"), {
+        groupId, fromUid, toUid, amount, currency,
+        note: note ?? "",
+        date: now, createdAt: now,
+      })
+    },
+    onSuccess: (_, { groupId }) =>
+      queryClient.invalidateQueries({ queryKey: ["group-settlements", groupId] }),
+  })
+}
+
+export function useDeleteSettlement() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ groupId, settlementId }: { groupId: string; settlementId: string }) => {
+      await deleteDoc(doc(getFirebaseDb(), "groups", groupId, "settlements", settlementId))
+    },
+    onSuccess: (_, { groupId }) =>
+      queryClient.invalidateQueries({ queryKey: ["group-settlements", groupId] }),
+  })
+}
+
+export function useUpdateGroup() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ groupId, name, emoji }: { groupId: string; name: string; emoji: string }) => {
+      await updateDoc(doc(getFirebaseDb(), "groups", groupId), { name, emoji })
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
+  })
+}
+
+export function useArchiveGroup() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (groupId: string) => {
+      await updateDoc(doc(getFirebaseDb(), "groups", groupId), {
+        archived: true, archivedAt: Timestamp.now(),
+      })
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
+  })
+}
+
+export function useUnarchiveGroup() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (groupId: string) => {
+      await updateDoc(doc(getFirebaseDb(), "groups", groupId), { archived: false })
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
   })

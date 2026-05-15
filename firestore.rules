@@ -156,6 +156,27 @@ service cloud.firestore {
           || isAdmin(get(/databases/$(database)/documents/groups/$(groupId)).data)
         );
       }
+
+      // ── Liquidaciones (/groups/{groupId}/settlements/{settlementId}) ─────────
+
+      match /settlements/{settlementId} {
+        // Solo miembros pueden ver liquidaciones
+        allow read, list: if isAuth() && isMember(get(/databases/$(database)/documents/groups/$(groupId)).data);
+
+        // Cualquier miembro puede registrar un pago
+        allow create: if isAuth()
+            && isMember(get(/databases/$(database)/documents/groups/$(groupId)).data)
+            && request.resource.data.keys().hasAll(["fromUid", "toUid", "amount", "currency", "date", "createdAt"])
+            && request.resource.data.amount is number
+            && request.resource.data.amount > 0;
+
+        // Solo quien creó la liquidación o el admin puede eliminarla
+        allow delete: if isAuth() && (
+          resource.data.fromUid == request.auth.uid
+          || resource.data.toUid == request.auth.uid
+          || isAdmin(get(/databases/$(database)/documents/groups/$(groupId)).data)
+        );
+      }
     }
 
   }
