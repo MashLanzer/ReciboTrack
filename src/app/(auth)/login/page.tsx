@@ -53,16 +53,34 @@ function LoginForm() {
     try {
       const provider = new GoogleAuthProvider()
       const result = await signInWithPopup(getFirebaseAuth(), provider)
-      await initUserProfile(
-        result.user.uid,
-        result.user.displayName ?? "",
-        result.user.email ?? ""
-      )
+
+      // initUserProfile no es crítico — si falla, el usuario igual entra
+      try {
+        await initUserProfile(
+          result.user.uid,
+          result.user.displayName ?? "",
+          result.user.email ?? ""
+        )
+      } catch { /* ignorar — perfil se puede crear después */ }
+
       router.push(from)
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? ""
-      if (code !== "auth/popup-closed-by-user" && code !== "auth/cancelled-popup-request") {
-        toast.error("Error al iniciar sesión con Google")
+      const IGNORED = ["auth/popup-closed-by-user", "auth/cancelled-popup-request"]
+      if (!IGNORED.includes(code)) {
+        const messages: Record<string, string> = {
+          "auth/unauthorized-domain":
+            "Este dominio no está autorizado en Firebase. Ve a Firebase Console → Authentication → Settings → Authorized domains y agrega este dominio.",
+          "auth/operation-not-allowed":
+            "Google Sign-In no está habilitado en Firebase Console.",
+          "auth/popup-blocked":
+            "El navegador bloqueó el popup. Permite popups para este sitio e intenta de nuevo.",
+          "auth/network-request-failed":
+            "Error de red. Verifica tu conexión a internet.",
+        }
+        toast.error(messages[code] ?? `Error: ${code || "desconocido"}`, {
+          duration: 8000,
+        })
       }
       setGoogleLoading(false)
     }
