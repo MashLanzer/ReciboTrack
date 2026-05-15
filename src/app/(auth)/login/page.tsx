@@ -38,6 +38,8 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
+  const firebaseConfigured = !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+
   async function initUserProfile(uid: string, displayName: string, email: string) {
     const ref = doc(getFirebaseDb(), "users", uid)
     await setDoc(ref, {
@@ -127,12 +129,26 @@ function LoginForm() {
       </div>
 
       <div className="space-y-4">
+        {!firebaseConfigured && (
+          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive space-y-1">
+            <p className="font-semibold">⚠️ Firebase no configurado</p>
+            <p>Las variables de entorno de Firebase no están disponibles. Ve a Vercel → tu proyecto → Settings → Environment Variables y agrega:</p>
+            <ul className="mt-1 space-y-0.5 font-mono text-[10px]">
+              <li>NEXT_PUBLIC_FIREBASE_API_KEY</li>
+              <li>NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN</li>
+              <li>NEXT_PUBLIC_FIREBASE_PROJECT_ID</li>
+              <li>NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET</li>
+              <li>NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID</li>
+              <li>NEXT_PUBLIC_FIREBASE_APP_ID</li>
+            </ul>
+          </div>
+        )}
         <Button
           type="button"
           variant="outline"
           className="w-full gap-3"
           onClick={handleGoogle}
-          disabled={googleLoading}
+          disabled={googleLoading || !firebaseConfigured}
         >
           {googleLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
