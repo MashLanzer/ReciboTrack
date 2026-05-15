@@ -1,21 +1,147 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Cada usuario solo puede acceder a su propia data
+
+    // ─── Helpers ───────────────────────────────────────────────────────────────
+
+    // El usuario está autenticado
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // El usuario autenticado es el dueño del recurso
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+
+    // El usuario autenticado es miembro del grupo
+    function isMember(groupData) {
+      return isAuth() && request.auth.uid in groupData.memberUids;
+    }
+
+    // El usuario autenticado es admin del grupo
+    function isAdmin(groupData) {
+      return isAuth() && request.auth.uid == groupData.adminUid;
+    }
+
+    // Valida que un gasto personal tiene los campos mínimos
+    function validExpense() {
+      let d = request.resource.data;
+      return d.keys().hasAll(["merchant", "total", "date", "createdAt"])
+          && d.merchant is string
+          && d.merchant.size() > 0
+          && d.total is number
+          && d.total >= 0;
+    }
+
+    // Valida que un gasto de grupo tiene los campos mínimos
+    function validGroupExpense() {
+      let d = request.resource.data;
+      return d.keys().hasAll(["merchant", "total", "date", "paidByUid", "splitWith", "splitType"])
+          && d.merchant is string
+          && d.total is number
+          && d.total >= 0
+          && d.paidByUid == request.auth.uid
+          && d.splitType in ["equal", "full"];
+    }
+
+    // ─── Colecciones personales (/users/{uid}/*) ───────────────────────────────
+
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Perfil del usuario
+      allow read, write: if isOwner(userId);
 
+      // Gastos personales
       match /expenses/{expenseId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, list: if isOwner(userId);
+        allow create: if isOwner(userId) && validExpense();
+        allow update: if isOwner(userId) && validExpense();
+        allow delete: if isOwner(userId);
       }
 
+      // Categorías personalizadas
       match /categories/{categoryId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if isOwner(userId);
       }
 
+      // Presupuestos
       match /budgets/{budgetId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if isOwner(userId);
+      }
+
+      // Gastos recurrentes
+      match /recurring/{recurringId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Metas de ahorro
+      match /goals/{goalId} {
+        allow read, write: if isOwner(userId);
       }
     }
+
+    // ─── Grupos compartidos (/groups/{groupId}) ────────────────────────────────
+
+    match /groups/{groupId} {
+      // Cualquier miembro puede leer el grupo
+      allow read: if isAuth() && isMember(resource.data);
+
+      // Cualquier usuario autenticado puede crear un grupo
+      // (se convierte en admin automáticamente)
+      allow create: if isAuth()
+          && request.resource.data.adminUid == request.auth.uid
+          && request.auth.uid in request.resource.data.memberUids
+          && request.resource.data.keys().hasAll(["name", "emoji", "adminUid", "memberUids", "members", "inviteCodes", "createdAt"]);
+
+      // Solo el admin puede actualizar metadatos del grupo (nombre, emoji, código)
+      // Los miembros pueden actualizar su propia entrada en memberUids/members (unirse/salir)
+      allow update: if isAuth() && (
+        // Admin puede cambiar cualquier cosa
+        isAdmin(resource.data)
+        ||
+        // Miembro puede salir (quitar su propio uid)
+        (
+          isMember(resource.data)
+          && request.resource.data.adminUid == resource.data.adminUid
+          && !(request.auth.uid in request.resource.data.memberUids)
+        )
+        ||
+        // Usuario externo puede unirse si tiene el código de invitación válido
+        (
+          // El uid nuevo que se une debe estar en inviteCodes del doc existente
+          request.resource.data.memberUids.hasAll(resource.data.memberUids)
+          && request.auth.uid in request.resource.data.memberUids
+          && !(request.auth.uid in resource.data.memberUids)
+        )
+      );
+
+      // Solo el admin puede eliminar el grupo
+      allow delete: if isAuth() && isAdmin(resource.data);
+
+      // ── Gastos del grupo (/groups/{groupId}/expenses/{expenseId}) ────────────
+
+      match /expenses/{expenseId} {
+        // Cualquier miembro puede leer los gastos del grupo
+        allow read, list: if isAuth() && isMember(get(/databases/$(database)/documents/groups/$(groupId)).data);
+
+        // Cualquier miembro puede añadir un gasto (debe ser él quien paga)
+        allow create: if isAuth()
+            && isMember(get(/databases/$(database)/documents/groups/$(groupId)).data)
+            && validGroupExpense();
+
+        // Solo quien pagó puede editar su gasto
+        allow update: if isAuth()
+            && resource.data.paidByUid == request.auth.uid
+            && isMember(get(/databases/$(database)/documents/groups/$(groupId)).data)
+            && validGroupExpense();
+
+        // Quien pagó o el admin del grupo puede eliminar el gasto
+        allow delete: if isAuth() && (
+          resource.data.paidByUid == request.auth.uid
+          || isAdmin(get(/databases/$(database)/documents/groups/$(groupId)).data)
+        );
+      }
+    }
+
   }
 }
