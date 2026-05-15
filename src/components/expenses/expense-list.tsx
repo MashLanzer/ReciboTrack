@@ -26,7 +26,7 @@ import { useUIStore } from "@/stores/ui-store"
 import { ExpenseEditDialog } from "./expense-edit-dialog"
 import { CsvImport } from "./csv-import"
 import { exportToCSV, exportToPDF } from "./export-utils"
-import { exportToGoogleSheets } from "@/lib/google-sheets"
+import { exportToGoogleSheets, SheetsRedirectPending } from "@/lib/google-sheets"
 import { ReceiptScanner } from "@/components/receipt-scanner/receipt-scanner"
 import { SwipeableRow } from "@/components/shared/swipeable-row"
 
@@ -82,6 +82,12 @@ export function ExpenseList() {
       window.open(url, "_blank")
       toast.success("Hoja de cálculo creada en Google Drive")
     } catch (err) {
+      if (err instanceof SheetsRedirectPending) {
+        // El navegador bloqueó el popup — se redirigió a Google OAuth.
+        // Al volver, la página se refresca y se retoma el export automáticamente.
+        toast.info("Redirigiendo a Google para autorizar acceso...")
+        return
+      }
       toast.error(err instanceof Error ? err.message : "Error exportando a Google Sheets")
     } finally {
       setSheetsLoading(false)

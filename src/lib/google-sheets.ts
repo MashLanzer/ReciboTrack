@@ -1,6 +1,11 @@
 "use client"
 
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth"
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+} from "firebase/auth"
 import { getFirebaseAuth } from "@/lib/firebase/client"
 import type { Expense, CategoryDoc } from "@/types"
 import { formatCurrency, toDate } from "@/lib/utils"
@@ -10,29 +15,80 @@ import { es } from "date-fns/locale"
 const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets"
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file"
 
+const SHEETS_PENDING_KEY = "sheets_export_pending"
+
+/**
+ * Obtiene un access token de Google con los scopes necesarios para Sheets.
+ *
+ * Estrategia:
+ * 1. Intenta signInWithPopup (Chrome/Firefox sin tracking prevention estricto).
+ * 2. Si el popup es bloqueado o falla por tracking prevention, usa signInWithRedirect.
+ *    En ese caso lanza SheetsRedirectPending para que el llamador maneje el redirect.
+ */
 async function getGoogleAccessToken(): Promise<string> {
   const provider = new GoogleAuthProvider()
   provider.addScope(SHEETS_SCOPE)
   provider.addScope(DRIVE_SCOPE)
+  provider.setCustomParameters({ prompt: "consent" })
 
-  // signInWithPopup re-uses the existing session but requests new scopes
-  const result = await signInWithPopup(getFirebaseAuth(), provider)
-  const credential = GoogleAuthProvider.credentialFromResult(result)
-
-  if (!credential?.accessToken) {
-    throw new Error("No se pudo obtener el token de Google")
+  try {
+    // Intento 1: popup (rápido, no recarga la página)
+    const result = await signInWithPopup(getFirebaseAuth(), provider)
+    const credential = GoogleAuthProvider.credentialFromResult(result)
+    if (!credential?.accessToken) throw new Error("Sin token")
+    return credential.accessToken
+  } catch (err: unknown) {
+    const code = (err as { code?: string }).code ?? ""
+    // Popup bloqueado o tracking prevention — usar redirect
+    if (
+      code === "auth/popup-blocked" ||
+      code === "auth/popup-closed-by-user" ||
+      code === "auth/cancelled-popup-request" ||
+      code === "auth/operation-not-supported-in-this-environment"
+    ) {
+      // Guardar la intención en sessionStorage para retomar al volver
+      sessionStorage.setItem(SHEETS_PENDING_KEY, "1")
+      await signInWithRedirect(getFirebaseAuth(), provider)
+      // La página se redirige — nunca llega a la siguiente línea
+      throw new SheetsRedirectPending()
+    }
+    throw err
   }
-
-  return credential.accessToken
 }
 
-export async function exportToGoogleSheets(
+/** Señal especial: se lanzó un redirect, no es un error real */
+export class SheetsRedirectPending extends Error {
+  constructor() { super("redirect_pending") }
+}
+
+/**
+ * Llamar en el layout o en la página de vuelta del redirect.
+ * Devuelve la URL de la hoja si se venía de un redirect de Sheets, null si no.
+ */
+export async function resumeSheetsExportAfterRedirect(
+  expenses: Expense[],
+  categories: CategoryDoc[]
+): Promise<string | null> {
+  if (!sessionStorage.getItem(SHEETS_PENDING_KEY)) return null
+  sessionStorage.removeItem(SHEETS_PENDING_KEY)
+
+  const result = await getRedirectResult(getFirebaseAuth())
+  if (!result) return null
+
+  const credential = GoogleAuthProvider.credentialFromResult(result)
+  if (!credential?.accessToken) throw new Error("No se pudo obtener el token de Google")
+
+  return buildSpreadsheet(credential.accessToken, expenses, categories)
+}
+
+// ─── Internal: build and format the spreadsheet ───────────────────────────
+
+async function buildSpreadsheet(
+  accessToken: string,
   expenses: Expense[],
   categories: CategoryDoc[],
   title = `ReciboTrack — Gastos ${format(new Date(), "MMMM yyyy", { locale: es })}`
 ): Promise<string> {
-  const accessToken = await getGoogleAccessToken()
-
   // ── Build spreadsheet values ──────────────────────────────────────────────
   const headers = [
     "Fecha", "Comercio", "Categoría", "Subtotal", "Impuestos", "Total",
@@ -147,4 +203,15 @@ export async function exportToGoogleSheets(
   )
 
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`
+}
+
+// ─── Public API ────────────────────────────────────────────────────────────
+
+export async function exportToGoogleSheets(
+  expenses: Expense[],
+  categories: CategoryDoc[],
+  title?: string
+): Promise<string> {
+  const accessToken = await getGoogleAccessToken()
+  return buildSpreadsheet(accessToken, expenses, categories, title)
 }
