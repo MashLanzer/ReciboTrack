@@ -20,14 +20,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
-import { Search, MoreHorizontal, Trash2, Edit, Copy, Image, ChevronLeft, ChevronRight, Filter, Tag, X, Upload, Sheet, Loader2, CalendarRange, Calendar, CheckSquare, Square, CheckCheck, LayoutList, Layers, Receipt } from "lucide-react"
+import { Search, MoreHorizontal, Trash2, Edit, Copy, Image, ChevronLeft, ChevronRight, Filter, Tag, X, Upload, Sheet, Loader2, CalendarRange, Calendar, CheckSquare, Square, CheckCheck, LayoutList, Layers, Receipt, SlidersHorizontal, ChevronDown } from "lucide-react"
 import { startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subDays, format as fmtDate, parseISO, isValid } from "date-fns"
 import { ExpenseEditDialog } from "./expense-edit-dialog"
 import { ExpenseDetailDialog } from "./expense-detail-dialog"
 import { CsvImport } from "./csv-import"
 import { exportToCSV, exportToPDF } from "./export-utils"
 import { exportToGoogleSheets, SheetsRedirectPending } from "@/lib/google-sheets"
-import { ReceiptScanner } from "@/components/receipt-scanner/receipt-scanner"
 import { SwipeableRow } from "@/components/shared/swipeable-row"
 import { useUIStore } from "@/stores/ui-store"
 import { AccountBadge } from "@/components/shared/account-switcher"
@@ -68,6 +67,7 @@ export function ExpenseList() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkCatOpen, setBulkCatOpen] = useState(false)
   const [bulkCatValue, setBulkCatValue] = useState("")
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const { activeAccount } = useUIStore()
 
   // ── Undo-delete tracking ────────────────────────────────────────────────────
@@ -121,6 +121,19 @@ export function ExpenseList() {
   const grouped = groupBy === "cat" ? groupByCategory(expenses, categories) : groupByDate(expenses)
 
   const hasActiveFilters = !!(search || category || activeTags.length > 0 || fromStr || toStr || sort !== "date_desc")
+
+  const activeFilterCount = [
+    !!category,
+    activeTags.length > 0,
+    !!(fromStr || toStr),
+    sort !== "date_desc",
+    groupBy !== "date",
+  ].filter(Boolean).length
+
+  // Open filter panel automatically when URL already has filters
+  useEffect(() => {
+    if (activeFilterCount > 0) setFiltersOpen(true)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Bulk selection helpers ────────────────────────────────────────────────
   function toggleSelect(id: string) {
@@ -290,182 +303,199 @@ export function ExpenseList() {
 
   return (
     <div className="space-y-4">
-      {/* Filtros */}
-      <div className="flex gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-48">
+      {/* ── Row 1: Search + Filter toggle + Export ─────────────────────── */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar comercio, etiqueta, artículo..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="pl-9"
+            className="pl-9 h-9"
           />
         </div>
-        <Select
-          value={category || "all"}
-          onValueChange={(v) => setParams({ cat: v === "all" ? null : v })}
-        >
-          <SelectTrigger className={`w-36 ${category ? "border-primary text-primary" : ""}`}>
-            <Filter className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-            <SelectValue placeholder="Categoría" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat.id} value={cat.id}>
-                {cat.icon} {cat.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {allTags.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className={`gap-1.5 ${activeTags.length > 0 ? "border-primary text-primary" : ""}`}>
-                <Tag className="h-3.5 w-3.5" />
-                Etiquetas
-                {activeTags.length > 0 && (
-                  <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[10px]">{activeTags.length}</Badge>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="max-h-60 overflow-y-auto">
-              {allTags.map((tag) => (
-                <DropdownMenuItem
-                  key={tag}
-                  onClick={() => toggleTag(tag)}
-                  className="gap-2 cursor-pointer"
-                >
-                  <div className={`h-3.5 w-3.5 rounded-sm border flex items-center justify-center transition-colors ${activeTags.includes(tag) ? "bg-primary border-primary" : "border-muted-foreground"}`}>
-                    {activeTags.includes(tag) && <span className="text-[8px] text-primary-foreground font-bold">✓</span>}
-                  </div>
-                  #{tag}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        {/* Date range dropdown */}
-        <DropdownMenu open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className={`gap-1.5 ${(fromStr || toStr) ? "border-primary text-primary" : ""}`}>
-              <CalendarRange className="h-3.5 w-3.5" />
-              {(fromStr || toStr) ? "Rango activo" : "Fechas"}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-64 p-3 space-y-3">
-            {/* Presets */}
-            <div className="space-y-1">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide px-1">Presets</p>
-              <div className="grid grid-cols-2 gap-1">
-                {[
-                  { key: "this-month", label: "Este mes" },
-                  { key: "last-month", label: "Mes pasado" },
-                  { key: "last-30", label: "Últimos 30 días" },
-                  { key: "last-90", label: "Últimos 90 días" },
-                  { key: "this-year", label: "Este año" },
-                ].map(({ key, label }) => (
-                  <button
-                    key={key}
-                    onClick={() => applyPreset(key)}
-                    className="text-xs px-2 py-1.5 rounded-md border hover:bg-accent transition-colors text-left"
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <DropdownMenuSeparator />
-            {/* Custom range */}
-            <div className="space-y-2">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide px-1">Rango personalizado</p>
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <Input
-                    type="date"
-                    value={fromStr}
-                    max={toStr || undefined}
-                    onChange={(e) => setParams({ from: e.target.value || null })}
-                    className="h-7 text-xs flex-1"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <Input
-                    type="date"
-                    value={toStr}
-                    min={fromStr || undefined}
-                    onChange={(e) => setParams({ to: e.target.value || null })}
-                    className="h-7 text-xs flex-1"
-                  />
-                </div>
-              </div>
-            </div>
-            {(fromStr || toStr) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full h-7 text-xs text-destructive hover:text-destructive"
-                onClick={() => { setParams({ from: null, to: null }); setDatePickerOpen(false) }}
-              >
-                <X className="h-3 w-3 mr-1" />
-                Quitar filtro de fecha
-              </Button>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
 
-        {/* Sort selector */}
-        <Select
-          value={sort}
-          onValueChange={(v) => setParams({ sort: v === "date_desc" ? null : v })}
-        >
-          <SelectTrigger className={`w-40 ${sort !== "date_desc" ? "border-primary text-primary" : ""}`}>
-            <SelectValue placeholder="Ordenar" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="date_desc">Fecha ↓ reciente</SelectItem>
-            <SelectItem value="date_asc">Fecha ↑ antigua</SelectItem>
-            <SelectItem value="amount_desc">Monto ↓ mayor</SelectItem>
-            <SelectItem value="amount_asc">Monto ↑ menor</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Group-by toggle */}
+        {/* Filter toggle */}
         <Button
-          variant={groupBy === "cat" ? "default" : "outline"}
+          variant={filtersOpen || activeFilterCount > 0 ? "default" : "outline"}
           size="sm"
-          className="gap-1.5 shrink-0"
-          onClick={() => setParams({ group: groupBy === "cat" ? null : "cat" })}
-          title={groupBy === "cat" ? "Agrupar por fecha" : "Agrupar por categoría"}
+          className="gap-1.5 shrink-0 h-9 px-3"
+          onClick={() => setFiltersOpen((o) => !o)}
         >
-          {groupBy === "cat" ? <Layers className="h-3.5 w-3.5" /> : <Layers className="h-3.5 w-3.5" />}
-          {groupBy === "cat" ? "Por categoría" : "Por fecha"}
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          {activeFilterCount > 0 && (
+            <Badge variant="secondary" className="h-4 px-1 text-[10px] bg-background/20 text-inherit border-0">
+              {activeFilterCount}
+            </Badge>
+          )}
         </Button>
 
-        <div className="flex gap-1.5 flex-wrap">
-          <Button
-            variant={selectMode ? "default" : "outline"}
-            size="sm"
-            className="gap-1.5"
-            onClick={() => selectMode ? exitSelectMode() : setSelectMode(true)}
-          >
-            <CheckSquare className="h-3.5 w-3.5" />
-            {selectMode ? "Cancelar" : "Seleccionar"}
-          </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setCsvOpen(true)}>
-            <Upload className="h-3.5 w-3.5" />
-            Importar
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => exportToCSV(expenses)}>CSV</Button>
-          <Button variant="outline" size="sm" onClick={() => exportToPDF(expenses, categories)}>PDF</Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleGoogleSheets} disabled={sheetsLoading}>
-            {sheetsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sheet className="h-3.5 w-3.5" />}
-            Sheets
-          </Button>
-        </div>
+        {/* Export + actions overflow */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-9 w-9 p-0 shrink-0">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onClick={() => selectMode ? exitSelectMode() : setSelectMode(true)} className="gap-2">
+              <CheckSquare className="h-4 w-4" />
+              {selectMode ? "Cancelar selección" : "Seleccionar varios"}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setCsvOpen(true)} className="gap-2">
+              <Upload className="h-4 w-4" />
+              Importar CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => exportToCSV(expenses)} className="gap-2">
+              <Sheet className="h-4 w-4" />
+              Exportar CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => exportToPDF(expenses, categories)} className="gap-2">
+              <Image className="h-4 w-4" />
+              Exportar PDF
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleGoogleSheets} disabled={sheetsLoading} className="gap-2">
+              {sheetsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sheet className="h-4 w-4" />}
+              Google Sheets
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+
+      {/* ── Row 2: Collapsible filters ────────────────────────────────── */}
+      {filtersOpen && (
+        <div className="flex gap-2 flex-wrap items-center">
+          {/* Category */}
+          <Select
+            value={category || "all"}
+            onValueChange={(v) => setParams({ cat: v === "all" ? null : v })}
+          >
+            <SelectTrigger className={`h-8 w-36 text-xs ${category ? "border-primary text-primary" : ""}`}>
+              <Filter className="h-3 w-3 mr-1 text-muted-foreground" />
+              <SelectValue placeholder="Categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              {categories.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.icon} {cat.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Tags */}
+          {allTags.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className={`h-8 gap-1.5 text-xs ${activeTags.length > 0 ? "border-primary text-primary" : ""}`}>
+                  <Tag className="h-3 w-3" />
+                  Etiquetas
+                  {activeTags.length > 0 && (
+                    <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[10px]">{activeTags.length}</Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-60 overflow-y-auto">
+                {allTags.map((tag) => (
+                  <DropdownMenuItem key={tag} onClick={() => toggleTag(tag)} className="gap-2 cursor-pointer">
+                    <div className={`h-3.5 w-3.5 rounded-sm border flex items-center justify-center transition-colors ${activeTags.includes(tag) ? "bg-primary border-primary" : "border-muted-foreground"}`}>
+                      {activeTags.includes(tag) && <span className="text-[8px] text-primary-foreground font-bold">✓</span>}
+                    </div>
+                    #{tag}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          {/* Date range */}
+          <DropdownMenu open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className={`h-8 gap-1.5 text-xs ${(fromStr || toStr) ? "border-primary text-primary" : ""}`}>
+                <CalendarRange className="h-3 w-3" />
+                {(fromStr || toStr) ? "Rango activo" : "Fechas"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-60 p-3 space-y-3">
+              <div className="space-y-1">
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide px-1">Presets</p>
+                <div className="grid grid-cols-2 gap-1">
+                  {[
+                    { key: "this-month", label: "Este mes" },
+                    { key: "last-month", label: "Mes pasado" },
+                    { key: "last-30", label: "Últimos 30d" },
+                    { key: "last-90", label: "Últimos 90d" },
+                    { key: "this-year", label: "Este año" },
+                  ].map(({ key, label }) => (
+                    <button key={key} onClick={() => applyPreset(key)}
+                      className="text-xs px-2 py-1.5 rounded-md border hover:bg-accent transition-colors text-left">
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <DropdownMenuSeparator />
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide px-1">Personalizado</p>
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <Input type="date" value={fromStr} max={toStr || undefined}
+                    onChange={(e) => setParams({ from: e.target.value || null })}
+                    className="h-7 text-xs flex-1" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <Input type="date" value={toStr} min={fromStr || undefined}
+                    onChange={(e) => setParams({ to: e.target.value || null })}
+                    className="h-7 text-xs flex-1" />
+                </div>
+                {(fromStr || toStr) && (
+                  <Button variant="ghost" size="sm" className="w-full h-7 text-xs text-destructive hover:text-destructive"
+                    onClick={() => { setParams({ from: null, to: null }); setDatePickerOpen(false) }}>
+                    <X className="h-3 w-3 mr-1" /> Quitar fechas
+                  </Button>
+                )}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Sort */}
+          <Select value={sort} onValueChange={(v) => setParams({ sort: v === "date_desc" ? null : v })}>
+            <SelectTrigger className={`h-8 w-36 text-xs ${sort !== "date_desc" ? "border-primary text-primary" : ""}`}>
+              <SelectValue placeholder="Ordenar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date_desc">Más reciente</SelectItem>
+              <SelectItem value="date_asc">Más antiguo</SelectItem>
+              <SelectItem value="amount_desc">Mayor monto</SelectItem>
+              <SelectItem value="amount_asc">Menor monto</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Group-by */}
+          <Button
+            variant={groupBy === "cat" ? "default" : "outline"}
+            size="sm"
+            className="h-8 gap-1.5 text-xs shrink-0"
+            onClick={() => setParams({ group: groupBy === "cat" ? null : "cat" })}
+          >
+            <Layers className="h-3 w-3" />
+            {groupBy === "cat" ? "Por categoría" : "Por fecha"}
+          </Button>
+
+          {/* Clear all */}
+          {hasActiveFilters && (
+            <button
+              onClick={() => router.replace(pathname)}
+              className="text-xs text-muted-foreground hover:text-destructive transition-colors underline-offset-2 hover:underline ml-auto"
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Active filter pills */}
       {hasActiveFilters && (
@@ -745,7 +775,6 @@ export function ExpenseList() {
       />
       <ExpenseEditDialog expense={editExpense} onClose={() => setEditExpense(null)} />
       <CsvImport open={csvOpen} onClose={() => setCsvOpen(false)} />
-      <ReceiptScanner />
 
       {/* ── Sticky bulk action bar ── */}
       {selectMode && selectedIds.size > 0 && (
