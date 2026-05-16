@@ -162,12 +162,48 @@ export function useAddExpense() {
         createdAt: now,
         updatedAt: now,
       }
+      // addDoc resolves immediately when offline (Firebase queues it locally)
       const ref = await addDoc(col, data)
       return ref.id
     },
-    onSuccess: () => {
+    // Optimistic update: insert the new expense into every cached expense list
+    // so it appears instantly in the UI even before the server confirms.
+    onMutate: async (input) => {
+      if (!user) return
+      await queryClient.cancelQueries({ queryKey: ["expenses", user.uid] })
+
+      const tempId = `temp_${Date.now()}`
+      const optimistic: Expense = {
+        id: tempId,
+        ...input,
+        date: Timestamp.fromDate(input.date),
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      }
+
+      // Inject into all paginated expenses caches
+      queryClient.setQueriesData<{ pages: Expense[][]; pageParams: unknown[] }>(
+        { queryKey: ["expenses", user.uid] },
+        (old) => {
+          if (!old) return old
+          const firstPage = [optimistic, ...(old.pages[0] ?? [])]
+          return { ...old, pages: [firstPage, ...old.pages.slice(1)] }
+        }
+      )
+
+      return { tempId }
+    },
+    onSuccess: (_id, _input, ctx) => {
+      // Remove the optimistic entry and refetch real data
       queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
       queryClient.invalidateQueries({ queryKey: ["expenses-month", user?.uid] })
+      void ctx // suppress unused warning
+    },
+    onError: (_err, _input, ctx) => {
+      // Roll back the optimistic insert
+      if (ctx) {
+        queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
+      }
     },
   })
 }

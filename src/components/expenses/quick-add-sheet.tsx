@@ -84,7 +84,10 @@ export function QuickAddSheet() {
         items: [],
         receiptImageUrl: null,
       })
-      toast.success("Gasto añadido")
+      const isOffline = !navigator.onLine
+      toast.success(isOffline ? "Guardado localmente" : "Gasto añadido", {
+        description: isOffline ? "Se sincronizará al reconectar" : undefined,
+      })
       setQuickAddOpen(false)
     } catch {
       toast.error("Error al guardar")

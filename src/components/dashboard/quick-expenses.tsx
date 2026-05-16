@@ -391,8 +391,9 @@ export function QuickExpenses() {
         receiptImageUrl: null,
       })
 
-      toast.success(`${q.icon} ${q.label} añadido`, {
-        description: formatCurrency(q.amount, q.currency),
+      const isOffline = !navigator.onLine
+      toast.success(`${q.icon} ${q.label} ${isOffline ? "guardado localmente" : "añadido"}`, {
+        description: isOffline ? "Se sincronizará al reconectar" : formatCurrency(q.amount, q.currency),
         duration: 4000,
       })
     } catch {
