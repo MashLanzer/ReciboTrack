@@ -28,6 +28,8 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
+import { CommentButton } from "@/components/groups/group-comments"
+import { AuditLogButton } from "@/components/groups/expense-audit-log"
 import {
   Users, Plus, LogOut, Copy, RefreshCw, Trash2, Archive, ArchiveRestore,
   ArrowLeft, Receipt, UserPlus, Crown, Check, Pencil, MoreVertical,
@@ -447,6 +449,47 @@ function StatsTab({
 
 // ─── Balance tab ───────────────────────────────────────────────────────────────
 
+// ─── Debt simplification (minimum-transfers algorithm) ─────────────────────────
+
+interface Transfer {
+  from: string
+  to: string
+  amount: number
+}
+
+function simplifyDebts(balances: Record<string, number>): Transfer[] {
+  // Separate creditors (positive) and debtors (negative)
+  const creditors = Object.entries(balances)
+    .filter(([, b]) => b > 0.01)
+    .map(([uid, b]) => ({ uid, amount: b }))
+    .sort((a, b) => b.amount - a.amount)
+
+  const debtors = Object.entries(balances)
+    .filter(([, b]) => b < -0.01)
+    .map(([uid, b]) => ({ uid, amount: -b }))
+    .sort((a, b) => b.amount - a.amount)
+
+  const transfers: Transfer[] = []
+
+  // Greedy matching: largest debt with largest credit
+  let ci = 0, di = 0
+  const creds = creditors.map(c => ({ ...c }))
+  const debts = debtors.map(d => ({ ...d }))
+
+  while (ci < creds.length && di < debts.length) {
+    const amount = Math.min(creds[ci].amount, debts[di].amount)
+    if (amount > 0.01) {
+      transfers.push({ from: debts[di].uid, to: creds[ci].uid, amount: parseFloat(amount.toFixed(2)) })
+    }
+    creds[ci].amount -= amount
+    debts[di].amount -= amount
+    if (creds[ci].amount < 0.01) ci++
+    if (debts[di].amount < 0.01) di++
+  }
+
+  return transfers
+}
+
 function BalanceTab({
   group, expenses, settlements, currentUid,
 }: {
@@ -462,6 +505,7 @@ function BalanceTab({
   const [settleNote, setSettleNote] = useState("")
   const [settleCurrency, setSettleCurrency] = useState("USD")
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [liquidationOpen, setLiquidationOpen] = useState(false)
 
   const balances = computeBalances(expenses, settlements, group.members)
   const myBalance = balances[currentUid] ?? 0
@@ -586,6 +630,19 @@ function BalanceTab({
         </div>
       )}
 
+      {/* Liquidación mínima */}
+      {expenses.length > 0 && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full gap-1.5 text-xs"
+          onClick={() => setLiquidationOpen(true)}
+        >
+          <HandCoins className="h-3.5 w-3.5" />
+          Ver liquidación mínima del período
+        </Button>
+      )}
+
       {/* Settlements history */}
       {settlements.length > 0 && (
         <div className="border rounded-xl overflow-hidden">
@@ -630,6 +687,103 @@ function BalanceTab({
           )}
         </div>
       )}
+
+      {/* Liquidación mínima dialog */}
+      <Dialog open={liquidationOpen} onOpenChange={setLiquidationOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HandCoins className="h-4 w-4" />
+              Liquidación mínima del grupo
+            </DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const transfers = simplifyDebts(balances)
+            const totalSpent = expenses.reduce((a, e) => a + e.total, 0)
+            const shareText = transfers.length === 0
+              ? "✅ Todos en cero — sin deudas pendientes"
+              : transfers.map(t =>
+                  `${getName(t.from)} → ${getName(t.to)}: ${formatCurrency(t.amount)}`
+                ).join("\n")
+
+            return (
+              <div className="space-y-4 mt-1">
+                {/* Period summary */}
+                <div className="rounded-lg bg-muted/40 p-3 space-y-1.5">
+                  <p className="text-[10px] text-muted-foreground font-mono uppercase">Resumen del período</p>
+                  <div className="flex justify-between text-xs">
+                    <span>Total gastado</span>
+                    <span className="font-semibold tabular-nums">{formatCurrency(totalSpent)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span>Nº de gastos</span>
+                    <span className="font-semibold">{expenses.length}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span>Miembros</span>
+                    <span className="font-semibold">{group.members.length}</span>
+                  </div>
+                </div>
+
+                {/* Minimum transfers */}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium">
+                    {transfers.length === 0
+                      ? "Sin transferencias necesarias"
+                      : `${transfers.length} transferencia${transfers.length > 1 ? "s" : ""} para saldar todo`}
+                  </p>
+                  {transfers.length === 0 ? (
+                    <div className="text-center py-4">
+                      <p className="text-2xl">🎉</p>
+                      <p className="text-sm text-muted-foreground mt-1">¡Todos en cero!</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {transfers.map((t, i) => (
+                        <div key={i} className="flex items-center gap-3 rounded-lg border px-3 py-2.5">
+                          <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-xs font-bold shrink-0">
+                            {getName(t.from)[0]?.toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium">
+                              {getName(t.from)} → {getName(t.to)}
+                            </p>
+                          </div>
+                          <p className="text-sm font-bold tabular-nums text-destructive shrink-0">
+                            {formatCurrency(t.amount)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Share button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-1.5 text-xs"
+                  onClick={() => {
+                    const text = `💰 Liquidación del grupo "${group.name}"\n\n` +
+                      `Total gastado: ${formatCurrency(totalSpent)}\n` +
+                      `${expenses.length} gastos · ${group.members.length} personas\n\n` +
+                      `Transferencias mínimas:\n${shareText}`
+                    if (navigator.share) {
+                      navigator.share({ title: `Liquidación ${group.name}`, text })
+                    } else {
+                      navigator.clipboard.writeText(text)
+                      toast.success("Copiado al portapapeles")
+                    }
+                  }}
+                >
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Compartir resumen
+                </Button>
+              </div>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
 
       {/* Settle dialog */}
       <Dialog open={!!settleDialog} onOpenChange={(o) => { if (!o) setSettleDialog(null) }}>
@@ -1100,16 +1254,20 @@ function GroupDetail({
                     </p>
                   )}
                 </div>
-                {canEdit && (
-                  <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all ml-1 shrink-0">
-                    <button onClick={() => openEdit(e)} className="text-muted-foreground hover:text-foreground">
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={() => handleDelete(e)} className="text-muted-foreground hover:text-destructive">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
+                <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all ml-1 shrink-0">
+                  <CommentButton groupId={group.id} expenseId={e.id} expenseName={e.merchant} />
+                  <AuditLogButton groupId={group.id} expenseId={e.id} merchant={e.merchant} />
+                  {canEdit && (
+                    <>
+                      <button onClick={() => openEdit(e)} className="text-muted-foreground hover:text-foreground">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={() => handleDelete(e)} className="text-muted-foreground hover:text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             )
           })}

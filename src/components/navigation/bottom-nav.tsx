@@ -18,6 +18,7 @@ import {
   X,
   Search,
 } from "lucide-react"
+import { AccountSwitcher } from "@/components/shared/account-switcher"
 import { useUIStore } from "@/stores/ui-store"
 import { toast } from "sonner"
 
@@ -128,6 +129,12 @@ export function BottomNav() {
                 <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
               </div>
             </Link>
+
+            {/* Account switcher */}
+            <div className="px-3 py-2">
+              <p className="text-[10px] font-medium text-muted-foreground mb-1.5 text-center">Cuenta</p>
+              <AccountSwitcher />
+            </div>
 
             {/* Search */}
             <button

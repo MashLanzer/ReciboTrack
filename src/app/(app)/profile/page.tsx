@@ -32,6 +32,7 @@ import {
   LogOut, Trash2, Bell, Calendar, LayoutList, Globe,
   Shield, ChevronRight, Check, Loader2, AlertTriangle,
 } from "lucide-react"
+import { AccentColorPicker } from "@/components/shared/accent-color-picker"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -422,6 +423,10 @@ export default function ProfilePage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="border-t pt-3">
+              <AccentColorPicker />
             </div>
 
             <SettingRow label="Vista compacta" description="Reduce el espaciado en la lista de gastos">

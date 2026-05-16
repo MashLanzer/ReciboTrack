@@ -3,6 +3,7 @@
 import { Suspense, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { DashboardStats } from "@/components/dashboard/dashboard-stats"
+import { QuickExpenses } from "@/components/dashboard/quick-expenses"
 import { RecurringBanner } from "@/components/expenses/recurring-banner"
 import { ScanFab } from "@/components/receipt-scanner/scan-fab"
 import { ReceiptScanner } from "@/components/receipt-scanner/receipt-scanner"
@@ -15,6 +16,7 @@ export default function DashboardPage() {
         <ScanParamHandler />
       </Suspense>
       <RecurringBanner />
+      <QuickExpenses />
       <DashboardStats />
       <ScanFab />
       <ReceiptScanner />

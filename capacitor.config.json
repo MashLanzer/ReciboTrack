@@ -5,5 +5,14 @@
   "server": {
     "url": "https://recibotrack.vercel.app",
     "androidScheme": "https"
+  },
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": false,
+      "providers": ["google.com"],
+      "google": {
+        "clientId": "431478633687-bhdpcn45863gcfh55d8f4uqivfutnfqq.apps.googleusercontent.com"
+      }
+    }
   }
 }

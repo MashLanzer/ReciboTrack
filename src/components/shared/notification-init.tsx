@@ -2,9 +2,11 @@
 
 import { useEffect } from "react"
 import { useBudgetNotifications, requestNotificationPermission } from "@/hooks/use-notifications"
+import { useAnomalyDetector } from "@/hooks/use-anomaly-detector"
 
 export function NotificationInit() {
   useBudgetNotifications()
+  useAnomalyDetector()
 
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {

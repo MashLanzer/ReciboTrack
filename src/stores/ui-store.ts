@@ -1,25 +1,41 @@
 "use client"
 
 import { create } from "zustand"
+import { persist } from "zustand/middleware"
+
+export type ActiveAccount = "personal" | "business"
 
 interface UIStore {
   scannerOpen: boolean
   editExpenseId: string | null
   sharedFile: File | null
   commandOpen: boolean
+  activeAccount: ActiveAccount
   setScannerOpen: (open: boolean) => void
   setEditExpenseId: (id: string | null) => void
   setSharedFile: (file: File | null) => void
   setCommandOpen: (open: boolean) => void
+  setActiveAccount: (account: ActiveAccount) => void
 }
 
-export const useUIStore = create<UIStore>((set) => ({
-  scannerOpen: false,
-  editExpenseId: null,
-  sharedFile: null,
-  commandOpen: false,
-  setScannerOpen: (open) => set({ scannerOpen: open }),
-  setEditExpenseId: (id) => set({ editExpenseId: id }),
-  setSharedFile: (file) => set({ sharedFile: file }),
-  setCommandOpen: (open) => set({ commandOpen: open }),
-}))
+export const useUIStore = create<UIStore>()(
+  persist(
+    (set) => ({
+      scannerOpen: false,
+      editExpenseId: null,
+      sharedFile: null,
+      commandOpen: false,
+      activeAccount: "personal",
+      setScannerOpen: (open) => set({ scannerOpen: open }),
+      setEditExpenseId: (id) => set({ editExpenseId: id }),
+      setSharedFile: (file) => set({ sharedFile: file }),
+      setCommandOpen: (open) => set({ commandOpen: open }),
+      setActiveAccount: (account) => set({ activeAccount: account }),
+    }),
+    {
+      name: "recibotrack-ui",
+      // Only persist the account preference, not transient UI state
+      partialize: (state) => ({ activeAccount: state.activeAccount }),
+    }
+  )
+)

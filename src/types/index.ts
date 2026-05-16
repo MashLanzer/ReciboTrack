@@ -19,6 +19,7 @@ export type Category =
 
 export interface Expense {
   id: string
+  account?: "personal" | "business"  // absent = personal (legacy)
   merchant: string
   date: Timestamp
   items: ReceiptItem[]
@@ -50,6 +51,7 @@ export interface ExpenseInput {
   notes: string
   tags: string[]
   receiptImageUrl: string | null
+  account?: "personal" | "business"  // defaults to "personal" when absent
 }
 
 export interface CategoryDoc {
@@ -65,6 +67,18 @@ export interface Budget {
   categoryId: string
   monthlyLimit: number
   currency: string
+}
+
+export interface TravelBudget {
+  id: string
+  name: string
+  emoji: string
+  totalLimit: number
+  currency: string
+  startDate: Timestamp
+  endDate: Timestamp
+  tags: string[]        // expenses with these tags count toward this budget
+  createdAt: Timestamp
 }
 
 export type RecurringFrequency = "weekly" | "biweekly" | "monthly" | "yearly"
@@ -105,6 +119,65 @@ export interface OcrResult {
   reference: string | null
   category: Category | null
   currency: string | null
+}
+
+// ─── Categorization rules ─────────────────────────────────────────────────────
+
+export type RuleField = "merchant" | "amount_min" | "amount_max" | "notes"
+export type RuleOperator = "contains" | "starts_with" | "equals"
+
+export interface CategoryRule {
+  id: string
+  /** Display name for the rule */
+  name: string
+  /** Field to match against */
+  field: RuleField
+  /** Match operator */
+  operator: RuleOperator
+  /** Value to match (string; for amount fields, coerced to number) */
+  value: string
+  /** Target category to assign */
+  categoryId: string
+  /** Order priority — lower = applied first */
+  order: number
+  enabled: boolean
+  createdAt: Timestamp
+}
+
+export interface CategoryRuleInput {
+  name: string
+  field: RuleField
+  operator: RuleOperator
+  value: string
+  categoryId: string
+  order: number
+  enabled: boolean
+}
+
+export interface QuickExpense {
+  id: string
+  label: string          // display name (can differ from merchant)
+  merchant: string
+  amount: number
+  category: string
+  currency: string
+  paymentMethod: string | null
+  tags: string[]
+  icon: string           // emoji
+  order: number
+  createdAt: Timestamp
+}
+
+export interface QuickExpenseInput {
+  label: string
+  merchant: string
+  amount: number
+  category: string
+  currency: string
+  paymentMethod: string | null
+  tags: string[]
+  icon: string
+  order: number
 }
 
 export interface DashboardStats {

@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import {
   signInWithPopup,
@@ -8,6 +8,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
+  signInWithCredential,
 } from "firebase/auth"
 import { doc, setDoc } from "firebase/firestore"
 import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client"
@@ -16,7 +17,18 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
-import { Loader2, Receipt } from "lucide-react"
+import { Loader2, Receipt, Smartphone } from "lucide-react"
+
+/** Returns true when running inside a Capacitor native WebView */
+function useIsNativeApp() {
+  const [isNative, setIsNative] = useState(false)
+  useEffect(() => {
+    // window.Capacitor is injected by Capacitor's WebView bridge
+    const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
+    setIsNative(cap?.isNativePlatform?.() ?? false)
+  }, [])
+  return isNative
+}
 
 export default function LoginPage() {
   return (
@@ -39,6 +51,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
+  const isNative = useIsNativeApp()
   const firebaseConfigured = !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY
 
   function setSessionCookie() {
@@ -63,37 +76,57 @@ function LoginForm() {
   async function handleGoogle() {
     setGoogleLoading(true)
     try {
-      const provider = new GoogleAuthProvider()
-      const result = await signInWithPopup(getFirebaseAuth(), provider)
+      let uid = "", displayName = "", email = ""
+
+      if (isNative) {
+        // ── Nativo (APK): usa el diálogo de Google de Android ──────────────
+        const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication")
+        const result = await FirebaseAuthentication.signInWithGoogle()
+
+        const idToken = result.credential?.idToken
+        if (!idToken) throw new Error("No se obtuvo token de Google")
+
+        // Enlazar con Firebase Web SDK para mantener sesión en el WebView
+        const credential = GoogleAuthProvider.credential(idToken)
+        const webResult = await signInWithCredential(getFirebaseAuth(), credential)
+        uid = webResult.user.uid
+        displayName = webResult.user.displayName ?? result.user?.displayName ?? ""
+        email = webResult.user.email ?? result.user?.email ?? ""
+      } else {
+        // ── Web: popup normal ────────────────────────────────────────────────
+        const provider = new GoogleAuthProvider()
+        const result = await signInWithPopup(getFirebaseAuth(), provider)
+        uid = result.user.uid
+        displayName = result.user.displayName ?? ""
+        email = result.user.email ?? ""
+      }
 
       try {
-        await initUserProfile(
-          result.user.uid,
-          result.user.displayName ?? "",
-          result.user.email ?? ""
-        )
+        await initUserProfile(uid, displayName, email)
       } catch { /* no crítico */ }
 
       setSessionCookie()
       navigateAfterLogin()
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? ""
+      const msg = (err as { message?: string }).message ?? ""
+
       // Errores que el usuario canceló intencionalmente — no mostrar toast
       const IGNORED = ["auth/popup-closed-by-user", "auth/cancelled-popup-request"]
-      if (!IGNORED.includes(code)) {
+      if (!IGNORED.includes(code) && !msg.includes("cancelled") && !msg.includes("canceled")) {
         const messages: Record<string, string> = {
           "auth/unauthorized-domain":
             "Dominio no autorizado en Firebase. Ve a Firebase Console → Authentication → Settings → Authorized domains.",
           "auth/operation-not-allowed":
             "Google Sign-In no está habilitado. Actívalo en Firebase Console → Authentication → Sign-in method.",
           "auth/popup-blocked":
-            "El navegador bloqueó el popup. Permite popups para este sitio en la barra de dirección e intenta de nuevo. Si el problema persiste, desactiva el bloqueador de popups para este dominio.",
+            "El navegador bloqueó el popup. Permite popups para este sitio.",
           "auth/network-request-failed":
             "Error de red. Verifica tu conexión a internet.",
           "auth/internal-error":
-            "Error interno de Firebase. Revisa la consola del navegador para más detalles.",
+            "Error interno de Firebase. Revisa la consola del navegador.",
         }
-        toast.error(messages[code] ?? `Error (${code || "desconocido"})`, { duration: 10000 })
+        toast.error(messages[code] ?? `Error (${code || msg || "desconocido"})`, { duration: 10000 })
       }
       setGoogleLoading(false)
     }
@@ -166,6 +199,8 @@ function LoginForm() {
         >
           {googleLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
+          ) : isNative ? (
+            <Smartphone className="h-4 w-4" />
           ) : (
             <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />

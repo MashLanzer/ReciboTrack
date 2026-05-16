@@ -4,11 +4,17 @@ import { AuthGuard } from "@/components/shared/auth-guard"
 import { NotificationInit } from "@/components/shared/notification-init"
 import { UpdateBanner } from "@/components/shared/update-banner"
 import { CommandPalette } from "@/components/shared/command-palette"
+import { Onboarding } from "@/components/shared/onboarding"
+import { AccentColorProvider } from "@/components/shared/accent-color-provider"
+import { OfflineBanner } from "@/components/shared/offline-banner"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
+      <OfflineBanner />
       <NotificationInit />
+      <AccentColorProvider />
+      <Onboarding />
       <CommandPalette />
       <div className="flex flex-col min-h-screen">
         <TopNav />

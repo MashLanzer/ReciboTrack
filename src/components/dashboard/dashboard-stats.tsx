@@ -22,6 +22,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { TrendingUp, TrendingDown, Minus, ScanLine, ChevronDown, ChevronUp, RefreshCw, AlertCircle } from "lucide-react"
 import { useUIStore } from "@/stores/ui-store"
+import { WeeklyWidget } from "./weekly-widget"
+import { MultiCurrencyBanner } from "./multicurrency-banner"
 import {
   ResponsiveContainer,
   BarChart,
@@ -283,6 +285,12 @@ export function DashboardStats() {
           </p>
         </CardContent>
       </Card>
+
+      {/* ── Multi-currency (only shown when there are mixed currencies) ── */}
+      <MultiCurrencyBanner expenses={current} />
+
+      {/* ── Weekly comparison ── */}
+      <WeeklyWidget />
 
       {/* ── KPIs ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

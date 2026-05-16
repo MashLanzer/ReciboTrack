@@ -3,7 +3,6 @@
 import { useState, useRef, useCallback, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { useAddExpense } from "@/hooks/use-expenses"
-import { useUIStore } from "@/stores/ui-store"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,6 +25,8 @@ import heic2any from "heic2any"
 import { cn } from "@/lib/utils"
 import { CameraCapture } from "./camera-capture"
 import { CategorySuggestion } from "@/components/shared/category-suggestion"
+import { useCategoryRules, applyRules } from "@/hooks/use-category-rules"
+import { useUIStore } from "@/stores/ui-store"
 
 type Step = "upload" | "camera" | "processing" | "confirm"
 
@@ -56,7 +57,9 @@ export function ReceiptScanner() {
   const { scannerOpen, setScannerOpen, sharedFile, setSharedFile } = useUIStore()
   const { user } = useAuth()
   const { data: categories = [] } = useCategories()
+  const { data: categoryRules = [] } = useCategoryRules()
   const { data: templates = [] } = useTemplates()
+  const { activeAccount } = useUIStore()
   const addExpense = useAddExpense()
   const addRecurring = useAddRecurring()
   const addTemplate = useAddTemplate()
@@ -76,6 +79,10 @@ export function ReceiptScanner() {
     reference: "", notes: "", tags: [], isRecurring: false,
     recurringFrequency: "monthly",
   })
+
+  // Per-item category assignment for item split
+  const [itemCategories, setItemCategories] = useState<Record<number, string>>({})
+  const [splitSaving, setSplitSaving] = useState(false)
 
   // Template save dialog
   const [templateDialog, setTemplateDialog] = useState(false)
@@ -98,6 +105,7 @@ export function ReceiptScanner() {
     setStep("upload")
     setImageUrl(null)
     setAllItems([])
+    setItemCategories({})
     setScanCount(0)
     setOcrProgress(0)
     setTagInput("")
@@ -129,7 +137,11 @@ export function ReceiptScanner() {
         total: data.total?.toString() ?? "",
         subtotal: data.subtotal?.toString() ?? "",
         tax: data.tax?.toString() ?? "",
-        category: data.category ?? "otros",
+        category: applyRules(categoryRules, {
+          merchant: data.merchant ?? "",
+          amount: data.total ?? 0,
+          notes: "",
+        }) ?? data.category ?? "otros",
         paymentMethod: data.paymentMethod ?? "",
         currency: data.currency ?? "USD",
         reference: data.reference ?? "",
@@ -364,7 +376,8 @@ export function ReceiptScanner() {
         currency: form.currency,
         notes: form.notes,
         tags: form.tags,
-        receiptImageUrl: null, // No se guardan fotos
+        receiptImageUrl: null,
+        account: activeAccount,
       }
 
       await addExpense.mutateAsync(expenseData)
@@ -396,6 +409,44 @@ export function ReceiptScanner() {
       handleClose()
     } catch {
       toast.error("Error al guardar el gasto")
+    }
+  }
+
+  // Save each OCR item as a separate expense
+  async function handleSplitByItems() {
+    if (allItems.length === 0) return
+    setSplitSaving(true)
+    let ok = 0
+    const baseDate = form.date ? new Date(form.date + "T12:00:00") : new Date()
+    for (let i = 0; i < allItems.length; i++) {
+      const item = allItems[i]
+      const cat = itemCategories[i] ?? form.category
+      const total = item.price * item.quantity
+      try {
+        await addExpense.mutateAsync({
+          merchant: item.name || form.merchant || "Ítem",
+          date: baseDate,
+          items: [item],
+          subtotal: total,
+          tax: 0,
+          total,
+          paymentMethod: form.paymentMethod || null,
+          reference: form.reference || null,
+          category: cat,
+          currency: form.currency,
+          notes: form.notes,
+          tags: [...form.tags, "division-recibo"],
+          receiptImageUrl: null,
+        })
+        ok++
+      } catch { /* continue */ }
+    }
+    setSplitSaving(false)
+    if (ok > 0) {
+      toast.success(`${ok} gastos separados guardados`)
+      handleClose()
+    } else {
+      toast.error("Error al guardar los gastos")
     }
   }
 
@@ -641,6 +692,55 @@ export function ReceiptScanner() {
                   </div>
                 )}
               </div>
+
+              {/* División por ítems del recibo */}
+              {allItems.length > 1 && (
+                <div className="col-span-2 rounded-lg border p-3 space-y-2.5">
+                  <p className="text-xs font-semibold flex items-center gap-1.5">
+                    <span>🧾</span>
+                    Dividir por ítems ({allItems.length} detectados)
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Asigna categorías individuales y guarda cada ítem como gasto separado
+                  </p>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {allItems.map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-xs">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{item.name}</p>
+                          <p className="text-muted-foreground tabular-nums">
+                            {item.quantity > 1 ? `${item.quantity}× ` : ""}{form.currency} {(item.price * item.quantity).toFixed(2)}
+                          </p>
+                        </div>
+                        <Select
+                          value={itemCategories[idx] ?? form.category}
+                          onValueChange={v => setItemCategories(prev => ({ ...prev, [idx]: v }))}
+                        >
+                          <SelectTrigger className="h-7 text-xs w-28 shrink-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map(c => (
+                              <SelectItem key={c.id} value={c.id} className="text-xs">{c.icon} {c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-1.5 text-xs"
+                    onClick={handleSplitByItems}
+                    disabled={splitSaving}
+                  >
+                    {splitSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                    Guardar {allItems.length} gastos separados
+                  </Button>
+                </div>
+              )}
 
               {/* Gasto recurrente */}
               <div className="col-span-2 rounded-lg border p-3 space-y-2">

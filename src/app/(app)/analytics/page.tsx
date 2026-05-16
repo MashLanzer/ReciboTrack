@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useCategories } from "@/hooks/use-categories"
 import { useGoals, useAddGoal, useUpdateGoalProgress, useDeleteGoal, type GoalInput } from "@/hooks/use-goals"
 import { formatCurrency, percentChange } from "@/lib/utils"
-import { subMonths, format, startOfMonth, endOfMonth, getDate, getDaysInMonth } from "date-fns"
+import { subMonths, format, startOfMonth, endOfMonth, getDate, getDaysInMonth, getDay, eachDayOfInterval } from "date-fns"
 import { es } from "date-fns/locale"
 import type { Expense } from "@/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,7 +20,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
-import { TrendingUp, TrendingDown, Minus, Plus, Trash2, Target, AlertTriangle, Check } from "lucide-react"
+import { TrendingUp, TrendingDown, Minus, Plus, Trash2, Target, AlertTriangle, Check, FileDown, Loader2 } from "lucide-react"
+import { exportMonthlyPDF } from "@/components/expenses/export-utils"
+import { ShareSummary } from "@/components/expenses/share-summary"
+import { CategoryTrend } from "@/components/analytics/category-trend"
+import { YearComparison } from "@/components/analytics/year-comparison"
+import { MonthlyPrediction } from "@/components/analytics/monthly-prediction"
+import { VATReport } from "@/components/analytics/vat-report"
+import { SankeyChart } from "@/components/analytics/sankey-chart"
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
   CartesianGrid, Cell, LineChart, Line, Legend,
@@ -83,6 +90,7 @@ export default function AnalyticsPage() {
   const [selectedOffset, setSelectedOffset] = useState(0)
 
   const [goalDialog, setGoalDialog] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
   const [progressDialog, setProgressDialog] = useState<{ id: string; current: number; name: string } | null>(null)
   const [progressInput, setProgressInput] = useState("")
   const [goalForm, setGoalForm] = useState<GoalInput>({
@@ -225,6 +233,44 @@ export default function AnalyticsPage() {
     return Object.values(dailyHeatmap.byDay).filter((v) => v > dailyLimitGoal.targetAmount).length
   }, [dailyHeatmap, dailyLimitGoal])
 
+  // ── Weekly pattern: avg spend per day of the week (all 6 months) ─────────
+  const weekdayData = useMemo(() => {
+    // Labels starting Monday (index 0 = Mon … 6 = Sun)
+    const LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+    // date-fns getDay returns 0=Sun, 1=Mon … 6=Sat → remap to Mon-first
+    const toMonFirst = (d: number) => (d + 6) % 7
+
+    // Count how many times each weekday occurred across the 6-month window
+    // (so we can compute a true average, not just total)
+    const start = startOfMonth(subMonths(today, 5))
+    const end = today // up to today only
+    const allDays = eachDayOfInterval({ start, end })
+    const dayOccurrences = new Array(7).fill(0)
+    allDays.forEach((d) => { dayOccurrences[toMonFirst(getDay(d))]++ })
+
+    // Accumulate totals and counts per weekday
+    const totals = new Array(7).fill(0)
+    const counts = new Array(7).fill(0)
+    all6.forEach((e) => {
+      const d = e.date.toDate()
+      const idx = toMonFirst(getDay(d))
+      totals[idx] += e.total
+      counts[idx]++
+    })
+
+    // Best day = highest avg spend (to highlight)
+    const avgs = totals.map((t, i) => (dayOccurrences[i] > 0 ? t / dayOccurrences[i] : 0))
+    const maxAvg = Math.max(...avgs)
+
+    return LABELS.map((label, i) => ({
+      label,
+      avg: parseFloat(avgs[i].toFixed(2)),
+      total: parseFloat(totals[i].toFixed(2)),
+      count: counts[i],
+      isMax: avgs[i] === maxAvg && maxAvg > 0,
+    }))
+  }, [all6, today])
+
   // ── Saving goals ──────────────────────────────────────────────────────────
   const savingGoals = goals.filter((g) => g.type === "saving")
 
@@ -273,9 +319,39 @@ export default function AnalyticsPage() {
     </div>
   )
 
+  async function handleExportPDF() {
+    if (selected.length === 0) { toast.info("No hay gastos en el mes seleccionado"); return }
+    setPdfLoading(true)
+    try {
+      await exportMonthlyPDF(selected, categories, selectedMonth, comparedTotal)
+      toast.success("Reporte PDF descargado")
+    } catch {
+      toast.error("Error al generar el PDF")
+    } finally {
+      setPdfLoading(false)
+    }
+  }
+
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-5">
-      <h1 className="font-serif text-2xl">Análisis</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="font-serif text-2xl">Análisis</h1>
+        <div className="flex items-center gap-2">
+          <ShareSummary />
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={handleExportPDF}
+            disabled={pdfLoading || isLoading}
+          >
+            {pdfLoading
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              : <FileDown className="h-3.5 w-3.5" />}
+            Reporte PDF
+          </Button>
+        </div>
+      </div>
 
       {/* ── Tendencia 6 meses (clickable to select month) ── */}
       <Card>
@@ -607,6 +683,81 @@ export default function AnalyticsPage() {
         </CardContent>
       </Card>
 
+      {/* ── #6 Patrón por día de la semana ── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Patrón semanal de gasto</CardTitle>
+          <p className="text-xs text-muted-foreground">Promedio diario · últimos 6 meses</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {isLoading ? (
+            <div className="h-40 flex items-end gap-1.5 px-1">
+              {[60, 40, 75, 55, 90, 35, 20].map((h, i) => (
+                <div key={i} className="flex-1 bg-muted animate-pulse rounded-t" style={{ height: `${h}%` }} />
+              ))}
+            </div>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={weekdayData} barCategoryGap="20%">
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis hide />
+                  <Tooltip
+                    cursor={{ fill: "hsl(var(--accent))", radius: 4 }}
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null
+                      const d = payload[0].payload
+                      return (
+                        <div className="rounded-lg border bg-popover p-2.5 shadow-md text-xs space-y-0.5">
+                          <p className="font-semibold">{d.label}</p>
+                          <p className="tabular-nums">Promedio: <span className="font-medium">{formatCurrency(d.avg)}</span></p>
+                          <p className="tabular-nums text-muted-foreground">Total: {formatCurrency(d.total)}</p>
+                          <p className="text-muted-foreground">{d.count} transacciones</p>
+                        </div>
+                      )
+                    }}
+                  />
+                  <Bar dataKey="avg" radius={[4, 4, 0, 0]}>
+                    {weekdayData.map((entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={entry.isMax ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.25)"}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+
+              {/* Summary row: busiest day + quietest day */}
+              {weekdayData.some((d) => d.avg > 0) && (() => {
+                const sorted = [...weekdayData].filter((d) => d.avg > 0).sort((a, b) => b.avg - a.avg)
+                const busiest = sorted[0]
+                const quietest = sorted[sorted.length - 1]
+                return (
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t">
+                    <div className="rounded-lg bg-primary/5 border border-primary/20 px-3 py-2">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Día más activo</p>
+                      <p className="text-sm font-bold mt-0.5">{busiest.label}</p>
+                      <p className="text-xs text-muted-foreground tabular-nums">{formatCurrency(busiest.avg)} promedio</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/40 px-3 py-2">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Día más tranquilo</p>
+                      <p className="text-sm font-bold mt-0.5">{quietest.label}</p>
+                      <p className="text-xs text-muted-foreground tabular-nums">{formatCurrency(quietest.avg)} promedio</p>
+                    </div>
+                  </div>
+                )
+              })()}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       {/* ── #13 Metas de ahorro ── */}
       <Card>
         <CardHeader className="pb-3">
@@ -747,6 +898,21 @@ export default function AnalyticsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ── Año actual vs. año anterior ── */}
+      <YearComparison />
+
+      {/* ── Predicción próximo mes ── */}
+      <MonthlyPrediction />
+
+      {/* ── IVA / Gastos deducibles ── */}
+      <VATReport />
+
+      {/* ── Flujo Sankey ── */}
+      <SankeyChart />
+
+      {/* ── Tendencia por categoría ── */}
+      <CategoryTrend />
 
       {/* ── Dialog actualizar progreso ── */}
       <Dialog open={!!progressDialog} onOpenChange={(o) => !o && setProgressDialog(null)}>

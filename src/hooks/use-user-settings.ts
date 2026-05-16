@@ -12,6 +12,9 @@ export interface UserSettings {
   reminderDaysBefore: number
   compactView: boolean
   weekStartsOn: 0 | 1 // 0 = Sunday, 1 = Monday
+  onboardingCompleted: boolean
+  accentColor: string           // HSL hue value, e.g. "262" for indigo
+  deductibleCategories: string[] // category IDs that are tax-deductible
 }
 
 const DEFAULTS: UserSettings = {
@@ -21,6 +24,9 @@ const DEFAULTS: UserSettings = {
   reminderDaysBefore: 3,
   compactView: false,
   weekStartsOn: 1,
+  onboardingCompleted: false,
+  accentColor: "262",            // default indigo
+  deductibleCategories: [],
 }
 
 function settingsRef(uid: string) {

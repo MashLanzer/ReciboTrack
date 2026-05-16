@@ -206,7 +206,7 @@ export function useAddGroupExpense() {
     }) => {
       if (!user) throw new Error("No autenticado")
       const now = Timestamp.now()
-      await addDoc(collection(getFirebaseDb(), "groups", groupId, "expenses"), {
+      const expRef = await addDoc(collection(getFirebaseDb(), "groups", groupId, "expenses"), {
         ...input,
         date: Timestamp.fromDate(input.date),
         paidByUid: user.uid,
@@ -217,6 +217,16 @@ export function useAddGroupExpense() {
         groupId,
         createdAt: now,
         updatedAt: now,
+      })
+      // Write audit log entry
+      await addDoc(collection(getFirebaseDb(), "groups", groupId, "expenses", expRef.id, "auditLog"), {
+        expenseId: expRef.id,
+        groupId,
+        action: "created",
+        byUid: user.uid,
+        byName: user.displayName ?? user.email ?? "Yo",
+        summary: `Gasto creado: ${input.merchant} — ${input.total} ${input.currency}`,
+        timestamp: now,
       })
     },
     onSuccess: (_, { groupId }) => {
@@ -252,6 +262,7 @@ export function useRefreshInviteCode() {
 }
 
 export function useUpdateGroupExpense() {
+  const { user } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({
@@ -263,14 +274,27 @@ export function useUpdateGroupExpense() {
       customShares?: Record<string, number>
     }) => {
       const ref = doc(getFirebaseDb(), "groups", groupId, "expenses", expenseId)
+      const now = Timestamp.now()
       await updateDoc(ref, {
         ...input,
         ...(input.date ? { date: Timestamp.fromDate(input.date) } : {}),
         splitWith,
         splitType,
         ...(customShares ? { customShares } : {}),
-        updatedAt: Timestamp.now(),
+        updatedAt: now,
       })
+      // Write audit log entry (best-effort)
+      try {
+        await addDoc(collection(getFirebaseDb(), "groups", groupId, "expenses", expenseId, "auditLog"), {
+          expenseId,
+          groupId,
+          action: "updated",
+          byUid: user?.uid ?? "unknown",
+          byName: user?.displayName ?? user?.email ?? "Usuario",
+          summary: `Editado: ${input.merchant ?? "gasto"} — ${input.total != null ? input.total : ""}${input.currency ? " " + input.currency : ""}`.trim(),
+          timestamp: now,
+        })
+      } catch { /* non-critical */ }
     },
     onSuccess: (_, { groupId }) => queryClient.invalidateQueries({ queryKey: ["group-expenses", groupId] }),
   })
@@ -356,5 +380,36 @@ export function useUnarchiveGroup() {
       await updateDoc(doc(getFirebaseDb(), "groups", groupId), { archived: false })
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
+  })
+}
+
+// ─── Audit log ─────────────────────────────────────────────────────────────────
+
+export interface ExpenseAuditEntry {
+  id: string
+  expenseId: string
+  groupId: string
+  action: "created" | "updated" | "deleted"
+  byUid: string
+  byName: string
+  /** Human-readable summary of what changed */
+  summary: string
+  timestamp: Timestamp
+}
+
+export function useExpenseAuditLog(groupId: string | null, expenseId: string | null) {
+  return useQuery({
+    queryKey: ["expense-audit", groupId, expenseId],
+    enabled: !!groupId && !!expenseId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      if (!groupId || !expenseId) return []
+      const q = query(
+        collection(getFirebaseDb(), "groups", groupId, "expenses", expenseId, "auditLog"),
+        orderBy("timestamp", "desc")
+      )
+      const snap = await getDocs(q)
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }) as ExpenseAuditEntry)
+    },
   })
 }

@@ -31,6 +31,7 @@ export function useExpenses(filters?: {
   search?: string
   page?: number
   sort?: ExpenseSort
+  account?: "personal" | "business" | "all"
 }) {
   const { user } = useAuth()
 
@@ -55,6 +56,16 @@ export function useExpenses(filters?: {
 
       const snapshot = await getDocs(q)
       let expenses = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
+
+      // Account filter (client-side for backwards compatibility with legacy docs)
+      if (filters?.account && filters.account !== "all") {
+        if (filters.account === "business") {
+          expenses = expenses.filter(e => e.account === "business")
+        } else {
+          // personal: show docs without account field, or account === "personal"
+          expenses = expenses.filter(e => !e.account || e.account === "personal")
+        }
+      }
 
       if (filters?.search) {
         const s = filters.search.toLowerCase()

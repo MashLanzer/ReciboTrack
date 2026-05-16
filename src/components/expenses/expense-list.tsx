@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
-import { useExpenses, useDeleteExpense, useAddExpense, type ExpenseSort } from "@/hooks/use-expenses"
+import { useExpenses, useDeleteExpense, useAddExpense, useUpdateExpense, type ExpenseSort } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
 import { formatCurrency, formatDate, toDate } from "@/lib/utils"
 import { EXPENSES_PER_PAGE } from "@/lib/constants"
@@ -29,6 +29,8 @@ import { exportToCSV, exportToPDF } from "./export-utils"
 import { exportToGoogleSheets, SheetsRedirectPending } from "@/lib/google-sheets"
 import { ReceiptScanner } from "@/components/receipt-scanner/receipt-scanner"
 import { SwipeableRow } from "@/components/shared/swipeable-row"
+import { useUIStore } from "@/stores/ui-store"
+import { AccountBadge } from "@/components/shared/account-switcher"
 
 export function ExpenseList() {
   const router = useRouter()
@@ -56,6 +58,9 @@ export function ExpenseList() {
   const [datePickerOpen, setDatePickerOpen] = useState(false)
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkCatOpen, setBulkCatOpen] = useState(false)
+  const [bulkCatValue, setBulkCatValue] = useState("")
+  const { activeAccount } = useUIStore()
 
   // ── Undo-delete tracking ────────────────────────────────────────────────────
   // IDs hidden optimistically while deletion is pending (within undo window)
@@ -82,10 +87,12 @@ export function ExpenseList() {
     endDate,
     page,
     sort,
+    account: activeAccount,
   })
   const { data: categories = [] } = useCategories()
   const deleteExpense = useDeleteExpense()
   const addExpense = useAddExpense()
+  const updateExpense = useUpdateExpense()
 
   // Tag filtering is client-side; allTags now comes from the full result (not just current page)
   const allTags = data?.allTags ?? []
@@ -184,6 +191,14 @@ export function ExpenseList() {
     const ids = [...selectedIds]
     exitSelectMode()
     scheduleDelete(ids)
+  }
+
+  async function handleBulkCategory(categoryId: string) {
+    const ids = [...selectedIds]
+    setBulkCatOpen(false)
+    exitSelectMode()
+    await Promise.all(ids.map((id) => updateExpense.mutateAsync({ id, input: { category: categoryId } })))
+    toast.success(`Categoría actualizada en ${ids.length} gasto${ids.length !== 1 ? "s" : ""}`)
   }
 
   function applyPreset(preset: string) {
@@ -715,6 +730,15 @@ export function ExpenseList() {
                 size="sm"
                 variant="secondary"
                 className="h-8 text-xs gap-1.5 bg-background/15 hover:bg-background/25 text-background border-0"
+                onClick={() => setBulkCatOpen(true)}
+              >
+                <Tag className="h-3.5 w-3.5" />
+                Categoría
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8 text-xs gap-1.5 bg-background/15 hover:bg-background/25 text-background border-0"
                 onClick={() => exportToCSV(selectedExpenses)}
               >
                 CSV
@@ -735,6 +759,40 @@ export function ExpenseList() {
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 Eliminar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bulk category dialog ── */}
+      {bulkCatOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setBulkCatOpen(false)} />
+          <div className="relative bg-background rounded-2xl border shadow-2xl p-5 w-full max-w-xs space-y-3">
+            <p className="text-sm font-semibold">
+              Cambiar categoría — {selectedIds.size} gasto{selectedIds.size !== 1 ? "s" : ""}
+            </p>
+            <Select value={bulkCatValue} onValueChange={setBulkCatValue}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona categoría..." />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setBulkCatOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={!bulkCatValue}
+                onClick={() => bulkCatValue && handleBulkCategory(bulkCatValue)}
+              >
+                Aplicar
               </Button>
             </div>
           </div>

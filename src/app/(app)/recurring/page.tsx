@@ -13,6 +13,7 @@ import { useAddExpense } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
 import { useQuery } from "@tanstack/react-query"
 import { collection, query as fbQuery, orderBy, limit, getDocs } from "firebase/firestore"
+import { SubscriptionDetector } from "@/components/expenses/subscription-detector"
 import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
@@ -317,6 +318,9 @@ export default function RecurringPage() {
           </div>
         </div>
       )}
+
+      {/* Subscription detector */}
+      {!isLoading && <SubscriptionDetector />}
 
       {/* Calendar view */}
       {!isLoading && viewMode === "calendar" && templates.length > 0 && (

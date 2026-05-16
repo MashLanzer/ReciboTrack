@@ -1,6 +1,12 @@
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app"
 import { getAuth, type Auth } from "firebase/auth"
-import { getFirestore, type Firestore } from "firebase/firestore"
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  getFirestore,
+  type Firestore,
+} from "firebase/firestore"
 import { getStorage, type FirebaseStorage } from "firebase/storage"
 
 const firebaseConfig = {
@@ -24,14 +30,27 @@ function ensureApp(): FirebaseApp {
   return _app
 }
 
-// Funciones lazy — Firebase solo se inicializa cuando se llama por primera vez
 export function getFirebaseAuth(): Auth {
   if (!_auth) _auth = getAuth(ensureApp())
   return _auth
 }
 
 export function getFirebaseDb(): Firestore {
-  if (!_db) _db = getFirestore(ensureApp())
+  if (!_db) {
+    const app = ensureApp()
+    // Use IndexedDB persistent cache so the app works offline
+    // Falls back gracefully to memory cache if IndexedDB is unavailable
+    try {
+      _db = initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
+      })
+    } catch {
+      // Already initialized (e.g., hot reload in dev) — grab the existing instance
+      _db = getFirestore(app)
+    }
+  }
   return _db
 }
 

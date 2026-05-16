@@ -18,6 +18,7 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu"
 import { LogOut, Moon, Sun, UserCircle, ChevronDown, Search } from "lucide-react"
+import { AccountSwitcher } from "@/components/shared/account-switcher"
 import { useTheme } from "next-themes"
 import { useUIStore } from "@/stores/ui-store"
 import { toast } from "sonner"
@@ -110,6 +111,9 @@ export function TopNav() {
       </nav>
 
       <div className="ml-auto flex items-center gap-2">
+        {/* Account switcher */}
+        <AccountSwitcher />
+
         {/* Command palette trigger */}
         <button
           onClick={() => setCommandOpen(true)}
