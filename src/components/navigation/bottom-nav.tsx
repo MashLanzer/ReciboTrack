@@ -18,6 +18,7 @@ import {
   X,
   Search,
   Users,
+  UsersRound,
   ScanLine,
   PenLine,
   TrendingUp,
@@ -260,25 +261,38 @@ export function BottomNav() {
             </Link>
           </div>
 
-          {/* Account switcher */}
+          {/* Account switcher + Buscar */}
           <div className="px-2 pb-1">
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/40">
               <span className="text-[10px] font-medium text-muted-foreground shrink-0">Cuenta</span>
               <div className="flex-1 flex justify-center">
                 <AccountSwitcher />
               </div>
+              <button
+                onClick={() => { setMoreOpen(false); setCommandOpen(true) }}
+                className="shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
+                aria-label="Buscar"
+              >
+                <Search className="h-4 w-4" />
+              </button>
             </div>
           </div>
 
           {/* Utility actions */}
           <div className="px-2 pb-2 grid grid-cols-4 gap-1.5">
-            <button
-              onClick={() => { setMoreOpen(false); setCommandOpen(true) }}
-              className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            <Link
+              href="/groups"
+              onClick={() => setMoreOpen(false)}
+              className={cn(
+                "flex flex-col items-center gap-1 py-2.5 rounded-xl transition-colors",
+                pathname === "/groups" || pathname.startsWith("/groups/")
+                  ? "text-primary bg-primary/10"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+              )}
             >
-              <Search className="h-[18px] w-[18px]" />
-              <span className="text-[10px] font-medium">Buscar</span>
-            </button>
+              <UsersRound className="h-[18px] w-[18px]" />
+              <span className="text-[10px] font-medium">Grupos</span>
+            </Link>
             <button
               onClick={() => { setMoreOpen(false); setSplitOpen(true) }}
               className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
@@ -346,7 +360,7 @@ export function BottomNav() {
 
           {/* Right half: Análisis + Más */}
           <div className="flex flex-1 items-center justify-around">
-            {NAV_ITEMS.slice(2, 4).map(({ href, label, icon: Icon }) => {
+            {NAV_ITEMS.slice(2, 3).map(({ href, label, icon: Icon }) => {
               const active = pathname === href || pathname.startsWith(href + "/")
               return (
                 <Link
