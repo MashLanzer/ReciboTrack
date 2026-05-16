@@ -7,6 +7,7 @@ import { CommandPalette } from "@/components/shared/command-palette"
 import { Onboarding } from "@/components/shared/onboarding"
 import { AccentColorProvider } from "@/components/shared/accent-color-provider"
 import { OfflineBanner } from "@/components/shared/offline-banner"
+import { AnomalyDetector } from "@/components/shared/anomaly-detector"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -15,6 +16,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <NotificationInit />
       <AccentColorProvider />
       <Onboarding />
+      <AnomalyDetector />
       <CommandPalette />
       <div className="flex flex-col min-h-screen">
         <TopNav />
