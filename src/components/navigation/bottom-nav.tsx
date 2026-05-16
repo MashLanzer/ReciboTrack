@@ -216,7 +216,41 @@ export function BottomNav() {
 
           {/* Grouped nav items */}
           <div className="p-2 grid grid-cols-3 gap-1.5">
-            {MORE_ITEMS.map(({ href, label, icon: Icon }) => {
+            {/* Items 0–3: Ingresos, Recurrentes, Presupuestos, Categorías */}
+            {MORE_ITEMS.slice(0, 4).map(({ href, label, icon: Icon }) => {
+              const active = pathname === href || pathname.startsWith(href + "/")
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl transition-colors",
+                    active
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  )}
+                >
+                  <Icon className={cn("h-5 w-5", active && "stroke-[2.5]")} />
+                  <span className="text-[11px] font-medium">{label}</span>
+                </Link>
+              )
+            })}
+
+            {/* Accesos rápidos — entre Categorías y Proyectos */}
+            <button
+              onClick={() => {
+                setMoreOpen(false)
+                try { localStorage.setItem("rt-dashboard-tab", "semana") } catch { /**/ }
+                router.push("/dashboard")
+              }}
+              className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl transition-colors text-muted-foreground hover:text-foreground hover:bg-accent"
+            >
+              <Zap className="h-5 w-5" />
+              <span className="text-[11px] font-medium">Accesos rápidos</span>
+            </button>
+
+            {/* Item 4: Proyectos */}
+            {MORE_ITEMS.slice(4).map(({ href, label, icon: Icon }) => {
               const active = pathname === href || pathname.startsWith(href + "/")
               return (
                 <Link
