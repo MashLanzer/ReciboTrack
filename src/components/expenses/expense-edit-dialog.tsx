@@ -55,11 +55,18 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
     )
   }, [nearbyExpenses, form.merchant, form.total, expense, dupDismissed])
 
-  // ── All known tags (from last 6 months of expenses via useProjects pool) ──
-  const knownTags = useMemo(() => {
-    const set = new Set<string>()
-    allExpenses.forEach((e) => e.tags?.forEach((t) => set.add(t)))
-    return [...set].sort()
+  // ── All known tags + merchants (from last 6 months via useProjects pool) ──
+  const { knownTags, knownMerchants } = useMemo(() => {
+    const tags = new Set<string>()
+    const merchants = new Set<string>()
+    allExpenses.forEach((e) => {
+      e.tags?.forEach((t) => tags.add(t))
+      if (e.merchant) merchants.add(e.merchant)
+    })
+    return {
+      knownTags: [...tags].sort(),
+      knownMerchants: [...merchants].sort(),
+    }
   }, [allExpenses])
 
   useEffect(() => {
@@ -173,7 +180,17 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2 space-y-1.5">
               <Label>Comercio</Label>
-              <Input value={form.merchant} onChange={(e) => setForm({ ...form, merchant: e.target.value })} required />
+              <Input
+                list="merchant-suggestions"
+                value={form.merchant}
+                onChange={(e) => setForm({ ...form, merchant: e.target.value })}
+                required
+              />
+              {knownMerchants.length > 0 && (
+                <datalist id="merchant-suggestions">
+                  {knownMerchants.map((m) => <option key={m} value={m} />)}
+                </datalist>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>Fecha</Label>

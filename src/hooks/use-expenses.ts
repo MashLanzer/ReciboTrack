@@ -74,6 +74,7 @@ export function useExpenses(filters?: {
             e.merchant.toLowerCase().includes(s) ||
             (e.reference?.toLowerCase().includes(s) ?? false) ||
             (e.notes?.toLowerCase().includes(s) ?? false) ||
+            (e.project?.toLowerCase().includes(s) ?? false) ||
             (e.tags?.some((t) => t.toLowerCase().includes(s)) ?? false) ||
             (e.items?.some((it) => it.name.toLowerCase().includes(s)) ?? false)
         )
