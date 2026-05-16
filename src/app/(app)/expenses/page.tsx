@@ -1,7 +1,6 @@
 import { Suspense } from "react"
 import { ExpenseList } from "@/components/expenses/expense-list"
 import { ExpenseCalendar } from "@/components/expenses/expense-calendar"
-import { ScanFab } from "@/components/receipt-scanner/scan-fab"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ViewToggle } from "@/components/expenses/view-toggle"
 import { ShareSummary } from "@/components/expenses/share-summary"
@@ -47,7 +46,6 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
         </Suspense>
       )}
 
-      <ScanFab />
     </div>
   )
 }

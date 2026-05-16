@@ -9,6 +9,8 @@ import { AccentColorProvider } from "@/components/shared/accent-color-provider"
 import { OfflineBanner } from "@/components/shared/offline-banner"
 import { AnomalyDetector } from "@/components/shared/anomaly-detector"
 import { CategoryLimitsWatcher } from "@/components/shared/category-limits-watcher"
+import { ReceiptScanner } from "@/components/receipt-scanner/receipt-scanner"
+import { QuickAddSheet } from "@/components/expenses/quick-add-sheet"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -20,6 +22,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <AnomalyDetector />
       <CategoryLimitsWatcher />
       <CommandPalette />
+      {/* Global overlays — scanner + quick-add available from any page */}
+      <ReceiptScanner />
+      <QuickAddSheet />
       <div className="flex flex-col min-h-screen">
         <TopNav />
         <UpdateBanner />

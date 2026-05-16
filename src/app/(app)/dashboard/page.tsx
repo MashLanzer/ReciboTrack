@@ -8,8 +8,6 @@ import { QuickExpenses } from "@/components/dashboard/quick-expenses"
 import { WeeklyWidget } from "@/components/dashboard/weekly-widget"
 import { MultiCurrencyBanner } from "@/components/dashboard/multicurrency-banner"
 import { RecurringBanner } from "@/components/expenses/recurring-banner"
-import { ScanFab } from "@/components/receipt-scanner/scan-fab"
-import { ReceiptScanner } from "@/components/receipt-scanner/receipt-scanner"
 import { useUIStore } from "@/stores/ui-store"
 import { cn } from "@/lib/utils"
 import { LayoutDashboard, CalendarDays, BarChart2 } from "lucide-react"
@@ -102,9 +100,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Global overlays — always rendered regardless of tab */}
-      <ScanFab />
-      <ReceiptScanner />
     </div>
   )
 }
