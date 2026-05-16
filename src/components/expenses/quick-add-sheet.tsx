@@ -1,13 +1,15 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { useAddExpense } from "@/hooks/use-expenses"
+import { useState, useEffect, useRef, useMemo } from "react"
+import { useAddExpense, useExpensesPeriod } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
 import { useUIStore } from "@/stores/ui-store"
+import { CategorySuggestion } from "@/components/shared/category-suggestion"
 import { DEFAULT_CATEGORIES, CURRENCIES } from "@/lib/constants"
 import { formatCurrency, cn } from "@/lib/utils"
+import { subMonths } from "date-fns"
 import { format } from "date-fns"
-import { X, Check, ChevronDown } from "lucide-react"
+import { X, Check } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
@@ -31,6 +33,17 @@ export function QuickAddSheet() {
     date: today,
     notes: "",
   })
+
+  // ── Known merchants from last 6 months (for datalist autocomplete) ──────────
+  const now = useMemo(() => new Date(), [])
+  const sixMonthsAgo = useMemo(() => subMonths(now, 6), [now])
+  const { data: recentExpenses = [] } = useExpensesPeriod(sixMonthsAgo, now)
+
+  const knownMerchants = useMemo(() => {
+    const set = new Set<string>()
+    recentExpenses.forEach((e) => { if (e.merchant) set.add(e.merchant) })
+    return [...set].sort()
+  }, [recentExpenses])
 
   // Reset and focus when opened
   useEffect(() => {
@@ -78,8 +91,6 @@ export function QuickAddSheet() {
     }
   }
 
-  const selectedCat = allCats.find((c) => c.id === form.category)
-
   if (!quickAddOpen) return null
 
   return (
@@ -106,14 +117,30 @@ export function QuickAddSheet() {
 
           {/* Form */}
           <div className="p-4 space-y-3">
-            {/* Merchant */}
-            <Input
-              ref={merchantRef}
-              placeholder="Comercio o descripción"
-              value={form.merchant}
-              onChange={(e) => setForm((f) => ({ ...f, merchant: e.target.value }))}
-              className="h-10"
-            />
+            {/* Merchant + category suggestion */}
+            <div className="space-y-1.5">
+              <Input
+                ref={merchantRef}
+                id="qs-merchant"
+                list="qs-merchant-list"
+                placeholder="Comercio o descripción"
+                value={form.merchant}
+                onChange={(e) => setForm((f) => ({ ...f, merchant: e.target.value }))}
+                className="h-10"
+                autoComplete="off"
+              />
+              {knownMerchants.length > 0 && (
+                <datalist id="qs-merchant-list">
+                  {knownMerchants.map((m) => <option key={m} value={m} />)}
+                </datalist>
+              )}
+              {/* Category auto-suggestion */}
+              <CategorySuggestion
+                merchant={form.merchant}
+                currentCategory={form.category}
+                onAccept={(cat) => setForm((f) => ({ ...f, category: cat }))}
+              />
+            </div>
 
             {/* Amount + Currency */}
             <div className="flex gap-2">
