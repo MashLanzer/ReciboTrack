@@ -22,11 +22,16 @@ import {
   PenLine,
   TrendingUp,
   Plus,
+  Zap,
 } from "lucide-react"
 import { AccountSwitcher } from "@/components/shared/account-switcher"
 import { useUIStore } from "@/stores/ui-store"
 import { toast } from "sonner"
 import { QuickSplit } from "@/components/expenses/quick-split"
+import { useQuickExpenses, useDeleteQuickExpense } from "@/hooks/use-quick-expenses"
+import { useAddExpense } from "@/hooks/use-expenses"
+import { formatCurrency } from "@/lib/utils"
+import type { QuickExpense } from "@/types"
 
 export function BottomNav() {
   const pathname = usePathname()
@@ -37,6 +42,40 @@ export function BottomNav() {
   const [moreOpen, setMoreOpen] = useState(false)
   const [actionOpen, setActionOpen] = useState(false)
   const [splitOpen, setSplitOpen] = useState(false)
+  const [loadingId, setLoadingId] = useState<string | null>(null)
+
+  const { data: quickExpenses = [] } = useQuickExpenses()
+  const deleteQuick = useDeleteQuickExpense()
+  const addExpense = useAddExpense()
+
+  async function handleQuickTap(q: QuickExpense) {
+    if (loadingId) return
+    setLoadingId(q.id)
+    try {
+      await addExpense.mutateAsync({
+        merchant: q.merchant,
+        date: new Date(),
+        items: [],
+        subtotal: q.amount,
+        tax: 0,
+        total: q.amount,
+        paymentMethod: q.paymentMethod,
+        reference: null,
+        category: q.category,
+        currency: q.currency,
+        notes: "",
+        tags: q.tags,
+        receiptImageUrl: null,
+      })
+      toast.success(`${q.icon} ${q.label} añadido`, {
+        description: formatCurrency(q.amount, q.currency),
+      })
+    } catch {
+      toast.error("Error al añadir el gasto")
+    } finally {
+      setLoadingId(null)
+    }
+  }
 
   // Close panels on navigation
   useEffect(() => {
@@ -143,6 +182,36 @@ export function BottomNav() {
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
+
+          {/* Accesos rápidos */}
+          {quickExpenses.length > 0 && (
+            <>
+              <div className="px-4 pt-2 pb-1">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <Zap className="h-3 w-3" /> Accesos rápidos
+                </p>
+                <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1">
+                  {quickExpenses.map((q) => (
+                    <button
+                      key={q.id}
+                      onClick={() => { setMoreOpen(false); handleQuickTap(q) }}
+                      disabled={!!loadingId}
+                      className={cn(
+                        "shrink-0 flex flex-col items-center gap-1 w-16 py-2 rounded-xl border bg-card",
+                        "hover:border-primary/50 hover:bg-primary/5 active:scale-95 transition-all",
+                        loadingId === q.id && "opacity-60"
+                      )}
+                    >
+                      <span className="text-xl leading-none">{q.icon}</span>
+                      <span className="text-[9px] font-medium truncate w-full text-center px-1 leading-tight">{q.label}</span>
+                      <span className="text-[9px] text-muted-foreground font-mono">{formatCurrency(q.amount, q.currency)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="h-px bg-border mx-2" />
+            </>
+          )}
 
           {/* Grouped nav items */}
           <div className="p-2 grid grid-cols-3 gap-1.5">
