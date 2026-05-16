@@ -37,6 +37,7 @@ import {
   Line,
 } from "recharts"
 import { cn } from "@/lib/utils"
+import { TOOLTIP_STYLE, TOOLTIP_STYLE_SM, CURSOR_STYLE, AXIS_TICK, GRID_STROKE } from "@/lib/chart-theme"
 
 // ─── Recurring projection helpers ─────────────────────────────────────────────
 
@@ -339,13 +340,13 @@ export function DashboardStats() {
         <CardContent className="-mx-2">
           <ResponsiveContainer width="100%" height={180}>
             <ComposedChart data={monthlyTrend} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.06} vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} strokeOpacity={0.5} vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} width={36} />
               <Tooltip
                 formatter={(v) => [formatCurrency(Number(v)), "Total"]}
                 labelFormatter={(_: unknown, payload: ReadonlyArray<{ payload?: { fullMonth?: string } }>) => payload?.[0]?.payload?.fullMonth ?? ""}
-                contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }}
+                contentStyle={TOOLTIP_STYLE} cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }}
               />
               <ReferenceLine y={prevTotal} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" strokeOpacity={0.4} />
               <Bar dataKey="total" radius={[4, 4, 0, 0]}>
@@ -377,7 +378,7 @@ export function DashboardStats() {
               <Tooltip
                 formatter={(v) => [formatCurrency(Number(v)), "Gasto"]}
                 labelFormatter={(v) => `Día ${v}`}
-                contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }}
+                contentStyle={TOOLTIP_STYLE_SM} cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }}
               />
               <Bar dataKey="total" radius={[2, 2, 0, 0]}>
                 {dailyData.map((entry, index) => (

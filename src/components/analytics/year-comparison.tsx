@@ -18,6 +18,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
   CartesianGrid, Cell, Legend,
 } from "recharts"
+import { TOOLTIP_STYLE_SM, CURSOR_STYLE, AXIS_TICK, GRID_STROKE, LEGEND_STYLE } from "@/lib/chart-theme"
 
 // ─── Fetch 13 months so we have same month last year ─────────────────────────
 
@@ -192,15 +193,16 @@ export function YearComparison() {
           <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">Últimos 12 meses</p>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={monthlyData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }} barGap={2}>
-              <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.06} vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false} width={30}
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} strokeOpacity={0.5} vertical={false} />
+              <XAxis dataKey="month" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+              <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} width={30}
                 tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v} />
               <Tooltip
                 formatter={v => formatCurrency(Number(v))}
-                contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }}
+                contentStyle={TOOLTIP_STYLE_SM}
+                cursor={CURSOR_STYLE}
               />
-              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Legend wrapperStyle={LEGEND_STYLE} />
               <Bar dataKey="lastYear" name={lastYearLabel} radius={[3, 3, 0, 0]}
                 fill="hsl(var(--muted-foreground))" fillOpacity={0.3} />
               <Bar dataKey="thisYear" name={thisYearLabel} radius={[3, 3, 0, 0]}>

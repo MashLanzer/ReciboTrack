@@ -26,6 +26,7 @@ import {
   CartesianGrid,
   ReferenceLine,
 } from "recharts"
+import { AXIS_TICK, GRID_STROKE } from "@/lib/chart-theme"
 
 // ─── 12-month data hook ───────────────────────────────────────────────────────
 
@@ -151,15 +152,15 @@ export function CategoryTrend() {
         ) : (
           <ResponsiveContainer width="100%" height={176}>
             <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} strokeOpacity={0.5} />
               <XAxis
                 dataKey="month"
-                tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                tick={AXIS_TICK}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                tick={AXIS_TICK}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={(v) => `${v > 999 ? `${(v / 1000).toFixed(1)}k` : v}`}
