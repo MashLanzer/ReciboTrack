@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore"
 import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "@/hooks/use-auth"
+import { useUIStore } from "@/stores/ui-store"
 import { useCategories } from "@/hooks/use-categories"
 import { formatCurrency } from "@/lib/utils"
 import { subMonths, subYears, startOfMonth, endOfMonth, format, getMonth, getYear } from "date-fns"
@@ -58,8 +59,14 @@ function DeltaBadge({ value }: { value: number }) {
 }
 
 export function YearComparison() {
-  const { data: allExpenses = [], isLoading } = useYearComparisonData()
+  const { data: rawExpenses = [], isLoading } = useYearComparisonData()
+  const { activeAccount } = useUIStore()
   const { data: categories = [] } = useCategories()
+
+  const allExpenses = useMemo(() => {
+    if (activeAccount === 'business') return rawExpenses.filter(e => e.account === 'business')
+    return rawExpenses.filter(e => !e.account || e.account === 'personal')
+  }, [rawExpenses, activeAccount])
 
   const now = new Date()
 

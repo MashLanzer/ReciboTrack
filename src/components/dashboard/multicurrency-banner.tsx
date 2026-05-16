@@ -4,16 +4,19 @@ import { useMemo } from "react"
 import { useExchangeRates, convertAmount } from "@/hooks/use-exchange-rates"
 import { useUserSettings } from "@/hooks/use-user-settings"
 import { useExpenses } from "@/hooks/use-expenses"
+import { useUIStore } from "@/stores/ui-store"
 import { formatCurrency } from "@/lib/utils"
 import { Loader2, RefreshCw } from "lucide-react"
 import { startOfMonth, endOfMonth } from "date-fns"
 
 export function MultiCurrencyBanner() {
   const now = new Date()
+  const { activeAccount } = useUIStore()
   const { data: result } = useExpenses({
     startDate: startOfMonth(now),
     endDate: endOfMonth(now),
     sort: "date_desc",
+    account: activeAccount,
   })
   const expenses = result?.expenses ?? []
   const { data: rates, isLoading, error } = useExchangeRates()

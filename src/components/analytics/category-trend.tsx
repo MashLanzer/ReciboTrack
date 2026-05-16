@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore"
 import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "@/hooks/use-auth"
+import { useUIStore } from "@/stores/ui-store"
 import { useCategories } from "@/hooks/use-categories"
 import { DEFAULT_CATEGORIES } from "@/lib/constants"
 import { formatCurrency } from "@/lib/utils"
@@ -60,9 +61,15 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function CategoryTrend() {
-  const { data: expenses = [], isLoading } = use12MonthExpenses()
+  const { data: rawExpenses = [], isLoading } = use12MonthExpenses()
+  const { activeAccount } = useUIStore()
   const { data: categories = [] } = useCategories()
   const allCats = categories.length > 0 ? categories : DEFAULT_CATEGORIES
+
+  const expenses = useMemo(() => {
+    if (activeAccount === 'business') return rawExpenses.filter(e => e.account === 'business')
+    return rawExpenses.filter(e => !e.account || e.account === 'personal')
+  }, [rawExpenses, activeAccount])
 
   const [selectedCat, setSelectedCat] = useState(allCats[0]?.id ?? "comida")
 

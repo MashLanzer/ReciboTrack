@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { useExpenses } from "@/hooks/use-expenses"
+import { useUIStore } from "@/stores/ui-store"
 import { useCategories } from "@/hooks/use-categories"
 import { useUserSettings, useUpdateUserSettings } from "@/hooks/use-user-settings"
 import { formatCurrency } from "@/lib/utils"
@@ -62,6 +63,7 @@ export function VATReport() {
   const { data: settings } = useUserSettings()
   const updateSettings = useUpdateUserSettings()
   const { data: categories = [] } = useCategories()
+  const { activeAccount } = useUIStore()
 
   const [quarterOffset, setQuarterOffset] = useState(0)
   const [showConfig, setShowConfig] = useState(false)
@@ -73,7 +75,7 @@ export function VATReport() {
   const quarterStart = startOfQuarter(quarterDate)
   const quarterEnd   = endOfQuarter(quarterDate)
 
-  const { data: result } = useExpenses({ startDate: quarterStart, endDate: quarterEnd })
+  const { data: result } = useExpenses({ startDate: quarterStart, endDate: quarterEnd, account: activeAccount })
   const allExpenses = result?.expenses ?? []
 
   // Only deductible expenses

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore"
 import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "@/hooks/use-auth"
+import { useUIStore } from "@/stores/ui-store"
 import { useCategories } from "@/hooks/use-categories"
 import { formatCurrency } from "@/lib/utils"
 import { subMonths, startOfMonth, endOfMonth, addMonths, format, getDate, getDaysInMonth } from "date-fns"
@@ -71,8 +72,14 @@ function DeltaBadge({ value }: { value: number }) {
 }
 
 export function MonthlyPrediction() {
-  const { data: allExpenses = [], isLoading } = usePredictionData()
+  const { data: rawExpenses = [], isLoading } = usePredictionData()
+  const { activeAccount } = useUIStore()
   const { data: categories = [] } = useCategories()
+
+  const allExpenses = useMemo(() => {
+    if (activeAccount === 'business') return rawExpenses.filter(e => e.account === 'business')
+    return rawExpenses.filter(e => !e.account || e.account === 'personal')
+  }, [rawExpenses, activeAccount])
 
   const now = new Date()
   const nextMonth = addMonths(now, 1)

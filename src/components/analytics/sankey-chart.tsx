@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore"
 import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "@/hooks/use-auth"
+import { useUIStore } from "@/stores/ui-store"
 import { useCategories } from "@/hooks/use-categories"
 import { formatCurrency } from "@/lib/utils"
 import { subMonths, startOfMonth, endOfMonth, format } from "date-fns"
@@ -254,8 +255,14 @@ function SankeyDiagram({
 
 export function SankeyChart() {
   const { data: categories = [] } = useCategories()
+  const { activeAccount } = useUIStore()
   const [monthOffset, setMonthOffset] = useState(0)
-  const { data: expenses = [], isLoading } = useSankeyData(monthOffset)
+  const { data: rawExpenses = [], isLoading } = useSankeyData(monthOffset)
+
+  const expenses = useMemo(() => {
+    if (activeAccount === 'business') return rawExpenses.filter(e => e.account === 'business')
+    return rawExpenses.filter(e => !e.account || e.account === 'personal')
+  }, [rawExpenses, activeAccount])
 
   const now = new Date()
   const selectedMonth = subMonths(now, monthOffset)

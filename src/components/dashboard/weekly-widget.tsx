@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 import { useExpenses } from "@/hooks/use-expenses"
+import { useUIStore } from "@/stores/ui-store"
 import { formatCurrency } from "@/lib/utils"
 import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO, format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils"
 
 export function WeeklyWidget() {
   const now = new Date()
+  const { activeAccount } = useUIStore()
 
   const thisWeekStart = startOfWeek(now, { weekStartsOn: 1 })
   const thisWeekEnd   = endOfWeek(now,   { weekStartsOn: 1 })
@@ -20,6 +22,7 @@ export function WeeklyWidget() {
     startDate: lastWeekStart,
     endDate:   thisWeekEnd,
     sort: "date_desc",
+    account: activeAccount,
   })
 
   const expenses = result?.expenses ?? []

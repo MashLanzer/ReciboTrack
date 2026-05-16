@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore"
 import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "@/hooks/use-auth"
+import { useUIStore } from "@/stores/ui-store"
 import { useCategories } from "@/hooks/use-categories"
 import { useGoals, useAddGoal, useUpdateGoalProgress, useDeleteGoal, type GoalInput } from "@/hooks/use-goals"
 import { formatCurrency, percentChange } from "@/lib/utils"
@@ -80,6 +81,13 @@ function DeltaBadge({ value }: { value: number }) {
 
 export default function AnalyticsPage() {
   const { data: all6 = [], isLoading } = use6MonthExpenses()
+  const { activeAccount } = useUIStore()
+
+  const all = useMemo(() => {
+    if (activeAccount === 'business') return all6.filter(e => e.account === 'business')
+    return all6.filter(e => !e.account || e.account === 'personal')
+  }, [all6, activeAccount])
+
   const { data: categories = [] } = useCategories()
   const { data: goals = [], isLoading: goalsLoading } = useGoals()
   const addGoal = useAddGoal()
@@ -102,8 +110,8 @@ export default function AnalyticsPage() {
   const daysInMonth = getDaysInMonth(today)
 
   // Selected month and its comparison (one month earlier)
-  const selected = useMemo(() => expensesForMonth(all6, selectedOffset), [all6, selectedOffset])
-  const compared = useMemo(() => expensesForMonth(all6, selectedOffset + 1), [all6, selectedOffset])
+  const selected = useMemo(() => expensesForMonth(all, selectedOffset), [all, selectedOffset])
+  const compared = useMemo(() => expensesForMonth(all, selectedOffset + 1), [all, selectedOffset])
 
   const selectedTotal = selected.reduce((a, e) => a + e.total, 0)
   const comparedTotal = compared.reduce((a, e) => a + e.total, 0)
@@ -116,7 +124,7 @@ export default function AnalyticsPage() {
     return Array.from({ length: 6 }, (_, i) => {
       const offset = 5 - i // oldest first
       const monthDate = subMonths(today, offset)
-      const monthExpenses = expensesForMonth(all6, offset)
+      const monthExpenses = expensesForMonth(all, offset)
       return {
         month: format(monthDate, "MMM", { locale: es }),
         total: monthExpenses.reduce((a, e) => a + e.total, 0),
@@ -124,7 +132,7 @@ export default function AnalyticsPage() {
         isSelected: offset === selectedOffset,
       }
     })
-  }, [all6, selectedOffset, today])
+  }, [all, selectedOffset, today])
 
   // ── Cumulative day-by-day chart ────────────────────────────────────────────
   const cumulativeData = useMemo(() => {
@@ -203,7 +211,7 @@ export default function AnalyticsPage() {
   const cmpLabel = format(comparedMonth, "MMM yyyy", { locale: es })
 
   // ── Daily limit (always uses current month) ───────────────────────────────
-  const currentMonthExpenses = useMemo(() => expensesForMonth(all6, 0), [all6])
+  const currentMonthExpenses = useMemo(() => expensesForMonth(all, 0), [all])
   const currentTotal = currentMonthExpenses.reduce((a, e) => a + e.total, 0)
   const dailyLimitGoal = goals.find((g) => g.type === "daily_limit" && g.isActive)
   const dailySpend = useMemo(() => {
@@ -251,7 +259,7 @@ export default function AnalyticsPage() {
     // Accumulate totals and counts per weekday
     const totals = new Array(7).fill(0)
     const counts = new Array(7).fill(0)
-    all6.forEach((e) => {
+    all.forEach((e) => {
       const d = e.date.toDate()
       const idx = toMonFirst(getDay(d))
       totals[idx] += e.total
@@ -269,7 +277,7 @@ export default function AnalyticsPage() {
       count: counts[i],
       isMax: avgs[i] === maxAvg && maxAvg > 0,
     }))
-  }, [all6, today])
+  }, [all, today])
 
   // ── Saving goals ──────────────────────────────────────────────────────────
   const savingGoals = goals.filter((g) => g.type === "saving")
@@ -335,7 +343,12 @@ export default function AnalyticsPage() {
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-5">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="font-serif text-2xl">Análisis</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="font-serif text-2xl">Análisis</h1>
+          {activeAccount === 'business' && (
+            <span className="text-[9px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">Negocio</span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <ShareSummary />
           <Button

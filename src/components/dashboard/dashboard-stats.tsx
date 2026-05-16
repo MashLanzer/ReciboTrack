@@ -22,8 +22,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { TrendingUp, TrendingDown, Minus, ScanLine, ChevronDown, ChevronUp, RefreshCw, AlertCircle } from "lucide-react"
 import { useUIStore } from "@/stores/ui-store"
-import { WeeklyWidget } from "./weekly-widget"
-import { MultiCurrencyBanner } from "./multicurrency-banner"
 import {
   ResponsiveContainer,
   BarChart,
@@ -120,6 +118,13 @@ function Delta({ value, invert = false }: { value: number; invert?: boolean }) {
   )
 }
 
+// ─── Account filter helper ─────────────────────────────────────────────────────
+
+function filterByAccount(expenses: Expense[], account: string): Expense[] {
+  if (account === 'business') return expenses.filter(e => e.account === 'business')
+  return expenses.filter(e => !e.account || e.account === 'personal')
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export function DashboardStats() {
@@ -127,20 +132,23 @@ export function DashboardStats() {
   const { data: prev = [] } = usePrevMonthExpenses()
   const { data: categories = [] } = useCategories()
   const { data: recurringTemplates = [] } = useRecurring()
-  const { setScannerOpen } = useUIStore()
+  const { setScannerOpen, activeAccount } = useUIStore()
   const [catExpanded, setCatExpanded] = useState(false)
   const [merchantExpanded, setMerchantExpanded] = useState(false)
 
   const { start: monthStart, end: monthEnd } = getCurrentMonthRange()
 
+  const all12Filtered = useMemo(() => filterByAccount(all12, activeAccount), [all12, activeAccount])
+  const prevFiltered = useMemo(() => filterByAccount(prev, activeAccount), [prev, activeAccount])
+
   const current = useMemo(
-    () => all12.filter((e) => { const d = e.date.toDate(); return d >= monthStart && d <= monthEnd }),
-    [all12, monthStart, monthEnd]
+    () => all12Filtered.filter((e) => { const d = e.date.toDate(); return d >= monthStart && d <= monthEnd }),
+    [all12Filtered, monthStart, monthEnd]
   )
 
   const currentTotal = sum(current)
-  const prevTotal = sum(prev)
-  const yearTotal = sum(all12)
+  const prevTotal = sum(prevFiltered)
+  const yearTotal = sum(all12Filtered)
   const pct = percentChange(currentTotal, prevTotal)
 
   const today = new Date()
@@ -163,7 +171,7 @@ export function DashboardStats() {
       const month = subMonths(today, 11 - i)
       const s = startOfMonth(month)
       const e = endOfMonth(month)
-      const monthTotal = all12
+      const monthTotal = all12Filtered
         .filter((ex) => { const d = ex.date.toDate(); return d >= s && d <= e })
         .reduce((a, ex) => a + ex.total, 0)
       const isCurrent = i === 11
@@ -174,7 +182,7 @@ export function DashboardStats() {
         isCurrent,
       }
     })
-  }, [all12, today])
+  }, [all12Filtered, today])
 
   // ── Category breakdown with delta ──────────────────────────────────────────
   const categoryBreakdown = useMemo(() => {
@@ -185,7 +193,7 @@ export function DashboardStats() {
       currMap[e.category].total += e.total
       currMap[e.category].count++
     })
-    prev.forEach((e) => { prevMap[e.category] = (prevMap[e.category] ?? 0) + e.total })
+    prevFiltered.forEach((e) => { prevMap[e.category] = (prevMap[e.category] ?? 0) + e.total })
     return Object.entries(currMap)
       .map(([id, { total, count }]) => {
         const cat = categories.find((c) => c.id === id)
@@ -200,7 +208,7 @@ export function DashboardStats() {
         }
       })
       .sort((a, b) => b.total - a.total)
-  }, [current, prev, categories, currentTotal])
+  }, [current, prevFiltered, categories, currentTotal])
 
   // ── Daily spending this month ───────────────────────────────────────────────
   const dailyData = useMemo(() => {
@@ -248,7 +256,7 @@ export function DashboardStats() {
 
   if (isLoading) return <DashboardSkeleton />
 
-  if (all12.length === 0) {
+  if (all12Filtered.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 px-4 text-center">
         <div className="space-y-2">
@@ -273,9 +281,14 @@ export function DashboardStats() {
       {/* ── Hero ── */}
       <Card className="grain relative overflow-hidden">
         <CardContent className="pt-5 pb-5">
-          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">
-            {format(monthStart, "MMMM yyyy", { locale: es })}
-          </p>
+          <div className="flex items-center gap-2 mb-1">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              {format(monthStart, "MMMM yyyy", { locale: es })}
+            </p>
+            {activeAccount === 'business' && (
+              <span className="text-[9px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">Negocio</span>
+            )}
+          </div>
           <div className="flex items-end justify-between">
             <p className="font-serif text-5xl tabular-nums leading-none">{formatCurrency(currentTotal)}</p>
             <Delta value={pct} />
@@ -285,12 +298,6 @@ export function DashboardStats() {
           </p>
         </CardContent>
       </Card>
-
-      {/* ── Multi-currency (only shown when there are mixed currencies) ── */}
-      <MultiCurrencyBanner expenses={current} />
-
-      {/* ── Weekly comparison ── */}
-      <WeeklyWidget />
 
       {/* ── KPIs ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
