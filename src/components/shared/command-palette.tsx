@@ -6,6 +6,7 @@ import { Command } from "cmdk"
 import { useUIStore } from "@/stores/ui-store"
 import { useAuth } from "@/hooks/use-auth"
 import { useCategories } from "@/hooks/use-categories"
+import { useTheme } from "next-themes"
 import { useQuery } from "@tanstack/react-query"
 import { collection, query, orderBy, limit, getDocs } from "firebase/firestore"
 import { getFirebaseDb } from "@/lib/firebase/client"
@@ -17,7 +18,7 @@ import type { Expense } from "@/types"
 import {
   LayoutDashboard, Receipt, BarChart2, Users, RefreshCw,
   PiggyBank, Tag, ScanLine, Plus, Settings, X,
-  ArrowRight, Search,
+  ArrowRight, Search, Sun, Moon, TrendingUp, Briefcase,
 } from "lucide-react"
 
 // ─── Quick-search hook (last 150 expenses, cached 5 min) ─────────────────────
@@ -41,14 +42,16 @@ function useSearchExpenses(enabled: boolean) {
 // ─── Navigation & action definitions ─────────────────────────────────────────
 
 const NAV = [
-  { label: "Dashboard",     href: "/dashboard",  icon: LayoutDashboard, keywords: "inicio home resumen" },
-  { label: "Gastos",        href: "/expenses",   icon: Receipt,          keywords: "gastos lista recibos" },
-  { label: "Análisis",      href: "/analytics",  icon: BarChart2,        keywords: "analisis estadisticas graficas" },
-  { label: "Grupos",        href: "/groups",     icon: Users,            keywords: "grupos compartido amigos familia" },
-  { label: "Recurrentes",   href: "/recurring",  icon: RefreshCw,        keywords: "recurrentes suscripciones fijos" },
-  { label: "Presupuestos",  href: "/budgets",    icon: PiggyBank,        keywords: "presupuestos limite mensual" },
-  { label: "Categorías",    href: "/categories", icon: Tag,              keywords: "categorias etiquetas" },
-  { label: "Perfil y ajustes", href: "/profile", icon: Settings,         keywords: "perfil ajustes configuracion cuenta" },
+  { label: "Dashboard",        href: "/dashboard",  icon: LayoutDashboard, keywords: "inicio home resumen" },
+  { label: "Gastos",           href: "/expenses",   icon: Receipt,          keywords: "gastos lista recibos" },
+  { label: "Análisis",         href: "/analytics",  icon: BarChart2,        keywords: "analisis estadisticas graficas" },
+  { label: "Grupos",           href: "/groups",     icon: Users,            keywords: "grupos compartido amigos familia" },
+  { label: "Ingresos",         href: "/income",     icon: TrendingUp,       keywords: "ingresos salario nomina balance" },
+  { label: "Recurrentes",      href: "/recurring",  icon: RefreshCw,        keywords: "recurrentes suscripciones fijos" },
+  { label: "Presupuestos",     href: "/budgets",    icon: PiggyBank,        keywords: "presupuestos limite mensual" },
+  { label: "Categorías",       href: "/categories", icon: Tag,              keywords: "categorias etiquetas" },
+  { label: "Proyectos",        href: "/projects",   icon: Briefcase,        keywords: "proyectos clientes trabajo" },
+  { label: "Perfil y ajustes", href: "/profile",    icon: Settings,         keywords: "perfil ajustes configuracion cuenta" },
 ]
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -56,6 +59,7 @@ const NAV = [
 export function CommandPalette() {
   const router = useRouter()
   const { commandOpen, setCommandOpen, setScannerOpen } = useUIStore()
+  const { theme, setTheme } = useTheme()
   const { data: categories = [] } = useCategories()
   const { data: expenses = [] } = useSearchExpenses(commandOpen)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -140,8 +144,15 @@ export function CommandPalette() {
                 icon={<ScanLine className="h-4 w-4" />}
                 label="Escanear recibo"
                 sub="Abrir scanner con IA"
-                value="escanear recibo scanner foto"
+                value="escanear recibo scanner foto camara"
                 onSelect={openScanner}
+              />
+              <ActionItem
+                icon={<Plus className="h-4 w-4" />}
+                label="Añadir ingreso"
+                sub="Ir a Ingresos y Balance"
+                value="nuevo ingreso salario nomina balance añadir"
+                onSelect={() => go("/income")}
               />
               <ActionItem
                 icon={<Plus className="h-4 w-4" />}
@@ -156,6 +167,15 @@ export function CommandPalette() {
                 sub="Ver y editar límites mensuales"
                 value="presupuesto limite mensual"
                 onSelect={() => go("/budgets")}
+              />
+              <ActionItem
+                icon={theme === "dark"
+                  ? <Sun className="h-4 w-4" />
+                  : <Moon className="h-4 w-4" />}
+                label={theme === "dark" ? "Modo claro" : "Modo oscuro"}
+                sub="Cambiar tema de la app"
+                value="tema oscuro claro dark light mode"
+                onSelect={() => { setTheme(theme === "dark" ? "light" : "dark"); close() }}
               />
             </ActionGroup>
 
@@ -198,8 +218,8 @@ export function CommandPalette() {
                       icon={<span className="text-base leading-none">{cat?.icon ?? "📦"}</span>}
                       label={e.merchant}
                       sub={`${formatCurrency(e.total, e.currency)} · ${format(toDate(e.date), "d MMM yyyy", { locale: es })}`}
-                      value={`${e.merchant.toLowerCase()} ${e.category} ${e.notes ?? ""}`}
-                      onSelect={() => go("/expenses")}
+                      value={`${e.merchant.toLowerCase()} ${e.category} ${e.notes ?? ""} ${e.tags?.join(" ") ?? ""}`}
+                      onSelect={() => go(`/expenses?q=${encodeURIComponent(e.merchant)}`)}
                     />
                   )
                 })}

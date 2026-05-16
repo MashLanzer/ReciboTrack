@@ -7,6 +7,7 @@ import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "@/hooks/use-auth"
 import { useCategories } from "@/hooks/use-categories"
 import { useRecurring } from "@/hooks/use-recurring"
+import { useUserSettings } from "@/hooks/use-user-settings"
 import {
   getCurrentMonthRange,
   getPreviousMonthRange,
@@ -133,6 +134,8 @@ export function DashboardStats() {
   const { data: categories = [] } = useCategories()
   const { data: recurringTemplates = [] } = useRecurring()
   const { setScannerOpen, activeAccount } = useUIStore()
+  const { data: settings } = useUserSettings()
+  const categoryLimits = settings?.categoryLimits ?? {}
   const [catExpanded, setCatExpanded] = useState(false)
   const [merchantExpanded, setMerchantExpanded] = useState(false)
 
@@ -151,7 +154,7 @@ export function DashboardStats() {
   const yearTotal = sum(all12Filtered)
   const pct = percentChange(currentTotal, prevTotal)
 
-  const today = new Date()
+  const today = useMemo(() => new Date(), [])
   const dayOfMonth = getDate(today)
   const daysInCurrentMonth = getDaysInMonth(today)
   const dailyAvg = currentTotal / Math.max(dayOfMonth, 1)
@@ -411,7 +414,12 @@ export function DashboardStats() {
                 </tr>
               </thead>
               <tbody>
-                {visibleCats.map((cat, i) => (
+                {visibleCats.map((cat, i) => {
+                  const limit = categoryLimits[cat.id] ?? 0
+                  const limitPct = limit > 0 ? Math.min((cat.total / limit) * 100, 100) : 0
+                  const isOverLimit = limit > 0 && cat.total >= limit
+                  const isWarning = limit > 0 && limitPct >= 80 && !isOverLimit
+                  return (
                   <tr key={cat.id} className={cn("border-b last:border-0", i % 2 === 0 ? "bg-muted/20" : "")}>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
@@ -420,7 +428,22 @@ export function DashboardStats() {
                           style={{ background: cat.color }}
                         />
                         <span className="text-xs">{cat.icon}</span>
-                        <span className="text-xs font-medium truncate max-w-[90px]">{cat.name}</span>
+                        <div className="min-w-0">
+                          <span className="text-xs font-medium truncate max-w-[90px] block">{cat.name}</span>
+                          {limit > 0 && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden w-16">
+                                <div
+                                  className={cn("h-full rounded-full transition-all", isOverLimit ? "bg-destructive" : isWarning ? "bg-amber-500" : "bg-green-500")}
+                                  style={{ width: `${limitPct}%` }}
+                                />
+                              </div>
+                              <span className={cn("text-[9px] tabular-nums font-medium", isOverLimit ? "text-destructive" : isWarning ? "text-amber-600" : "text-muted-foreground")}>
+                                {isOverLimit ? "⚠ " : ""}{formatCurrency(cat.total)}/{formatCurrency(limit)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="text-right px-2 py-2.5 tabular-nums text-xs text-muted-foreground">{cat.count}</td>
@@ -428,7 +451,8 @@ export function DashboardStats() {
                     <td className="text-right px-4 py-2.5 tabular-nums text-xs font-semibold">{formatCurrency(cat.total)}</td>
                     <td className="text-right px-4 py-2.5"><Delta value={cat.delta} /></td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
               {categoryBreakdown.length > 0 && (
                 <tfoot>

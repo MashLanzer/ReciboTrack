@@ -125,6 +125,27 @@ export function useExpensesForMonth(year: number, month: number) {
   })
 }
 
+/** Fetches ALL expenses in a date range (no pagination). Used for history tables. */
+export function useExpensesPeriod(start: Date, end: Date) {
+  const { user } = useAuth()
+  return useQuery({
+    queryKey: ["expenses-period", user?.uid, start.toISOString(), end.toISOString()],
+    enabled: !!user,
+    queryFn: async () => {
+      if (!user) return [] as Expense[]
+      const col = expensesCollection(user.uid)
+      const q = query(
+        col,
+        where("date", ">=", Timestamp.fromDate(start)),
+        where("date", "<=", Timestamp.fromDate(end)),
+        orderBy("date", "desc")
+      )
+      const snap = await getDocs(q)
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
+    },
+  })
+}
+
 export function useAddExpense() {
   const { user } = useAuth()
   const queryClient = useQueryClient()

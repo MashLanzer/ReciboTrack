@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, Suspense, lazy } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore"
 import { getFirebaseDb } from "@/lib/firebase/client"
@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useUIStore } from "@/stores/ui-store"
 import { useCategories } from "@/hooks/use-categories"
 import { useGoals, useAddGoal, useUpdateGoalProgress, useDeleteGoal, type GoalInput } from "@/hooks/use-goals"
-import { formatCurrency, percentChange } from "@/lib/utils"
+import { formatCurrency, percentChange, cn } from "@/lib/utils"
 import { subMonths, format, startOfMonth, endOfMonth, getDate, getDaysInMonth, getDay, eachDayOfInterval } from "date-fns"
 import { es } from "date-fns/locale"
 import type { Expense } from "@/types"
@@ -24,16 +24,18 @@ import { toast } from "sonner"
 import { TrendingUp, TrendingDown, Minus, Plus, Trash2, Target, AlertTriangle, Check, FileDown, Loader2 } from "lucide-react"
 import { exportMonthlyPDF } from "@/components/expenses/export-utils"
 import { ShareSummary } from "@/components/expenses/share-summary"
-import { CategoryTrend } from "@/components/analytics/category-trend"
-import { YearComparison } from "@/components/analytics/year-comparison"
-import { YearProjection } from "@/components/analytics/year-projection"
 import { FinancialHealth } from "@/components/analytics/financial-health"
-import { MonthlyPrediction } from "@/components/analytics/monthly-prediction"
-import { VATReport } from "@/components/analytics/vat-report"
-import { SankeyChart } from "@/components/analytics/sankey-chart"
-import { MerchantTracker } from "@/components/analytics/merchant-tracker"
 import { AiMonthlySummary } from "@/components/analytics/ai-monthly-summary"
 import { AiSuggestions } from "@/components/analytics/ai-suggestions"
+
+// Lazy-loaded — only mounted when the "Informes" tab is selected
+const CategoryTrend   = lazy(() => import("@/components/analytics/category-trend").then(m => ({ default: m.CategoryTrend })))
+const YearComparison  = lazy(() => import("@/components/analytics/year-comparison").then(m => ({ default: m.YearComparison })))
+const YearProjection  = lazy(() => import("@/components/analytics/year-projection").then(m => ({ default: m.YearProjection })))
+const MonthlyPrediction = lazy(() => import("@/components/analytics/monthly-prediction").then(m => ({ default: m.MonthlyPrediction })))
+const VATReport       = lazy(() => import("@/components/analytics/vat-report").then(m => ({ default: m.VATReport })))
+const SankeyChart     = lazy(() => import("@/components/analytics/sankey-chart").then(m => ({ default: m.SankeyChart })))
+const MerchantTracker = lazy(() => import("@/components/analytics/merchant-tracker").then(m => ({ default: m.MerchantTracker })))
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
   CartesianGrid, Cell, LineChart, Line, Legend,
@@ -102,6 +104,7 @@ export default function AnalyticsPage() {
   // 0 = current month, 1 = last month, …, 5 = 5 months ago
   const [selectedOffset, setSelectedOffset] = useState(0)
 
+  const [activeTab, setActiveTab] = useState<"resumen" | "metas" | "informes">("resumen")
   const [goalDialog, setGoalDialog] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [progressDialog, setProgressDialog] = useState<{ id: string; current: number; name: string } | null>(null)
@@ -110,7 +113,8 @@ export default function AnalyticsPage() {
     type: "saving", name: "", targetAmount: 0, currentAmount: 0, currency: "USD", deadline: null,
   })
 
-  const today = new Date()
+  // Stable date — useMemo so it doesn't re-create every render and invalidate dependent memos
+  const today = useMemo(() => new Date(), [])
   const dayOfMonth = getDate(today)
   const daysInMonth = getDaysInMonth(today)
 
@@ -345,10 +349,18 @@ export default function AnalyticsPage() {
     }
   }
 
+  // ── Tab labels ──────────────────────────────────────────────────────────────
+  const TABS = [
+    { id: "resumen",  label: "Resumen" },
+    { id: "metas",    label: "Metas" },
+    { id: "informes", label: "Informes" },
+  ] as const
+
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-5">
       <FinancialHealth />
 
+      {/* ── Header ── */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h1 className="font-serif text-2xl">Análisis</h1>
@@ -368,10 +380,31 @@ export default function AnalyticsPage() {
             {pdfLoading
               ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
               : <FileDown className="h-3.5 w-3.5" />}
-            Reporte PDF
+            PDF
           </Button>
         </div>
       </div>
+
+      {/* ── Tab bar ── */}
+      <div className="flex gap-1 p-1 rounded-xl bg-muted">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
+            className={cn(
+              "flex-1 py-2 rounded-lg text-xs font-semibold transition-all",
+              activeTab === t.id
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ════════════════════ TAB: RESUMEN ════════════════════ */}
+      {activeTab === "resumen" && (<>
 
       {/* ── Resumen IA del mes ── */}
       <AiMonthlySummary
@@ -545,6 +578,11 @@ export default function AnalyticsPage() {
           </table>
         </CardContent>
       </Card>
+
+      </>)} {/* END TAB: RESUMEN */}
+
+      {/* ════════════════════ TAB: METAS ════════════════════ */}
+      {activeTab === "metas" && (<>
 
       {/* ── #10 Límite de gasto diario con historial ── */}
       <Card>
@@ -864,6 +902,28 @@ export default function AnalyticsPage() {
         </CardContent>
       </Card>
 
+      </>)} {/* END TAB: METAS */}
+
+      {/* ════════════════════ TAB: INFORMES ════════════════════ */}
+      {/* Components are lazy-loaded — only bundled/fetched when this tab is opened */}
+      {activeTab === "informes" && (
+        <Suspense fallback={
+          <div className="space-y-4">
+            {[1,2,3,4].map(i => <Skeleton key={i} className="h-48 rounded-2xl" />)}
+          </div>
+        }>
+          <YearComparison />
+          <YearProjection />
+          <MonthlyPrediction />
+          <VATReport />
+          <SankeyChart />
+          <MerchantTracker />
+          <CategoryTrend />
+        </Suspense>
+      )}
+
+      {/* ── Dialogs — always mounted so they don't close when switching tabs ── */}
+
       {/* ── Dialog nueva meta / límite ── */}
       <Dialog open={goalDialog} onOpenChange={setGoalDialog}>
         <DialogContent className="sm:max-w-sm">
@@ -930,27 +990,6 @@ export default function AnalyticsPage() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* ── Año actual vs. año anterior ── */}
-      <YearComparison />
-
-      {/* ── Proyección fin de año ── */}
-      <YearProjection />
-
-      {/* ── Predicción próximo mes ── */}
-      <MonthlyPrediction />
-
-      {/* ── IVA / Gastos deducibles ── */}
-      <VATReport />
-
-      {/* ── Flujo Sankey ── */}
-      <SankeyChart />
-
-      {/* ── Rastreo de precios por comercio ── */}
-      <MerchantTracker />
-
-      {/* ── Tendencia por categoría ── */}
-      <CategoryTrend />
 
       {/* ── Dialog actualizar progreso ── */}
       <Dialog open={!!progressDialog} onOpenChange={(o) => !o && setProgressDialog(null)}>

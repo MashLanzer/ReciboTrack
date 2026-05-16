@@ -754,17 +754,26 @@ function BalanceTab({
                           </p>
                           <button
                             title="Copiar enlace de pago"
-                            onClick={() => {
-                              const payload = btoa(JSON.stringify({
-                                from: getName(t.from),
-                                to: getName(t.to),
-                                amount: t.amount,
-                                concept: `Deuda del grupo "${group.name}"`,
-                                currency: "EUR",
-                              }))
-                              const url = `${window.location.origin}/pay/${payload}`
-                              navigator.clipboard.writeText(url)
-                              toast.success("Enlace copiado al portapapeles")
+                            onClick={async () => {
+                              try {
+                                const res = await fetch("/api/pay-link", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    from: getName(t.from),
+                                    to: getName(t.to),
+                                    amount: t.amount,
+                                    concept: `Deuda del grupo "${group.name}"`,
+                                    currency: "EUR",
+                                  }),
+                                })
+                                const { token } = await res.json()
+                                const url = `${window.location.origin}/pay/${token}`
+                                await navigator.clipboard.writeText(url)
+                                toast.success("Enlace copiado al portapapeles")
+                              } catch {
+                                toast.error("Error al generar el enlace")
+                              }
                             }}
                             className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
                           >

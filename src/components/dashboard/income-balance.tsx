@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { format } from "date-fns"
+import { format, subMonths } from "date-fns"
 import { es } from "date-fns/locale"
-import { TrendingUp, TrendingDown, Scale, Plus, Trash2 } from "lucide-react"
+import { TrendingUp, TrendingDown, Scale, Plus, Trash2, RefreshCw } from "lucide-react"
 import { useIncome, useAddIncome, useDeleteIncome } from "@/hooks/use-income"
 import { useExpensesForMonth } from "@/hooks/use-expenses"
 import { useUIStore } from "@/stores/ui-store"
@@ -139,12 +139,47 @@ export function IncomeBalance({ year, month }: IncomeBalanceProps) {
   const y = year ?? now.getFullYear()
   const m = month ?? now.getMonth() + 1
 
+  // Compute previous month for recurring carry-forward
+  const prevDate = subMonths(new Date(y, m - 1, 1), 1)
+  const prevY = prevDate.getFullYear()
+  const prevM = prevDate.getMonth() + 1
+
   const { activeAccount } = useUIStore()
   const { data: incomeList = [], isLoading: incomeLoading } = useIncome(y, m)
+  const { data: prevIncomeList = [] } = useIncome(prevY, prevM)
   const { data: expenses = [], isLoading: expensesLoading } = useExpensesForMonth(y, m)
 
   const deleteIncome = useDeleteIncome()
+  const addIncome = useAddIncome()
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [carryLoading, setCarryLoading] = useState(false)
+
+  // Recurring incomes from last month that haven't been added this month yet
+  const recurringToCarry = prevIncomeList.filter((prev) => {
+    if (!prev.recurring) return false
+    // Consider "already added" if same source+amount combination exists this month
+    return !incomeList.some((cur) => cur.source === prev.source && Math.abs(cur.amount - prev.amount) < 0.01)
+  })
+
+  async function handleCarryRecurring() {
+    if (recurringToCarry.length === 0) return
+    setCarryLoading(true)
+    try {
+      await Promise.all(recurringToCarry.map((inc) =>
+        addIncome.mutateAsync({
+          amount: inc.amount,
+          currency: inc.currency,
+          source: inc.source,
+          description: inc.description,
+          date: new Date(y, m - 1, 1),
+          recurring: true,
+          account: inc.account,
+        })
+      ))
+    } finally {
+      setCarryLoading(false)
+    }
+  }
 
   // Filter expenses by active account (same logic as dashboard-stats)
   const filteredExpenses = expenses.filter((e) => {
@@ -254,6 +289,30 @@ export function IncomeBalance({ year, month }: IncomeBalanceProps) {
               value={spentPct}
               className={cn("h-2", spentPct > 90 ? "[&>div]:bg-destructive" : spentPct > 70 ? "[&>div]:bg-amber-500" : "[&>div]:bg-green-500")}
             />
+          </div>
+        )}
+
+        {/* Carry-forward recurring income prompt */}
+        {recurringToCarry.length > 0 && (
+          <div className="flex items-center gap-3 rounded-xl bg-blue-500/10 border border-blue-500/20 px-3 py-2.5">
+            <RefreshCw className="h-4 w-4 text-blue-600 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-blue-700 dark:text-blue-400">
+                {recurringToCarry.length} ingreso{recurringToCarry.length > 1 ? "s" : ""} recurrente{recurringToCarry.length > 1 ? "s" : ""} del mes anterior
+              </p>
+              <p className="text-[10px] text-blue-600/80 truncate">
+                {recurringToCarry.map(i => i.source).join(", ")}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-7 text-xs shrink-0 bg-blue-500/20 hover:bg-blue-500/30 text-blue-700 dark:text-blue-300 border-0"
+              onClick={handleCarryRecurring}
+              disabled={carryLoading}
+            >
+              {carryLoading ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Añadir"}
+            </Button>
           </div>
         )}
 

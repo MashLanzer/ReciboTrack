@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useUpdateExpense } from "@/hooks/use-expenses"
+import { useEffect, useState, useMemo } from "react"
+import { useUpdateExpense, useExpensesPeriod } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
 import { useProjects } from "@/hooks/use-projects"
 import { PAYMENT_METHODS, CURRENCIES } from "@/lib/constants"
@@ -13,8 +13,8 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { Loader2, Plus, X, ChevronDown, ChevronUp, ShoppingCart } from "lucide-react"
-import { format } from "date-fns"
+import { Loader2, Plus, X, ChevronDown, ChevronUp, ShoppingCart, AlertTriangle } from "lucide-react"
+import { format, subDays, addDays, isValid, parseISO } from "date-fns"
 import { formatCurrency } from "@/lib/utils"
 import { CategorySuggestion } from "@/components/shared/category-suggestion"
 
@@ -25,7 +25,7 @@ interface Props {
 
 export function ExpenseEditDialog({ expense, onClose }: Props) {
   const { data: categories = [] } = useCategories()
-  const { projectNames } = useProjects()
+  const { projectNames, expenses: allExpenses } = useProjects()
   const updateExpense = useUpdateExpense()
 
   const [form, setForm] = useState({
@@ -36,8 +36,34 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
   const [tagInput, setTagInput] = useState("")
   const [items, setItems] = useState<ReceiptItem[]>([])
   const [itemsOpen, setItemsOpen] = useState(false)
+  const [dupDismissed, setDupDismissed] = useState(false)
+
+  // ── Duplicate detection ────────────────────────────────────────────────────
+  const parsedDate = form.date && isValid(parseISO(form.date)) ? parseISO(form.date) : null
+  const dupWindowStart = parsedDate ? subDays(parsedDate, 3) : new Date()
+  const dupWindowEnd   = parsedDate ? addDays(parsedDate, 3) : new Date()
+  const { data: nearbyExpenses = [] } = useExpensesPeriod(dupWindowStart, dupWindowEnd)
+
+  const duplicates = useMemo(() => {
+    if (!form.merchant || !expense || dupDismissed) return []
+    const normalizedMerchant = form.merchant.trim().toLowerCase()
+    const totalNum = parseFloat(form.total) || 0
+    return nearbyExpenses.filter((e) =>
+      e.id !== expense.id &&
+      e.merchant.trim().toLowerCase() === normalizedMerchant &&
+      Math.abs(e.total - totalNum) < 0.02
+    )
+  }, [nearbyExpenses, form.merchant, form.total, expense, dupDismissed])
+
+  // ── All known tags (from last 6 months of expenses via useProjects pool) ──
+  const knownTags = useMemo(() => {
+    const set = new Set<string>()
+    allExpenses.forEach((e) => e.tags?.forEach((t) => set.add(t)))
+    return [...set].sort()
+  }, [allExpenses])
 
   useEffect(() => {
+    setDupDismissed(false)
     if (expense) {
       const d = expense.date.toDate()
       setForm({
@@ -119,6 +145,31 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
           <DialogTitle>Editar gasto</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+
+          {/* ── Duplicate warning ── */}
+          {duplicates.length > 0 && (
+            <div className="flex items-start gap-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-2.5">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                  Posible duplicado — {duplicates.length} gasto{duplicates.length > 1 ? "s" : ""} similar{duplicates.length > 1 ? "es" : ""}
+                </p>
+                {duplicates.slice(0, 2).map((d) => (
+                  <p key={d.id} className="text-[11px] text-amber-600/80 mt-0.5">
+                    {d.merchant} · {formatCurrency(d.total, d.currency)} · {format(d.date.toDate(), "d MMM", { locale: undefined })}
+                  </p>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setDupDismissed(true)}
+                className="text-amber-500 hover:text-amber-700 transition-colors shrink-0"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2 space-y-1.5">
               <Label>Comercio</Label>
@@ -203,12 +254,20 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
               <Label>Etiquetas</Label>
               <div className="flex gap-2">
                 <Input
+                  list="tag-suggestions"
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag() } }}
                   placeholder="trabajo, viaje, deducible..."
                   className="flex-1"
                 />
+                {knownTags.length > 0 && (
+                  <datalist id="tag-suggestions">
+                    {knownTags.filter((t) => !form.tags.includes(t)).map((t) => (
+                      <option key={t} value={t} />
+                    ))}
+                  </datalist>
+                )}
                 <Button type="button" variant="outline" size="icon" onClick={addTag}>
                   <Plus className="h-4 w-4" />
                 </Button>

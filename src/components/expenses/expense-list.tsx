@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { useExpenses, useDeleteExpense, useAddExpense, useUpdateExpense, type ExpenseSort } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
-import { Search, MoreHorizontal, Trash2, Edit, Copy, Image, ChevronLeft, ChevronRight, Filter, Tag, X, Upload, Sheet, Loader2, CalendarRange, Calendar, CheckSquare, Square, CheckCheck, LayoutList, Layers } from "lucide-react"
+import { Search, MoreHorizontal, Trash2, Edit, Copy, Image, ChevronLeft, ChevronRight, Filter, Tag, X, Upload, Sheet, Loader2, CalendarRange, Calendar, CheckSquare, Square, CheckCheck, LayoutList, Layers, Receipt } from "lucide-react"
 import { startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subDays, format as fmtDate, parseISO, isValid } from "date-fns"
 import { ExpenseEditDialog } from "./expense-edit-dialog"
 import { ExpenseDetailDialog } from "./expense-detail-dialog"
@@ -50,6 +50,14 @@ export function ExpenseList() {
   // Parse date range from URL strings
   const startDate = fromStr && isValid(parseISO(fromStr)) ? parseISO(fromStr) : undefined
   const endDate = toStr && isValid(parseISO(toStr)) ? parseISO(toStr) : undefined
+
+  // Local search state — debounced 300ms before updating the URL
+  const [searchInput, setSearchInput] = useState(search)
+  useEffect(() => { setSearchInput(search) }, [search])
+  useEffect(() => {
+    const t = setTimeout(() => { if (searchInput !== search) setParams({ q: searchInput }) }, 300)
+    return () => clearTimeout(t)
+  }, [searchInput]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [editExpense, setEditExpense] = useState<Expense | null>(null)
   const [detailExpense, setDetailExpense] = useState<Expense | null>(null)
@@ -288,8 +296,8 @@ export function ExpenseList() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar comercio, etiqueta, artículo..."
-            value={search}
-            onChange={(e) => setParams({ q: e.target.value })}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="pl-9"
           />
         </div>
@@ -515,9 +523,34 @@ export function ExpenseList() {
       )}
 
       {expenses.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <p className="text-sm">No hay gastos que coincidan</p>
-        </div>
+        hasActiveFilters ? (
+          /* Filtered to zero — help user reset */
+          <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+            <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
+              <Search className="h-6 w-6 text-muted-foreground/60" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Ningún gasto coincide con estos filtros</p>
+              <p className="text-xs text-muted-foreground">Prueba a ampliar el rango de fechas o limpiar la búsqueda</p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => router.replace(pathname)}>
+              Limpiar todos los filtros
+            </Button>
+          </div>
+        ) : (
+          /* No expenses at all — first-time user */
+          <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
+            <div className="h-16 w-16 rounded-3xl bg-primary/10 flex items-center justify-center">
+              <Receipt className="h-7 w-7 text-primary" />
+            </div>
+            <div className="space-y-1.5 max-w-[260px]">
+              <p className="font-semibold text-base">Aún no tienes gastos</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Escanea un recibo o añade tu primer gasto manualmente para empezar a controlar tus finanzas.
+              </p>
+            </div>
+          </div>
+        )
       ) : (
         <>
           {/* Select mode: select-all bar */}

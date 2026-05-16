@@ -52,6 +52,25 @@ export function useIncome(year: number, month: number) {
   })
 }
 
+export function useIncomePeriod(start: Date, end: Date) {
+  const { user } = useAuth()
+  return useQuery({
+    queryKey: ["income", user?.uid, "period", start.toISOString(), end.toISOString()],
+    enabled: !!user,
+    queryFn: async () => {
+      if (!user) return [] as Income[]
+      const q = query(
+        incomeCol(user.uid),
+        where("date", ">=", Timestamp.fromDate(start)),
+        where("date", "<=", Timestamp.fromDate(end)),
+        orderBy("date", "desc")
+      )
+      const snap = await getDocs(q)
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }) as Income)
+    },
+  })
+}
+
 export function useAddIncome() {
   const { user } = useAuth()
   const qc = useQueryClient()
@@ -61,7 +80,8 @@ export function useAddIncome() {
       await addDoc(incomeCol(user.uid), { ...input, date: Timestamp.fromDate(input.date) })
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["income"] })
+      // Invalidate all income queries for this user (user-scoped, not global)
+      qc.invalidateQueries({ queryKey: ["income", user?.uid] })
       toast.success("Ingreso añadido")
     },
     onError: () => toast.error("Error al añadir ingreso"),
@@ -77,7 +97,8 @@ export function useDeleteIncome() {
       await deleteDoc(doc(getFirebaseDb(), "users", user.uid, "income", id))
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["income"] })
+      // Invalidate all income queries for this user (user-scoped, not global)
+      qc.invalidateQueries({ queryKey: ["income", user?.uid] })
       toast.success("Ingreso eliminado")
     },
   })

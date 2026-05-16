@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useCategories } from "@/hooks/use-categories"
 import { useUserSettings, useUpdateUserSettings } from "@/hooks/use-user-settings"
 import { useExpenses } from "@/hooks/use-expenses"
@@ -35,37 +35,46 @@ export function CategoryLimitsSettings() {
     return totals
   }, [expenses])
 
-  const [limits, setLimits] = useState<Record<string, string>>(() => {
-    const existing = settings?.categoryLimits ?? {}
-    const init: Record<string, string> = {}
-    categories.forEach(cat => {
-      init[cat.id] = existing[cat.id] != null ? String(existing[cat.id]) : ""
-    })
-    return init
-  })
+  const [limits, setLimits] = useState<Record<string, string>>({})
+  const [isDirty, setIsDirty] = useState(false)
 
-  // Sync new categories into local state when categories load
-  useMemo(() => {
+  // Sync categories and saved settings into local state (useEffect, never useMemo for side-effects)
+  useEffect(() => {
+    if (categories.length === 0) return
     const existing = settings?.categoryLimits ?? {}
     setLimits(prev => {
-      const next = { ...prev }
+      const next: Record<string, string> = {}
       categories.forEach(cat => {
-        if (!(cat.id in next)) {
-          next[cat.id] = existing[cat.id] != null ? String(existing[cat.id]) : ""
-        }
+        // Keep user edits in progress; fill missing entries from saved settings
+        next[cat.id] = cat.id in prev ? prev[cat.id] : (
+          existing[cat.id] != null ? String(existing[cat.id]) : ""
+        )
       })
       return next
     })
+    setIsDirty(false)
   }, [categories, settings?.categoryLimits])
 
   async function handleSave() {
     const parsed: Record<string, number> = {}
+    const errors: string[] = []
     for (const [catId, val] of Object.entries(limits)) {
+      if (val === "" || val === undefined) continue
       const n = parseFloat(val)
-      if (!isNaN(n) && n > 0) parsed[catId] = n
+      if (isNaN(n) || n < 0) {
+        const cat = categories.find(c => c.id === catId)
+        errors.push(cat?.name ?? catId)
+      } else if (n > 0) {
+        parsed[catId] = n
+      }
+    }
+    if (errors.length > 0) {
+      toast.error(`Límites inválidos en: ${errors.join(", ")}`)
+      return
     }
     try {
       await updateSettings.mutateAsync({ categoryLimits: parsed })
+      setIsDirty(false)
       toast.success("Límites guardados")
     } catch {
       toast.error("Error al guardar los límites")
@@ -104,7 +113,10 @@ export function CategoryLimitsSettings() {
                       step="0.01"
                       placeholder="Sin límite"
                       value={limits[cat.id] ?? ""}
-                      onChange={e => setLimits(prev => ({ ...prev, [cat.id]: e.target.value }))}
+                      onChange={e => {
+                        setLimits(prev => ({ ...prev, [cat.id]: e.target.value }))
+                        setIsDirty(true)
+                      }}
                       className="h-7 w-28 text-xs tabular-nums text-right"
                     />
                   </div>
@@ -131,9 +143,9 @@ export function CategoryLimitsSettings() {
         <Button
           className="w-full"
           onClick={handleSave}
-          disabled={updateSettings.isPending}
+          disabled={updateSettings.isPending || !isDirty}
         >
-          Guardar límites
+          {isDirty ? "Guardar límites" : "Sin cambios pendientes"}
         </Button>
       </CardContent>
     </Card>

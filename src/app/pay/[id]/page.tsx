@@ -1,12 +1,6 @@
 import CopyButton from "./copy-button"
-
-interface PayData {
-  from: string
-  to: string
-  amount: number
-  concept: string
-  currency: string
-}
+import { verifyPayToken } from "@/lib/pay-token"
+import { ShieldAlert } from "lucide-react"
 
 export default async function PayPage({
   params,
@@ -14,24 +8,9 @@ export default async function PayPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  const result = await verifyPayToken(id)
 
-  let data: PayData = { from: "", to: "", amount: 0, concept: "", currency: "EUR" }
-  let invalid = false
-  try {
-    data = JSON.parse(Buffer.from(id, "base64").toString("utf-8")) as PayData
-    if (!data.from || !data.to || !data.amount) invalid = true
-  } catch {
-    invalid = true
-  }
-
-  const formatted = new Intl.NumberFormat("es-ES", {
-    style: "currency",
-    currency: data.currency || "EUR",
-  }).format(data.amount)
-
-  const bizumUrl = `bizum://send?amount=${data.amount}&concept=${encodeURIComponent(data.concept || "Deuda")}`
-
-  if (invalid) {
+  if (!result.ok) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-950 to-indigo-900 p-4">
         <div className="text-center text-white space-y-3">
@@ -43,8 +22,25 @@ export default async function PayPage({
     )
   }
 
+  const { data, legacy } = result
+
+  const formatted = new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency: data.currency || "EUR",
+  }).format(data.amount)
+
+  const bizumUrl = `bizum://send?amount=${data.amount}&concept=${encodeURIComponent(data.concept || "Deuda")}`
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-violet-950 via-indigo-900 to-purple-900 p-4">
+      {/* Legacy warning banner */}
+      {legacy && (
+        <div className="w-full max-w-sm mb-3 flex items-center gap-2 rounded-xl bg-amber-500/20 border border-amber-400/30 px-3 py-2">
+          <ShieldAlert className="h-4 w-4 text-amber-300 shrink-0" />
+          <p className="text-xs text-amber-200">Este enlace es antiguo y no está verificado criptográficamente.</p>
+        </div>
+      )}
+
       {/* Card */}
       <div className="w-full max-w-sm bg-white/10 backdrop-blur-sm border border-white/20 rounded-3xl overflow-hidden shadow-2xl">
         {/* Header */}

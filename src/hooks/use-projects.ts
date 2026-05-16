@@ -1,16 +1,16 @@
 "use client"
 
-import { useExpenses } from "./use-expenses"
+import { useExpensesPeriod } from "./use-expenses"
 import { useMemo } from "react"
 import { startOfMonth, endOfMonth, subMonths } from "date-fns"
 
 export function useProjects() {
-  const { data: result } = useExpenses({
-    startDate: startOfMonth(subMonths(new Date(), 5)),
-    endDate: endOfMonth(new Date()),
-    sort: "date_desc",
-  })
-  const expenses = result?.expenses ?? []
+  // useExpensesPeriod fetches all expenses (no pagination) — ensures all projects are visible
+  const now = new Date()
+  const expenses = useExpensesPeriod(
+    startOfMonth(subMonths(now, 5)),
+    endOfMonth(now)
+  ).data ?? []
 
   const projects = useMemo(() => {
     const map = new Map<string, { name: string; total: number; count: number; lastDate: Date }>()

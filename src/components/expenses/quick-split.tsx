@@ -28,15 +28,23 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo" }: Props) {
   ])
   const [mode, setMode] = useState<"equal" | "custom">("equal")
 
-  const totalNum = parseFloat(total) || 0
+  const totalNum = Math.round((parseFloat(total) || 0) * 100) / 100
   const activePeople = people.filter((p) => p.name.trim())
-  const equalShare = activePeople.length > 0 ? totalNum / activePeople.length : 0
+
+  // Round each share to 2 decimal places; give the remainder to the payer
+  const equalShare = useMemo(() => {
+    if (activePeople.length === 0 || totalNum === 0) return 0
+    return Math.round((totalNum / activePeople.length) * 100) / 100
+  }, [activePeople.length, totalNum])
 
   const customSum = useMemo(
-    () => people.reduce((acc, p) => acc + (parseFloat(p.customAmount) || 0), 0),
+    () => Math.round(
+      people.reduce((acc, p) => acc + Math.round((parseFloat(p.customAmount) || 0) * 100) / 100, 0)
+      * 100
+    ) / 100,
     [people]
   )
-  const customOk = Math.abs(customSum - totalNum) < 0.01 || totalNum === 0
+  const customOk = Math.abs(customSum - totalNum) < 0.005 || totalNum === 0
 
   function addPerson() {
     if (people.length >= 6) return
@@ -61,10 +69,10 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo" }: Props) {
   const debtors = activePeople.slice(1)
 
   const resultLines = debtors.map((d) => {
-    const amount = mode === "equal"
+    const raw = mode === "equal"
       ? equalShare
-      : parseFloat(people.find((p) => p.name === d.name)?.customAmount ?? "0") || 0
-    return `${d.name} le debe a ${payer?.name ?? "?"}: ${amount.toFixed(2)} ${description ? `(${description})` : ""}`
+      : Math.round((parseFloat(people.find((p) => p.name === d.name)?.customAmount ?? "0") || 0) * 100) / 100
+    return `${d.name} le debe a ${payer?.name ?? "?"}: ${raw.toFixed(2)} ${description ? `(${description})` : ""}`
   })
 
   const summaryText = [
@@ -208,7 +216,7 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo" }: Props) {
               {debtors.filter((d) => d.name.trim()).map((d, i) => {
                 const amount = mode === "equal"
                   ? equalShare
-                  : parseFloat(people.find((p) => p.name === d.name)?.customAmount ?? "0") || 0
+                  : Math.round((parseFloat(people.find((p) => p.name === d.name)?.customAmount ?? "0") || 0) * 100) / 100
                 const line = `${d.name} le debe a ${payer?.name ?? "?"}: ${amount.toFixed(2)}`
                 return (
                   <div key={i} className="flex items-center justify-between gap-2">

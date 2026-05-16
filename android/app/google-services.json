@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "431478633687",
+    "project_id": "gasto-dd477",
+    "storage_bucket": "gasto-dd477.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:431478633687:android:d14dbe68ef2b748ea6ec92",
+        "android_client_info": {
+          "package_name": "com.recibotrack.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "431478633687-bhdpcn45863gcfh55d8f4uqivfutnfqq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB3jZHJjVPpQx5yddStOeexMFdCjrd2xy4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "431478633687-bhdpcn45863gcfh55d8f4uqivfutnfqq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

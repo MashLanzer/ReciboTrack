@@ -109,3 +109,33 @@ body {
   pointer-events: none;
   border-radius: inherit;
 }
+
+/* ── Page entry animation ─────────────────────────────────────────────────── */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+main > * {
+  animation: page-in 0.2s ease-out both;
+}
+
+/* ── Smooth scrollbar on Chrome ───────────────────────────────────────────── */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Focus ring consistency ───────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Tap highlight removal on mobile ─────────────────────────────────────── */
+button, a {
+  -webkit-tap-highlight-color: transparent;
+}

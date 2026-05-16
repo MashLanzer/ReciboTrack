@@ -1,14 +1,16 @@
 "use client"
 
-import { useState } from "react"
-import { format, subMonths, startOfMonth } from "date-fns"
+import { useState, useMemo } from "react"
+import { format, subMonths, startOfMonth, endOfMonth, getYear, getMonth } from "date-fns"
 import { es } from "date-fns/locale"
 import { TrendingUp } from "lucide-react"
 import { IncomeBalance } from "@/components/dashboard/income-balance"
-import { useIncome } from "@/hooks/use-income"
-import { useExpensesForMonth } from "@/hooks/use-expenses"
+import { useIncomePeriod } from "@/hooks/use-income"
+import { useExpensesPeriod } from "@/hooks/use-expenses"
 import { formatCurrency, cn } from "@/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
+import type { Income } from "@/hooks/use-income"
+import type { Expense } from "@/types"
 
 // ─── Month selector ────────────────────────────────────────────────────────────
 
@@ -20,42 +22,10 @@ function buildMonthOptions() {
       label: format(d, "MMMM yyyy", { locale: es }),
       year: d.getFullYear(),
       month: d.getMonth() + 1,
+      start: startOfMonth(d),
+      end: endOfMonth(d),
     }
   })
-}
-
-// ─── History row for one month ─────────────────────────────────────────────────
-
-function MonthHistoryRow({ year, month }: { year: number; month: number }) {
-  const { data: incomeList = [] } = useIncome(year, month)
-  const { data: expenses = [] } = useExpensesForMonth(year, month)
-
-  const totalIncome = incomeList.reduce((s, i) => s + i.amount, 0)
-  const totalExpenses = expenses.reduce((s, e) => s + (e.total || 0), 0)
-  const balance = totalIncome - totalExpenses
-  const isPositive = balance >= 0
-
-  const label = format(new Date(year, month - 1), "MMM yyyy", { locale: es })
-  const labelLong = format(new Date(year, month - 1), "MMMM yyyy", { locale: es })
-
-  return (
-    <tr className="border-b last:border-0 hover:bg-muted/20 transition-colors">
-      <td className="px-4 py-3 text-xs font-medium capitalize">{labelLong}</td>
-      <td className="text-right px-3 py-3 tabular-nums text-xs font-semibold text-green-600">
-        {totalIncome > 0 ? formatCurrency(totalIncome) : <span className="text-muted-foreground">—</span>}
-      </td>
-      <td className="text-right px-3 py-3 tabular-nums text-xs font-semibold text-destructive">
-        {totalExpenses > 0 ? formatCurrency(totalExpenses) : <span className="text-muted-foreground">—</span>}
-      </td>
-      <td className={cn("text-right px-4 py-3 tabular-nums text-xs font-bold", isPositive ? "text-green-600" : "text-destructive")}>
-        {totalIncome === 0 && totalExpenses === 0 ? (
-          <span className="text-muted-foreground font-normal">Sin datos</span>
-        ) : (
-          <>{isPositive ? "+" : "-"}{formatCurrency(Math.abs(balance))}</>
-        )}
-      </td>
-    </tr>
-  )
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -65,8 +35,35 @@ export default function IncomePage() {
   const [selected, setSelected] = useState(0)
   const { year, month } = options[selected]
 
-  // All months except the currently selected one for the history table
-  const historyMonths = options.filter((_, i) => i !== 0)
+  // Single query covering all 6 months — no N+1
+  const periodStart = options[options.length - 1].start
+  const periodEnd = options[0].end
+
+  const { data: allIncome = [] } = useIncomePeriod(periodStart, periodEnd)
+  const { data: allExpenses = [] } = useExpensesPeriod(periodStart, periodEnd)
+
+  // Group by year-month key for O(1) lookup
+  const incomeByMonth = useMemo(() => {
+    const map = new Map<string, Income[]>()
+    for (const inc of allIncome) {
+      const d = inc.date.toDate()
+      const key = `${getYear(d)}-${getMonth(d) + 1}`
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(inc)
+    }
+    return map
+  }, [allIncome])
+
+  const expensesByMonth = useMemo(() => {
+    const map = new Map<string, Expense[]>()
+    for (const exp of allExpenses) {
+      const d = (exp.date as { toDate(): Date }).toDate()
+      const key = `${getYear(d)}-${getMonth(d) + 1}`
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(exp)
+    }
+    return map
+  }, [allExpenses])
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
@@ -102,7 +99,7 @@ export default function IncomePage() {
       {/* Income + Balance for selected month */}
       <IncomeBalance year={year} month={month} />
 
-      {/* 6-month history table */}
+      {/* 6-month history table — data already loaded, zero extra queries */}
       <Card>
         <CardContent className="p-0">
           <div className="px-4 py-3 border-b">
@@ -118,9 +115,42 @@ export default function IncomePage() {
               </tr>
             </thead>
             <tbody>
-              {options.map((opt) => (
-                <MonthHistoryRow key={`${opt.year}-${opt.month}`} year={opt.year} month={opt.month} />
-              ))}
+              {options.map((opt) => {
+                const key = `${opt.year}-${opt.month}`
+                const incList = incomeByMonth.get(key) ?? []
+                const expList = expensesByMonth.get(key) ?? []
+                const totalIncome = incList.reduce((s, i) => s + i.amount, 0)
+                const totalExpenses = expList.reduce((s, e) => s + (e.total || 0), 0)
+                const balance = totalIncome - totalExpenses
+                const isPositive = balance >= 0
+                const noData = totalIncome === 0 && totalExpenses === 0
+                const labelLong = format(new Date(opt.year, opt.month - 1), "MMMM yyyy", { locale: es })
+
+                return (
+                  <tr
+                    key={key}
+                    className={cn(
+                      "border-b last:border-0 transition-colors hover:bg-muted/20",
+                      opt.year === year && opt.month === month && "bg-primary/5"
+                    )}
+                  >
+                    <td className="px-4 py-3 text-xs font-medium capitalize">{labelLong}</td>
+                    <td className="text-right px-3 py-3 tabular-nums text-xs font-semibold text-green-600">
+                      {totalIncome > 0 ? formatCurrency(totalIncome) : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="text-right px-3 py-3 tabular-nums text-xs font-semibold text-destructive">
+                      {totalExpenses > 0 ? formatCurrency(totalExpenses) : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className={cn("text-right px-4 py-3 tabular-nums text-xs font-bold", isPositive ? "text-green-600" : "text-destructive")}>
+                      {noData ? (
+                        <span className="text-muted-foreground font-normal">Sin datos</span>
+                      ) : (
+                        <>{isPositive ? "+" : "-"}{formatCurrency(Math.abs(balance))}</>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </CardContent>
