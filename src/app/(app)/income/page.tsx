@@ -9,6 +9,7 @@ import { useIncomePeriod } from "@/hooks/use-income"
 import { useExpensesPeriod } from "@/hooks/use-expenses"
 import { formatCurrency, cn } from "@/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import type { Income } from "@/hooks/use-income"
 import type { Expense } from "@/types"
 
@@ -39,8 +40,9 @@ export default function IncomePage() {
   const periodStart = options[options.length - 1].start
   const periodEnd = options[0].end
 
-  const { data: allIncome = [] } = useIncomePeriod(periodStart, periodEnd)
-  const { data: allExpenses = [] } = useExpensesPeriod(periodStart, periodEnd)
+  const { data: allIncome = [], isLoading: loadingIncome } = useIncomePeriod(periodStart, periodEnd)
+  const { data: allExpenses = [], isLoading: loadingExpenses } = useExpensesPeriod(periodStart, periodEnd)
+  const isLoading = loadingIncome || loadingExpenses
 
   // Group by year-month key for O(1) lookup
   const incomeByMonth = useMemo(() => {
@@ -100,6 +102,21 @@ export default function IncomePage() {
       <IncomeBalance year={year} month={month} />
 
       {/* 6-month history table — data already loaded, zero extra queries */}
+      {isLoading ? (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <Skeleton className="h-3 w-32" />
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="flex items-center justify-between py-1">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : (
       <Card>
         <CardContent className="p-0">
           <div className="px-4 py-3 border-b">
@@ -155,6 +172,7 @@ export default function IncomePage() {
           </table>
         </CardContent>
       </Card>
+      )}
     </div>
   )
 }

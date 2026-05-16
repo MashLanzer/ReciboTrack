@@ -28,11 +28,16 @@ import {
   TrendingUp,
 } from "lucide-react"
 import { toast } from "sonner"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useExpensesPeriod } from "@/hooks/use-expenses"
+import { startOfMonth, subMonths, endOfMonth } from "date-fns"
 import type { Expense } from "@/types"
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ProjectsPage() {
+  const now = useMemo(() => new Date(), [])
+  const { isLoading } = useExpensesPeriod(startOfMonth(subMonths(now, 5)), endOfMonth(now))
   const { projects, expenses } = useProjects()
   const { data: categories = [] } = useCategories()
   const allCats = categories.length > 0 ? categories : DEFAULT_CATEGORIES
@@ -69,7 +74,23 @@ export default function ProjectsPage() {
         )}
 
         {/* ── Content ────────────────────────────────────────────────────── */}
-        {selected ? (
+        {isLoading ? (
+          <div className="space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="rounded-xl border p-4 space-y-2">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-9 w-9 rounded-lg" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-4 w-1/3" />
+                    <Skeleton className="h-3 w-1/4" />
+                  </div>
+                  <Skeleton className="h-5 w-16" />
+                </div>
+                <Skeleton className="h-1.5 w-full rounded-full" />
+              </div>
+            ))}
+          </div>
+        ) : selected ? (
           <DetailView
             project={selectedProject!}
             expenses={projectExpenses}
