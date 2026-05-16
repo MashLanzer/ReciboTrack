@@ -108,59 +108,62 @@ export function BottomNav() {
           {/* Divider */}
           <div className="h-px bg-border mx-2" />
 
-          {/* Profile & settings row */}
-          <div className="p-2 flex gap-1.5">
-            {/* Profile link */}
+          {/* Profile row — full width */}
+          <div className="px-2 pt-2 pb-1">
             <Link
               href="/profile"
               className={cn(
-                "flex flex-1 items-center gap-2.5 px-3 py-2.5 rounded-xl transition-colors",
+                "flex w-full items-center gap-3 px-3 py-2.5 rounded-xl transition-colors",
                 pathname === "/profile"
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:text-foreground hover:bg-accent"
               )}
             >
-              <Avatar className="h-6 w-6 shrink-0">
+              <Avatar className="h-8 w-8 shrink-0">
                 <AvatarImage src={user?.photoURL ?? ""} />
-                <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                <AvatarFallback className="text-[11px]">{initials}</AvatarFallback>
               </Avatar>
-              <div className="min-w-0">
-                <p className="text-xs font-medium truncate">{user?.displayName ?? "Perfil"}</p>
-                <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold truncate leading-tight">{user?.displayName ?? "Perfil"}</p>
+                <p className="text-[10px] text-muted-foreground truncate leading-tight">{user?.email}</p>
               </div>
             </Link>
+          </div>
 
-            {/* Account switcher */}
-            <div className="px-3 py-2">
-              <p className="text-[10px] font-medium text-muted-foreground mb-1.5 text-center">Cuenta</p>
-              <AccountSwitcher />
+          {/* Account switcher row — full width */}
+          <div className="px-2 pb-1">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/40">
+              <span className="text-[10px] font-medium text-muted-foreground shrink-0">Cuenta</span>
+              <div className="flex-1 flex justify-center">
+                <AccountSwitcher />
+              </div>
             </div>
+          </div>
 
-            {/* Search */}
+          {/* Utility actions row — 3 equal columns */}
+          <div className="px-2 pb-2 grid grid-cols-3 gap-1.5">
             <button
               onClick={() => { setMoreOpen(false); setCommandOpen(true) }}
-              className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
-              <Search className="h-5 w-5" />
+              <Search className="h-4.5 w-4.5" />
               <span className="text-[10px] font-medium">Buscar</span>
             </button>
 
-            {/* Theme toggle */}
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
-              <Sun className="h-5 w-5 dark:hidden" />
-              <Moon className="h-5 w-5 hidden dark:block" />
+              <Sun className="h-[18px] w-[18px] dark:hidden" />
+              <Moon className="h-[18px] w-[18px] hidden dark:block" />
               <span className="text-[10px] font-medium">Tema</span>
             </button>
 
-            {/* Sign out */}
             <button
               onClick={handleSignOut}
-              className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             >
-              <LogOut className="h-5 w-5" />
+              <LogOut className="h-[18px] w-[18px]" />
               <span className="text-[10px] font-medium">Salir</span>
             </button>
           </div>
