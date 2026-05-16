@@ -48,7 +48,7 @@ function emptyForm() {
     amount: "",
     category: "comida",
     currency: "USD",
-    paymentMethod: "",
+    paymentMethod: "none",
     tags: "",
     icon: "☕",
   }
@@ -164,7 +164,7 @@ function ManageDialog({
       amount,
       category: form.category,
       currency: form.currency,
-      paymentMethod: form.paymentMethod || null,
+      paymentMethod: (form.paymentMethod && form.paymentMethod !== "none") ? form.paymentMethod : null,
       tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
       icon: form.icon,
       order: quickExpenses.length,
@@ -329,7 +329,7 @@ function ManageDialog({
                   <SelectValue placeholder="Opcional" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin especificar</SelectItem>
+                  <SelectItem value="none">Sin especificar</SelectItem>
                   {PAYMENT_METHODS.map((m) => (
                     <SelectItem key={m} value={m}>{m}</SelectItem>
                   ))}
