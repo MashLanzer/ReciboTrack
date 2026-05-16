@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { DashboardStats } from "@/components/dashboard/dashboard-stats"
 import { IncomeBalance } from "@/components/dashboard/income-balance"
+import { ResumenWidgets } from "@/components/dashboard/resumen-widgets"
 import { QuickExpenses } from "@/components/dashboard/quick-expenses"
 import { WeeklyWidget } from "@/components/dashboard/weekly-widget"
 import { MultiCurrencyBanner } from "@/components/dashboard/multicurrency-banner"
@@ -77,11 +78,12 @@ export default function DashboardPage() {
 
       {/* ── Tab panels ───────────────────────────────────────────────────── */}
 
-      {/* Resumen: balance del mes + divisas */}
+      {/* Resumen: balance del mes + divisas + widgets */}
       {tab === "resumen" && (
         <div className="space-y-3">
           <IncomeBalance />
           <MultiCurrencyBanner />
+          <ResumenWidgets />
         </div>
       )}
 
