@@ -17,10 +17,12 @@ import {
   LogOut,
   X,
   Search,
+  Users,
 } from "lucide-react"
 import { AccountSwitcher } from "@/components/shared/account-switcher"
 import { useUIStore } from "@/stores/ui-store"
 import { toast } from "sonner"
+import { QuickSplit } from "@/components/expenses/quick-split"
 
 export function BottomNav() {
   const pathname = usePathname()
@@ -29,6 +31,7 @@ export function BottomNav() {
   const { theme, setTheme } = useTheme()
   const { setCommandOpen } = useUIStore()
   const [moreOpen, setMoreOpen] = useState(false)
+  const [splitOpen, setSplitOpen] = useState(false)
 
   // Close panel on navigation
   useEffect(() => { setMoreOpen(false) }, [pathname])
@@ -54,6 +57,12 @@ export function BottomNav() {
 
   return (
     <>
+      <QuickSplit
+        open={splitOpen}
+        onClose={() => setSplitOpen(false)}
+        defaultUserName={user?.displayName?.split(" ")[0] ?? "Yo"}
+      />
+
       {/* ── Backdrop overlay when "Más" is open ─────────────────────────── */}
       {moreOpen && (
         <div
@@ -140,14 +149,22 @@ export function BottomNav() {
             </div>
           </div>
 
-          {/* Utility actions row — 3 equal columns */}
-          <div className="px-2 pb-2 grid grid-cols-3 gap-1.5">
+          {/* Utility actions row — 4 equal columns */}
+          <div className="px-2 pb-2 grid grid-cols-4 gap-1.5">
             <button
               onClick={() => { setMoreOpen(false); setCommandOpen(true) }}
               className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
               <Search className="h-4.5 w-4.5" />
               <span className="text-[10px] font-medium">Buscar</span>
+            </button>
+
+            <button
+              onClick={() => { setMoreOpen(false); setSplitOpen(true) }}
+              className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <Users className="h-[18px] w-[18px]" />
+              <span className="text-[10px] font-medium">Dividir</span>
             </button>
 
             <button

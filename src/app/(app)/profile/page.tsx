@@ -6,7 +6,7 @@ import { useUserSettings, useUpdateUserSettings } from "@/hooks/use-user-setting
 import { useExpenses } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
 import { useRecurring } from "@/hooks/use-recurring"
-import { exportToCSV } from "@/components/expenses/export-utils"
+import { exportToCSV, exportHoldedCsv, exportContasimpleCsv } from "@/components/expenses/export-utils"
 import { formatCurrency } from "@/lib/utils"
 import { CURRENCIES, PAYMENT_METHODS, DEFAULT_CATEGORIES } from "@/lib/constants"
 import { getFirebaseAuth, getFirebaseStorage } from "@/lib/firebase/client"
@@ -33,6 +33,7 @@ import {
   Shield, ChevronRight, Check, Loader2, AlertTriangle,
 } from "lucide-react"
 import { AccentColorPicker } from "@/components/shared/accent-color-picker"
+import { PwaInstallButton } from "@/components/shared/pwa-install-button"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -429,6 +430,16 @@ export default function ProfilePage() {
               <AccentColorPicker />
             </div>
 
+            <SettingRow
+              label="Tema automático (21h–7h oscuro)"
+              description="Cambia a oscuro entre las 21:00 y las 7:00 automáticamente"
+            >
+              <Toggle
+                checked={settings?.autoTheme ?? false}
+                onChange={(v) => save({ autoTheme: v })}
+              />
+            </SettingRow>
+
             <SettingRow label="Vista compacta" description="Reduce el espaciado en la lista de gastos">
               <Toggle
                 checked={settings?.compactView ?? false}
@@ -472,6 +483,12 @@ export default function ProfilePage() {
           <StatCard label="Recurrentes" value={String(recurringData.length)} />
         </div>
 
+        {/* App install */}
+        <div className="border-t pt-3 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Aplicación</p>
+          <PwaInstallButton />
+        </div>
+
         {/* Data export */}
         <div className="border-t pt-3 space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Datos</p>
@@ -492,6 +509,38 @@ export default function ProfilePage() {
           >
             <Download className="h-4 w-4" />
             Exportar mis gastos (CSV)
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-2 justify-start"
+            onClick={() => {
+              if (expenseData?.expenses?.length) {
+                exportHoldedCsv(expenseData.expenses)
+                toast.success("Exportado para Holded")
+              } else {
+                toast.info("Sin gastos para exportar")
+              }
+            }}
+          >
+            <Download className="h-4 w-4" />
+            Exportar para Holded
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-2 justify-start"
+            onClick={() => {
+              if (expenseData?.expenses?.length) {
+                exportContasimpleCsv(expenseData.expenses)
+                toast.success("Exportado para Contasimple")
+              } else {
+                toast.info("Sin gastos para exportar")
+              }
+            }}
+          >
+            <Download className="h-4 w-4" />
+            Exportar para Contasimple
           </Button>
         </div>
 

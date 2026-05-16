@@ -1,0 +1,240 @@
+"use client"
+
+import { useState, useMemo } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { toast } from "sonner"
+import { Plus, X, Copy, Share } from "lucide-react"
+
+interface Person {
+  name: string
+  customAmount: string
+}
+
+interface Props {
+  open: boolean
+  onClose: () => void
+  defaultUserName?: string
+}
+
+export function QuickSplit({ open, onClose, defaultUserName = "Yo" }: Props) {
+  const [total, setTotal] = useState("")
+  const [description, setDescription] = useState("")
+  const [people, setPeople] = useState<Person[]>([
+    { name: defaultUserName, customAmount: "" },
+    { name: "", customAmount: "" },
+  ])
+  const [mode, setMode] = useState<"equal" | "custom">("equal")
+
+  const totalNum = parseFloat(total) || 0
+  const activePeople = people.filter((p) => p.name.trim())
+  const equalShare = activePeople.length > 0 ? totalNum / activePeople.length : 0
+
+  const customSum = useMemo(
+    () => people.reduce((acc, p) => acc + (parseFloat(p.customAmount) || 0), 0),
+    [people]
+  )
+  const customOk = Math.abs(customSum - totalNum) < 0.01 || totalNum === 0
+
+  function addPerson() {
+    if (people.length >= 6) return
+    setPeople((prev) => [...prev, { name: "", customAmount: "" }])
+  }
+
+  function removePerson(idx: number) {
+    if (people.length <= 2) return
+    setPeople((prev) => prev.filter((_, i) => i !== idx))
+  }
+
+  function updateName(idx: number, name: string) {
+    setPeople((prev) => prev.map((p, i) => i === idx ? { ...p, name } : p))
+  }
+
+  function updateAmount(idx: number, amount: string) {
+    setPeople((prev) => prev.map((p, i) => i === idx ? { ...p, customAmount: amount } : p))
+  }
+
+  // Build result pairs: who owes whom (first person = payer by convention)
+  const payer = activePeople[0]
+  const debtors = activePeople.slice(1)
+
+  const resultLines = debtors.map((d) => {
+    const amount = mode === "equal"
+      ? equalShare
+      : parseFloat(people.find((p) => p.name === d.name)?.customAmount ?? "0") || 0
+    return `${d.name} le debe a ${payer?.name ?? "?"}: ${amount.toFixed(2)} ${description ? `(${description})` : ""}`
+  })
+
+  const summaryText = [
+    description ? `Gasto: ${description}` : "",
+    `Total: ${totalNum.toFixed(2)}`,
+    "",
+    ...resultLines,
+    "",
+    "Generado con ReciboTrack",
+  ].filter((l, i, arr) => !(l === "" && arr[i - 1] === "")).join("\n").trim()
+
+  async function handleShare() {
+    if (navigator.share) {
+      await navigator.share({ title: description || "División de gasto", text: summaryText })
+    } else {
+      await navigator.clipboard.writeText(summaryText)
+      toast.success("Resumen copiado al portapapeles")
+    }
+  }
+
+  function copyLine(line: string) {
+    navigator.clipboard.writeText(line)
+    toast.success("Copiado")
+  }
+
+  function handleClose() {
+    setTotal("")
+    setDescription("")
+    setPeople([{ name: defaultUserName, customAmount: "" }, { name: "", customAmount: "" }])
+    setMode("equal")
+    onClose()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose() }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Dividir gasto</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+          {/* Amount + Description */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Importe total</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={total}
+                onChange={(e) => setTotal(e.target.value)}
+                className="tabular-nums"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Descripción</Label>
+              <Input
+                placeholder="Cena, taxi..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Mode toggle */}
+          <div className="grid grid-cols-2 gap-2">
+            {(["equal", "custom"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`rounded-lg border py-2 text-xs font-medium transition-colors ${mode === m ? "border-foreground bg-accent" : "border-border text-muted-foreground hover:border-muted-foreground"}`}
+              >
+                {m === "equal" ? "÷ A partes iguales" : "⚖️ Personalizado"}
+              </button>
+            ))}
+          </div>
+
+          {/* People list */}
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Personas (el primero es quien pagó)</p>
+            {people.map((p, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold shrink-0 text-muted-foreground">
+                  {idx + 1}
+                </div>
+                <Input
+                  placeholder={idx === 0 ? "Quien pagó" : `Persona ${idx + 1}`}
+                  value={p.name}
+                  onChange={(e) => updateName(idx, e.target.value)}
+                  className="flex-1 h-8 text-sm"
+                />
+                {mode === "equal" && p.name.trim() && totalNum > 0 && (
+                  <span className="text-xs tabular-nums text-muted-foreground shrink-0 w-16 text-right">
+                    {equalShare.toFixed(2)}
+                  </span>
+                )}
+                {mode === "custom" && (
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    placeholder="0.00"
+                    value={p.customAmount}
+                    onChange={(e) => updateAmount(idx, e.target.value)}
+                    className="w-20 h-8 text-xs tabular-nums text-right"
+                  />
+                )}
+                {people.length > 2 && (
+                  <button
+                    onClick={() => removePerson(idx)}
+                    className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+
+            {/* Custom sum validation */}
+            {mode === "custom" && totalNum > 0 && (
+              <p className={`text-[11px] tabular-nums font-medium text-right ${customOk ? "text-green-600" : "text-destructive"}`}>
+                {customOk
+                  ? "✓ Los importes cuadran"
+                  : `Diferencia: ${(totalNum - customSum).toFixed(2)}`}
+              </p>
+            )}
+
+            {people.length < 6 && (
+              <Button variant="outline" size="sm" className="w-full gap-1.5 h-7 text-xs" onClick={addPerson}>
+                <Plus className="h-3.5 w-3.5" />
+                Añadir persona
+              </Button>
+            )}
+          </div>
+
+          {/* Result */}
+          {activePeople.length >= 2 && totalNum > 0 && (
+            <div className="border rounded-xl p-3 space-y-2 bg-muted/20">
+              <p className="text-xs font-medium">Resultado</p>
+              {debtors.filter((d) => d.name.trim()).map((d, i) => {
+                const amount = mode === "equal"
+                  ? equalShare
+                  : parseFloat(people.find((p) => p.name === d.name)?.customAmount ?? "0") || 0
+                const line = `${d.name} le debe a ${payer?.name ?? "?"}: ${amount.toFixed(2)}`
+                return (
+                  <div key={i} className="flex items-center justify-between gap-2">
+                    <p className="text-xs flex-1 truncate">{line}</p>
+                    <button
+                      onClick={() => copyLine(line)}
+                      className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                      title="Copiar"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Share button */}
+          {activePeople.length >= 2 && totalNum > 0 && (
+            <Button className="w-full gap-2" onClick={handleShare}>
+              <Share className="h-4 w-4" />
+              Compartir resumen
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}

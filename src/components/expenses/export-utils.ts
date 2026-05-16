@@ -232,3 +232,43 @@ export async function exportMonthlyPDF(
 
   doc.save(`reporte-${format(monthDate, "yyyy-MM")}.pdf`)
 }
+
+// ─── Holded CSV export ────────────────────────────────────────────────────────
+// Format: Date, Concept, Amount, Category, Notes
+export function exportHoldedCsv(expenses: Expense[], filename = "holded-export.csv") {
+  const header = "Fecha,Concepto,Importe,Categoría,Notas"
+  const rows = expenses.map((e) => {
+    const date = e.date.toDate().toLocaleDateString("es-ES")
+    const concept = `"${e.merchant.replace(/"/g, '""')}"`
+    const amount = (-e.total).toFixed(2)  // Holded expects negatives for expenses
+    const category = `"${e.category}"`
+    const notes = `"${(e.notes ?? "").replace(/"/g, '""')}"`
+    return [date, concept, amount, category, notes].join(",")
+  })
+  const csv = [header, ...rows].join("\n")
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a"); a.href = url; a.download = filename; a.click()
+  URL.revokeObjectURL(url)
+}
+
+// ─── Contasimple CSV export ───────────────────────────────────────────────────
+// Format: Date, Description, Vendor, Base, VAT, Total, Category
+export function exportContasimpleCsv(expenses: Expense[], filename = "contasimple-export.csv") {
+  const header = "Fecha,Descripción,Proveedor,Importe,IVA,Total,Categoría"
+  const rows = expenses.map((e) => {
+    const date = e.date.toDate().toLocaleDateString("es-ES")
+    const desc = `"${((e.notes && e.notes.trim()) ? e.notes : e.merchant).replace(/"/g, '""')}"`
+    const vendor = `"${e.merchant.replace(/"/g, '""')}"`
+    const base = (e.total / 1.21).toFixed(2)
+    const iva = (e.total - parseFloat(base)).toFixed(2)
+    const total = e.total.toFixed(2)
+    const category = `"${e.category}"`
+    return [date, desc, vendor, base, iva, total, category].join(",")
+  })
+  const csv = [header, ...rows].join("\n")
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a"); a.href = url; a.download = filename; a.click()
+  URL.revokeObjectURL(url)
+}

@@ -47,15 +47,15 @@
     {
       "name": "Escanear recibo",
       "short_name": "Escanear",
-      "description": "Añade un gasto escaneando un recibo con IA",
-      "url": "/dashboard/?scan=1",
+      "description": "Abrir escáner de recibos directamente",
+      "url": "/dashboard?scan=1",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Ver gastos",
-      "short_name": "Gastos",
-      "description": "Historial de todos tus gastos",
-      "url": "/expenses/",
+      "name": "Nuevo gasto",
+      "short_name": "Gasto",
+      "description": "Añadir gasto manualmente",
+      "url": "/expenses",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useUpdateExpense } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
+import { useProjects } from "@/hooks/use-projects"
 import { PAYMENT_METHODS, CURRENCIES } from "@/lib/constants"
 import type { Expense, ReceiptItem } from "@/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -24,12 +25,13 @@ interface Props {
 
 export function ExpenseEditDialog({ expense, onClose }: Props) {
   const { data: categories = [] } = useCategories()
+  const { projectNames } = useProjects()
   const updateExpense = useUpdateExpense()
 
   const [form, setForm] = useState({
     merchant: "", date: "", total: "", subtotal: "", tax: "",
     category: "otros", paymentMethod: "", currency: "USD", reference: "", notes: "",
-    tags: [] as string[],
+    tags: [] as string[], project: "",
   })
   const [tagInput, setTagInput] = useState("")
   const [items, setItems] = useState<ReceiptItem[]>([])
@@ -50,6 +52,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
         reference: expense.reference ?? "",
         notes: expense.notes,
         tags: expense.tags ?? [],
+        project: expense.project ?? "",
       })
       setItems(expense.items ?? [])
       setItemsOpen((expense.items ?? []).length > 0)
@@ -99,6 +102,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
           reference: form.reference || null,
           notes: form.notes,
           tags: form.tags,
+          project: form.project || undefined,
         },
       })
       toast.success("Gasto actualizado")
@@ -178,6 +182,22 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
             <div className="col-span-2 space-y-1.5">
               <Label>Notas</Label>
               <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label>Cliente / Proyecto <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+              <Input
+                list="project-suggestions"
+                placeholder="Nombre del cliente o proyecto..."
+                value={form.project}
+                onChange={(e) => setForm({ ...form, project: e.target.value })}
+              />
+              {projectNames.length > 0 && (
+                <datalist id="project-suggestions">
+                  {projectNames.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+              )}
             </div>
             <div className="col-span-2 space-y-1.5">
               <Label>Etiquetas</Label>

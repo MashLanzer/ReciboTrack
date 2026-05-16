@@ -22,8 +22,9 @@ import { runReceiptOcr as runTesseract } from "@/lib/ocr/tesseract"
 import { pdfFirstPageToBlob, pdfToStitchedImage } from "@/lib/ocr/pdf-utils"
 import imageCompression from "browser-image-compression"
 import heic2any from "heic2any"
-import { cn } from "@/lib/utils"
+import { cn, formatCurrency } from "@/lib/utils"
 import { CameraCapture } from "./camera-capture"
+import { useDuplicateDetector } from "@/hooks/use-duplicate-detector"
 import { CategorySuggestion } from "@/components/shared/category-suggestion"
 import { useCategoryRules, applyRules } from "@/hooks/use-category-rules"
 import { useUIStore } from "@/stores/ui-store"
@@ -60,6 +61,7 @@ export function ReceiptScanner() {
   const { data: categoryRules = [] } = useCategoryRules()
   const { data: templates = [] } = useTemplates()
   const { activeAccount } = useUIStore()
+  const { checkDuplicate } = useDuplicateDetector()
   const addExpense = useAddExpense()
   const addRecurring = useAddRecurring()
   const addTemplate = useAddTemplate()
@@ -378,6 +380,14 @@ export function ReceiptScanner() {
         tags: form.tags,
         receiptImageUrl: null,
         account: activeAccount,
+      }
+
+      const dup = checkDuplicate({ merchant: expenseData.merchant, total: expenseData.total })
+      if (dup) {
+        toast.warning("Posible duplicado detectado", {
+          description: `Ya registraste ${formatCurrency(dup.total)} en ${dup.merchant} esta semana`,
+          duration: 6000,
+        })
       }
 
       await addExpense.mutateAsync(expenseData)

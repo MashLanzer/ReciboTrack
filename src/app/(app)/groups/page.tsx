@@ -34,7 +34,7 @@ import {
   Users, Plus, LogOut, Copy, RefreshCw, Trash2, Archive, ArchiveRestore,
   ArrowLeft, Receipt, UserPlus, Crown, Check, Pencil, MoreVertical,
   Search, SlidersHorizontal, TrendingUp, HandCoins, History,
-  ChevronDown, ChevronUp, BarChart2, X,
+  ChevronDown, ChevronUp, BarChart2, X, Share2,
 } from "lucide-react"
 import {
   ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip,
@@ -752,6 +752,24 @@ function BalanceTab({
                           <p className="text-sm font-bold tabular-nums text-destructive shrink-0">
                             {formatCurrency(t.amount)}
                           </p>
+                          <button
+                            title="Copiar enlace de pago"
+                            onClick={() => {
+                              const payload = btoa(JSON.stringify({
+                                from: getName(t.from),
+                                to: getName(t.to),
+                                amount: t.amount,
+                                concept: `Deuda del grupo "${group.name}"`,
+                                currency: "EUR",
+                              }))
+                              const url = `${window.location.origin}/pay/${payload}`
+                              navigator.clipboard.writeText(url)
+                              toast.success("Enlace copiado al portapapeles")
+                            }}
+                            className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Share2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
                       ))}
                     </div>

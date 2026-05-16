@@ -33,6 +33,7 @@ export interface Expense {
   notes: string
   tags: string[]
   receiptImageUrl: string | null
+  project?: string  // nombre del cliente/proyecto
   createdAt: Timestamp
   updatedAt: Timestamp
 }
@@ -52,6 +53,7 @@ export interface ExpenseInput {
   tags: string[]
   receiptImageUrl: string | null
   account?: "personal" | "business"  // defaults to "personal" when absent
+  project?: string  // nombre del cliente/proyecto
 }
 
 export interface CategoryDoc {

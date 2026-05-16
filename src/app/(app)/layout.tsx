@@ -8,6 +8,7 @@ import { Onboarding } from "@/components/shared/onboarding"
 import { AccentColorProvider } from "@/components/shared/accent-color-provider"
 import { OfflineBanner } from "@/components/shared/offline-banner"
 import { AnomalyDetector } from "@/components/shared/anomaly-detector"
+import { CategoryLimitsWatcher } from "@/components/shared/category-limits-watcher"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,6 +18,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <AccentColorProvider />
       <Onboarding />
       <AnomalyDetector />
+      <CategoryLimitsWatcher />
       <CommandPalette />
       <div className="flex flex-col min-h-screen">
         <TopNav />

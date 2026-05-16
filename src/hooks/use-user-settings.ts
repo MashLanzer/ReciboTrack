@@ -15,6 +15,8 @@ export interface UserSettings {
   onboardingCompleted: boolean
   accentColor: string           // HSL hue value, e.g. "262" for indigo
   deductibleCategories: string[] // category IDs that are tax-deductible
+  autoTheme: boolean             // auto switch dark/light based on time of day
+  categoryLimits?: Record<string, number>  // catId → límite mensual en moneda base
 }
 
 const DEFAULTS: UserSettings = {
@@ -27,6 +29,8 @@ const DEFAULTS: UserSettings = {
   onboardingCompleted: false,
   accentColor: "262",            // default indigo
   deductibleCategories: [],
+  autoTheme: false,
+  categoryLimits: {},
 }
 
 function settingsRef(uid: string) {

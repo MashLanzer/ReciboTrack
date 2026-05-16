@@ -1,5 +1,6 @@
 import { CategoriesManager } from "@/components/expenses/categories-manager"
 import { CategoryRules } from "@/components/categories/category-rules"
+import { CategoryLimitsSettings } from "@/components/expenses/category-limits-settings"
 
 export default function CategoriesPage() {
   return (
@@ -11,6 +12,9 @@ export default function CategoriesPage() {
       <CategoriesManager />
       <div className="border-t pt-6">
         <CategoryRules />
+      </div>
+      <div className="border-t pt-6">
+        <CategoryLimitsSettings />
       </div>
     </div>
   )

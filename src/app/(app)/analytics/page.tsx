@@ -26,9 +26,14 @@ import { exportMonthlyPDF } from "@/components/expenses/export-utils"
 import { ShareSummary } from "@/components/expenses/share-summary"
 import { CategoryTrend } from "@/components/analytics/category-trend"
 import { YearComparison } from "@/components/analytics/year-comparison"
+import { YearProjection } from "@/components/analytics/year-projection"
+import { FinancialHealth } from "@/components/analytics/financial-health"
 import { MonthlyPrediction } from "@/components/analytics/monthly-prediction"
 import { VATReport } from "@/components/analytics/vat-report"
 import { SankeyChart } from "@/components/analytics/sankey-chart"
+import { MerchantTracker } from "@/components/analytics/merchant-tracker"
+import { AiMonthlySummary } from "@/components/analytics/ai-monthly-summary"
+import { AiSuggestions } from "@/components/analytics/ai-suggestions"
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
   CartesianGrid, Cell, LineChart, Line, Legend,
@@ -342,6 +347,8 @@ export default function AnalyticsPage() {
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-5">
+      <FinancialHealth />
+
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h1 className="font-serif text-2xl">Análisis</h1>
@@ -365,6 +372,18 @@ export default function AnalyticsPage() {
           </Button>
         </div>
       </div>
+
+      {/* ── Resumen IA del mes ── */}
+      <AiMonthlySummary
+        expenses={selected.map((e) => ({ total: e.total, merchant: e.merchant, category: e.category }))}
+        categoryBreakdown={categoryComparison.map((c) => ({ name: c.name, total: c.current, delta: c.delta }))}
+        month={selLabel}
+      />
+
+      {/* ── Sugerencias de ahorro con IA ── */}
+      <AiSuggestions
+        expenses3months={all.map((e) => ({ total: e.total, merchant: e.merchant, category: e.category }))}
+      />
 
       {/* ── Tendencia 6 meses (clickable to select month) ── */}
       <Card>
@@ -915,6 +934,9 @@ export default function AnalyticsPage() {
       {/* ── Año actual vs. año anterior ── */}
       <YearComparison />
 
+      {/* ── Proyección fin de año ── */}
+      <YearProjection />
+
       {/* ── Predicción próximo mes ── */}
       <MonthlyPrediction />
 
@@ -923,6 +945,9 @@ export default function AnalyticsPage() {
 
       {/* ── Flujo Sankey ── */}
       <SankeyChart />
+
+      {/* ── Rastreo de precios por comercio ── */}
+      <MerchantTracker />
 
       {/* ── Tendencia por categoría ── */}
       <CategoryTrend />

@@ -3,6 +3,7 @@
 import { Suspense, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { DashboardStats } from "@/components/dashboard/dashboard-stats"
+import { IncomeBalance } from "@/components/dashboard/income-balance"
 import { QuickExpenses } from "@/components/dashboard/quick-expenses"
 import { WeeklyWidget } from "@/components/dashboard/weekly-widget"
 import { MultiCurrencyBanner } from "@/components/dashboard/multicurrency-banner"
@@ -22,6 +23,7 @@ export default function DashboardPage() {
       <WeeklyWidget />
       <MultiCurrencyBanner />
       <DashboardStats />
+      <IncomeBalance />
       <ScanFab />
       <ReceiptScanner />
     </div>
