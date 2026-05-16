@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const prompt = `Eres un asistente financiero personal. Analiza estos datos de gastos del mes de ${month} y escribe UN párrafo en español (máximo 120 palabras) que resuma el comportamiento financiero de forma amigable, directa y útil. Menciona lo más destacado: si gastó más o menos que antes, en qué categorías, y una observación constructiva. No uses listas, solo prosa fluida. Datos: ${JSON.stringify(summary)}`
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -35,7 +35,18 @@ export async function POST(req: NextRequest) {
     )
 
     const data = await response.json()
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "No se pudo generar el resumen."
+
+    if (!response.ok) {
+      console.error("[ai-summary] Gemini error:", JSON.stringify(data))
+      return NextResponse.json({ error: data.error?.message ?? "Gemini error" }, { status: 502 })
+    }
+
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!text) {
+      console.error("[ai-summary] Empty candidates:", JSON.stringify(data))
+      return NextResponse.json({ error: "Respuesta vacía de Gemini" }, { status: 502 })
+    }
+
     return NextResponse.json({ summary: text })
   } catch {
     return NextResponse.json({ error: "Error generando resumen" }, { status: 500 })

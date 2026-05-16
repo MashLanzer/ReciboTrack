@@ -26,10 +26,13 @@ export function AiMonthlySummary({ expenses, categoryBreakdown, month }: Props) 
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
+      if (!data.summary) throw new Error("Respuesta vacía")
       setSummary(data.summary)
       setGenerated(true)
-    } catch {
-      toast.error("Error al generar el resumen")
+    } catch (err) {
+      toast.error("Error al generar el resumen", {
+        description: err instanceof Error ? err.message : undefined,
+      })
     } finally {
       setLoading(false)
     }

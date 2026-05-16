@@ -33,8 +33,10 @@ export function AiSuggestions({ expenses3months }: Props) {
       if (data.error) throw new Error(data.error)
       setSuggestions(data.suggestions ?? [])
       setGenerated(true)
-    } catch {
-      toast.error("Error al generar sugerencias")
+    } catch (err) {
+      toast.error("Error al generar sugerencias", {
+        description: err instanceof Error ? err.message : undefined,
+      })
     } finally {
       setLoading(false)
     }

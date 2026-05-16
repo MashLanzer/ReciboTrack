@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     const prompt = `Eres un asesor financiero personal. Basándote en estos datos de gastos de los últimos 3 meses, genera EXACTAMENTE 3 sugerencias de ahorro concretas, accionables y realistas en español. Cada sugerencia debe tener: título corto (max 5 palabras) y descripción (max 30 palabras) con un ahorro estimado en euros/mes si es posible. Responde SOLO con JSON válido: [{"titulo": "...", "descripcion": "...", "ahorroEstimado": 50}]. Datos: ${JSON.stringify(summary)}`
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -38,7 +38,17 @@ export async function POST(req: NextRequest) {
     )
 
     const data = await response.json()
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "[]"
+
+    if (!response.ok) {
+      console.error("[ai-suggestions] Gemini error:", JSON.stringify(data))
+      return NextResponse.json({ error: data.error?.message ?? "Gemini error" }, { status: 502 })
+    }
+
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!raw) {
+      console.error("[ai-suggestions] Empty candidates:", JSON.stringify(data))
+      return NextResponse.json({ suggestions: [] })
+    }
 
     // Strip markdown fences if Gemini wraps the JSON
     const clean = raw
