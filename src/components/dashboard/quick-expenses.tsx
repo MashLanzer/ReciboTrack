@@ -365,7 +365,7 @@ function ManageDialog({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function QuickExpenses() {
-  const { data: quickExpenses = [] } = useQuickExpenses()
+  const { data: quickExpenses = [], error: quickExpensesError } = useQuickExpenses()
   const deleteQuick = useDeleteQuickExpense()
   const addExpense = useAddExpense()
   const [manageOpen, setManageOpen] = useState(false)

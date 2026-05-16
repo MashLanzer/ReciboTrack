@@ -89,6 +89,21 @@ service cloud.firestore {
       match /meta/{metaId} {
         allow read, write: if isOwner(userId);
       }
+
+      // Accesos rápidos (quick expense templates)
+      match /quickExpenses/{quickExpenseId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Ingresos
+      match /income/{incomeId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Proyectos (se almacenan dentro de los gastos, pero por si acaso)
+      match /projects/{projectId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // ─── Grupos compartidos (/groups/{groupId}) ────────────────────────────────
