@@ -193,13 +193,16 @@ export function useAddExpense() {
         updatedAt: Timestamp.now(),
       }
 
-      // Inject into all paginated expenses caches
-      queryClient.setQueriesData<{ pages: Expense[][]; pageParams: unknown[] }>(
+      // Inject into all cached expense-list queries (non-paginated shape)
+      queryClient.setQueriesData<{ expenses: Expense[]; total: number; allTags: string[] }>(
         { queryKey: ["expenses", user.uid] },
         (old) => {
           if (!old) return old
-          const firstPage = [optimistic, ...(old.pages[0] ?? [])]
-          return { ...old, pages: [firstPage, ...old.pages.slice(1)] }
+          return {
+            ...old,
+            expenses: [optimistic, ...old.expenses],
+            total: old.total + 1,
+          }
         }
       )
 

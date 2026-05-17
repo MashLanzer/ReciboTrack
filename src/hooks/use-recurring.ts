@@ -134,6 +134,7 @@ export function useSnoozeRecurring() {
       await updateDoc(ref, { nextDueDate: Timestamp.fromDate(snooze) })
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recurring", user?.uid] })
       queryClient.invalidateQueries({ queryKey: ["recurring-due", user?.uid] })
     },
   })

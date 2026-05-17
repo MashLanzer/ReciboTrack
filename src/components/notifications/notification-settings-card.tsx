@@ -98,7 +98,7 @@ export function NotificationSettingsCard() {
             onCheckedChange={(v) => void handleMasterToggle(v)}
             disabled={!browserSupport || requesting || update.isPending}
           />
-          {masterEnabled && Notification.permission === "granted" && (
+          {browserSupport && masterEnabled && Notification.permission === "granted" && (
             <p className="text-[10px] text-emerald-600 flex items-center gap-1 mt-1.5">
               <Check className="h-3 w-3" />
               Permiso concedido
