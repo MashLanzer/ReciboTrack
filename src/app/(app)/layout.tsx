@@ -11,6 +11,7 @@ import { AnomalyDetector } from "@/components/shared/anomaly-detector"
 import { CategoryLimitsWatcher } from "@/components/shared/category-limits-watcher"
 import { ReceiptScanner } from "@/components/receipt-scanner/receipt-scanner"
 import { QuickAddSheet } from "@/components/expenses/quick-add-sheet"
+import { AddIncomeDialog } from "@/components/income/add-income-dialog"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -22,9 +23,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <AnomalyDetector />
       <CategoryLimitsWatcher />
       <CommandPalette />
-      {/* Global overlays — scanner + quick-add available from any page */}
+      {/* Global overlays — scanner + quick-add + income available from any page */}
       <ReceiptScanner />
       <QuickAddSheet />
+      <AddIncomeDialog />
       <div className="flex flex-col min-h-screen">
         <TopNav />
         <UpdateBanner />

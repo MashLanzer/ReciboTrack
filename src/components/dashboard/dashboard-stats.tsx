@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore"
 import { getFirebaseDb } from "@/lib/firebase/client"
@@ -134,6 +135,7 @@ export function DashboardStats() {
   const { data: prev = [] } = usePrevMonthExpenses()
   const { data: categories = [] } = useCategories()
   const { data: recurringTemplates = [] } = useRecurring()
+  const router = useRouter()
   const { setScannerOpen, activeAccount } = useUIStore()
   const { data: settings } = useUserSettings()
   const categoryLimits = settings?.categoryLimits ?? {}
@@ -501,7 +503,13 @@ export function DashboardStats() {
                     <td className="px-4 py-2.5 text-xs text-muted-foreground tabular-nums">{m.rank}</td>
                     <td className="px-2 py-2.5">
                       <div className="space-y-0.5">
-                        <p className="text-xs font-medium truncate max-w-[120px]">{m.merchant}</p>
+                        <button
+                          onClick={() => router.push(`/expenses?q=${encodeURIComponent(m.merchant)}`)}
+                          className="text-xs font-medium truncate max-w-[120px] text-left hover:text-primary hover:underline transition-colors block"
+                          title={`Ver gastos de ${m.merchant}`}
+                        >
+                          {m.merchant}
+                        </button>
                         <div className="h-1 rounded-full bg-muted overflow-hidden w-20">
                           <div className="h-full rounded-full bg-foreground/50" style={{ width: `${m.pctOfTotal}%` }} />
                         </div>

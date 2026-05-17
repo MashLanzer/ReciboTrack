@@ -88,27 +88,31 @@ export function ExpenseList() {
     router.replace(qs ? `${pathname}?${qs}` : pathname)
   }, [searchParams, router, pathname])
 
+  const { data: categories = [] } = useCategories()
+
+  // #8 — Validate category from URL against known categories; ignore unknown ones
+  const knownCategoryIds = new Set(categories.map(c => c.id))
+  const validCategory = category && knownCategoryIds.has(category) ? category : undefined
+
   const { data, isLoading } = useExpenses({
     search: search || undefined,
-    category: category || undefined,
+    category: validCategory,
     startDate,
     endDate,
+    tags: activeTags.length > 0 ? activeTags : undefined,  // #11 — server-side tag filter
     page,
     sort,
     account: activeAccount,
   })
-  const { data: categories = [] } = useCategories()
   const deleteExpense = useDeleteExpense()
   const addExpense = useAddExpense()
   const updateExpense = useUpdateExpense()
 
-  // Tag filtering is client-side; allTags now comes from the full result (not just current page)
+  // Tags now filtered server-side — no client-side re-filter needed
   const allTags = data?.allTags ?? []
   const allExpenses = (data?.expenses ?? []).filter((e) => !pendingDeleteIds.has(e.id))
-  const expenses = activeTags.length > 0
-    ? allExpenses.filter((e) => activeTags.some((t) => e.tags?.includes(t)))
-    : allExpenses
-  const total = activeTags.length > 0 ? expenses.length : (data?.total ?? 0)
+  const expenses = allExpenses
+  const total = data?.total ?? 0
   const totalPages = Math.ceil(total / EXPENSES_PER_PAGE)
 
   function toggleTag(tag: string) {
@@ -133,6 +137,17 @@ export function ExpenseList() {
   // Open filter panel automatically when URL already has filters
   useEffect(() => {
     if (activeFilterCount > 0) setFiltersOpen(true)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // #13 — Restore sort from localStorage when not present in URL
+  useEffect(() => {
+    if (!searchParams.get("sort")) {
+      const saved = localStorage.getItem("rt-expense-sort") as ExpenseSort | null
+      const valid: ExpenseSort[] = ["date_desc", "date_asc", "amount_desc", "amount_asc"]
+      if (saved && valid.includes(saved) && saved !== "date_desc") {
+        setParams({ sort: saved })
+      }
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Bulk selection helpers ────────────────────────────────────────────────
@@ -347,11 +362,22 @@ export function ExpenseList() {
               <Upload className="h-4 w-4" />
               Importar CSV
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => exportToCSV(expenses)} className="gap-2">
+            <DropdownMenuItem onClick={async () => {
+              const tid = toast.loading("Generando CSV...")
+              await new Promise(r => setTimeout(r, 30))
+              exportToCSV(expenses, { start: startDate, end: endDate })
+              toast.dismiss(tid)
+              toast.success("CSV descargado")
+            }} className="gap-2">
               <Sheet className="h-4 w-4" />
               Exportar CSV
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => exportToPDF(expenses, categories)} className="gap-2">
+            <DropdownMenuItem onClick={async () => {
+              const tid = toast.loading("Generando PDF...")
+              await exportToPDF(expenses, categories, { start: startDate, end: endDate })
+              toast.dismiss(tid)
+              toast.success("PDF descargado")
+            }} className="gap-2">
               <Image className="h-4 w-4" />
               Exportar PDF
             </DropdownMenuItem>
@@ -462,7 +488,13 @@ export function ExpenseList() {
           </DropdownMenu>
 
           {/* Sort */}
-          <Select value={sort} onValueChange={(v) => setParams({ sort: v === "date_desc" ? null : v })}>
+          <Select
+            value={sort}
+            onValueChange={(v) => {
+              localStorage.setItem("rt-expense-sort", v)  // #13 — persist
+              setParams({ sort: v === "date_desc" ? null : v })
+            }}
+          >
             <SelectTrigger className={`h-8 w-36 text-xs ${sort !== "date_desc" ? "border-primary text-primary" : ""}`}>
               <SelectValue placeholder="Ordenar" />
             </SelectTrigger>
@@ -801,7 +833,13 @@ export function ExpenseList() {
                 size="sm"
                 variant="secondary"
                 className="h-8 text-xs gap-1.5 bg-background/15 hover:bg-background/25 text-background border-0"
-                onClick={() => exportToCSV(selectedExpenses)}
+                onClick={async () => {
+                  const tid = toast.loading("Generando CSV...")
+                  await new Promise(r => setTimeout(r, 30))
+                  exportToCSV(selectedExpenses, { start: startDate, end: endDate })
+                  toast.dismiss(tid)
+                  toast.success("CSV descargado")
+                }}
               >
                 CSV
               </Button>
@@ -809,7 +847,12 @@ export function ExpenseList() {
                 size="sm"
                 variant="secondary"
                 className="h-8 text-xs gap-1.5 bg-background/15 hover:bg-background/25 text-background border-0"
-                onClick={() => exportToPDF(selectedExpenses, categories)}
+                onClick={async () => {
+                  const tid = toast.loading("Generando PDF...")
+                  await exportToPDF(selectedExpenses, categories, { start: startDate, end: endDate })
+                  toast.dismiss(tid)
+                  toast.success("PDF descargado")
+                }}
               >
                 PDF
               </Button>

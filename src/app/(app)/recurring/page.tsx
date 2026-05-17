@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
+import Link from "next/link"
 import {
   RefreshCw,
   Plus,
@@ -359,6 +360,19 @@ export default function RecurringPage() {
         </div>
       )}
 
+      {/* #20 — All clear banner */}
+      {!isLoading && viewMode === "list" && templates.length > 0 && overdue.length === 0 && soon.length === 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-green-500/20 bg-green-500/5 px-4 py-3">
+          <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-500 shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-green-800 dark:text-green-400">Todo al día</p>
+            <p className="text-xs text-green-700/70 dark:text-green-500/70">
+              No tienes pagos pendientes ni vencidos. ¡Buen trabajo!
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* List sections */}
       {!isLoading && viewMode === "list" && (
         <>
@@ -524,6 +538,7 @@ export default function RecurringPage() {
                 <Input
                   type="date"
                   value={form.nextDueDate}
+                  min="2010-01-01"
                   onChange={(e) => setForm({ ...form, nextDueDate: e.target.value })}
                 />
               </div>
@@ -991,9 +1006,14 @@ function RecurringItem({
                   const delta = prev ? ((payment.total - prev.total) / prev.total) * 100 : null
                   return (
                     <div key={payment.id} className="flex items-center justify-between py-1">
-                      <span className="text-xs text-muted-foreground">
+                      {/* #17 — link to expense list filtered by merchant */}
+                      <Link
+                        href={`/expenses?q=${encodeURIComponent(t.merchant)}`}
+                        className="text-xs text-muted-foreground hover:text-primary hover:underline transition-colors"
+                        title="Ver en lista de gastos"
+                      >
                         {payment.date.toDate().toLocaleDateString("es", { day: "2-digit", month: "short", year: "2-digit" })}
-                      </span>
+                      </Link>
                       <div className="flex items-center gap-2">
                         {delta !== null && (
                           <span className={`text-[10px] tabular-nums ${delta > 5 ? "text-destructive" : delta < -5 ? "text-green-600" : "text-muted-foreground"}`}>

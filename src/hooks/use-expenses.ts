@@ -12,11 +12,12 @@ import {
   where,
   getDocs,
 } from "firebase/firestore"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query"
 import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
 import type { Expense, ExpenseInput } from "@/types"
 import { EXPENSES_PER_PAGE } from "@/lib/constants"
+import { fireWebhook, buildExpensePayload } from "@/lib/webhook"
 
 function expensesCollection(uid: string) {
   return collection(getFirebaseDb(), "users", uid, "expenses")
@@ -29,6 +30,7 @@ export function useExpenses(filters?: {
   startDate?: Date
   endDate?: Date
   search?: string
+  tags?: string[]
   page?: number
   sort?: ExpenseSort
   account?: "personal" | "business" | "all"
@@ -38,6 +40,7 @@ export function useExpenses(filters?: {
   return useQuery({
     queryKey: ["expenses", user?.uid, filters],
     enabled: !!user,
+    placeholderData: keepPreviousData,  // #23 — keep previous page visible while next loads
     queryFn: async () => {
       if (!user) return { expenses: [], total: 0 }
 
@@ -80,8 +83,17 @@ export function useExpenses(filters?: {
         )
       }
 
+      // Tag filter — applied before pagination so results are always consistent.
+      // Comparison is case-insensitive so legacy mixed-case tags still match.
+      if (filters?.tags && filters.tags.length > 0) {
+        const filterTags = filters.tags.map(t => t.toLowerCase())
+        expenses = expenses.filter(e =>
+          filterTags.some(ft => e.tags?.some(et => et.toLowerCase() === ft))
+        )
+      }
+
       // Collect all unique tags before pagination so the filter dropdown is complete
-      const allTags = [...new Set(expenses.flatMap((e) => e.tags ?? []))].sort()
+      const allTags = [...new Set(expenses.flatMap((e) => e.tags ?? []).map(t => t.toLowerCase()))].sort()
 
       // Sort (Firestore returns date_desc by default; other sorts done client-side)
       const sort = filters?.sort ?? "date_desc"
@@ -193,11 +205,22 @@ export function useAddExpense() {
 
       return { tempId }
     },
-    onSuccess: (_id, _input, ctx) => {
+    onSuccess: (id, input, ctx) => {
       // Remove the optimistic entry and refetch real data
       queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
       queryClient.invalidateQueries({ queryKey: ["expenses-month", user?.uid] })
-      void ctx // suppress unused warning
+      void ctx
+
+      // Fire personal webhook if configured and event is enabled
+      try {
+        const webhookUrl   = localStorage.getItem("rt-webhook-url")
+        const webhookEvents = JSON.parse(localStorage.getItem("rt-webhook-events") ?? "[]") as string[]
+        if (webhookUrl && webhookEvents.includes("new_expense")) {
+          void fireWebhook(webhookUrl, buildExpensePayload({
+            id, ...input, date: { toDate: () => input.date },
+          }))
+        }
+      } catch { /* ignore */ }
     },
     onError: (_err, _input, ctx) => {
       // Roll back the optimistic insert

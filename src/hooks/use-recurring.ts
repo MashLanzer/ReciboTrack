@@ -13,6 +13,7 @@ import {
   getDocs,
 } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { addWeeks, addMonths, addYears } from "date-fns"
 import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
 import type { RecurringTemplate, RecurringFrequency } from "@/types"
@@ -103,11 +104,12 @@ export function useConfirmRecurring() {
   return useMutation({
     mutationFn: async ({ id, frequency }: { id: string; frequency: RecurringFrequency }) => {
       if (!user) throw new Error("No autenticado")
-      const nextDue = new Date()
-      if (frequency === "weekly") nextDue.setDate(nextDue.getDate() + 7)
-      else if (frequency === "biweekly") nextDue.setDate(nextDue.getDate() + 14)
-      else if (frequency === "monthly") nextDue.setMonth(nextDue.getMonth() + 1)
-      else if (frequency === "yearly") nextDue.setFullYear(nextDue.getFullYear() + 1)
+      const now = new Date()
+      const nextDue =
+        frequency === "weekly"   ? addWeeks(now, 1) :
+        frequency === "biweekly" ? addWeeks(now, 2) :
+        frequency === "monthly"  ? addMonths(now, 1) :
+        addYears(now, 1)
 
       const ref = doc(getFirebaseDb(), "users", user.uid, "recurring", id)
       await updateDoc(ref, { nextDueDate: Timestamp.fromDate(nextDue) })

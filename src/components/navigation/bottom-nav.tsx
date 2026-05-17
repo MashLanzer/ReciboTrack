@@ -39,7 +39,7 @@ export function BottomNav() {
   const router = useRouter()
   const { user } = useAuth()
   const { theme, setTheme } = useTheme()
-  const { setCommandOpen, setScannerOpen, setQuickAddOpen } = useUIStore()
+  const { setCommandOpen, setScannerOpen, setQuickAddOpen, setIncomeAddOpen } = useUIStore()
   const [moreOpen, setMoreOpen] = useState(false)
   const [actionOpen, setActionOpen] = useState(false)
   const [splitOpen, setSplitOpen] = useState(false)
@@ -114,7 +114,7 @@ export function BottomNav() {
 
   function openIncome() {
     setActionOpen(false)
-    router.push("/income")
+    setIncomeAddOpen(true)
   }
 
   return (

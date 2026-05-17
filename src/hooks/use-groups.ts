@@ -25,6 +25,8 @@ export interface Group {
   id: string
   name: string
   emoji: string
+  description?: string
+  budget?: number
   adminUid: string
   memberUids: string[]
   members: GroupMember[]
@@ -98,7 +100,7 @@ export function useCreateGroup() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ name, emoji }: { name: string; emoji: string }) => {
+    mutationFn: async ({ name, emoji, description }: { name: string; emoji: string; description?: string }) => {
       if (!user) throw new Error("No autenticado")
       const inviteCode = generateInviteCode()
       const member: GroupMember = {
@@ -111,6 +113,7 @@ export function useCreateGroup() {
       const ref = await addDoc(collection(getFirebaseDb(), "groups"), {
         name,
         emoji,
+        ...(description ? { description } : {}),
         adminUid: user.uid,
         memberUids: [user.uid],
         members: [member],
@@ -354,8 +357,15 @@ export function useDeleteSettlement() {
 export function useUpdateGroup() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ groupId, name, emoji }: { groupId: string; name: string; emoji: string }) => {
-      await updateDoc(doc(getFirebaseDb(), "groups", groupId), { name, emoji })
+    mutationFn: async ({ groupId, name, emoji, description, budget }: {
+      groupId: string; name: string; emoji: string; description?: string; budget?: number | null
+    }) => {
+      await updateDoc(doc(getFirebaseDb(), "groups", groupId), {
+        name,
+        emoji,
+        ...(description !== undefined ? { description } : {}),
+        ...(budget !== undefined ? { budget: budget ?? null } : {}),
+      })
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
   })

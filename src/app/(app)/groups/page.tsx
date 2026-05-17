@@ -34,7 +34,8 @@ import {
   Users, Plus, LogOut, Copy, RefreshCw, Trash2, Archive, ArchiveRestore,
   ArrowLeft, Receipt, UserPlus, Crown, Check, Pencil, MoreVertical,
   Search, SlidersHorizontal, TrendingUp, HandCoins, History,
-  ChevronDown, ChevronUp, BarChart2, X, Share2,
+  ChevronDown, ChevronUp, BarChart2, X, Share2, Download, Bell,
+  Target, Link as LinkIcon,
 } from "lucide-react"
 import {
   ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip,
@@ -45,6 +46,142 @@ import { cn } from "@/lib/utils"
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 const GROUP_EMOJIS = ["👨‍👩‍👧‍👦", "👫", "🏠", "💼", "🎓", "✈️", "🎉", "💰", "🍽️", "🛒", "🚗", "🏋️", "🏖️", "🎮", "🐾"]
+
+// ─── Group balance badge (for the list cards) ────────────────────────────────
+
+function GroupBalanceBadge({ groupId, members, currentUid }: {
+  groupId: string
+  members: Group["members"]
+  currentUid: string
+}) {
+  const { data: expenses = [] } = useGroupExpenses(groupId)
+  const { data: settlements = [] } = useGroupSettlements(groupId)
+  const balance = computeBalances(expenses, settlements, members)[currentUid] ?? 0
+  if (Math.abs(balance) < 0.01) return null
+  return (
+    <span className={cn(
+      "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums shrink-0",
+      balance > 0 ? "bg-green-500/15 text-green-700 dark:text-green-400" : "bg-destructive/15 text-destructive"
+    )}>
+      {balance > 0 ? "+" : ""}{balance > 0 ? `te deben ${formatCurrency(balance)}` : `debes ${formatCurrency(Math.abs(balance))}`}
+    </span>
+  )
+}
+
+// ─── Group export utilities ───────────────────────────────────────────────────
+
+async function exportGroupCSV(group: Group, expenses: GroupExpense[], settlements: GroupSettlement[]) {
+  const getName = (uid: string) => group.members.find((m) => m.uid === uid)?.displayName ?? uid
+  const rows: string[][] = [
+    ["Fecha", "Comercio", "Categoría", "Total", "Moneda", "Pagado por", "División", "Notas"],
+    ...expenses.map((e) => [
+      format(e.date.toDate(), "yyyy-MM-dd"),
+      e.merchant,
+      e.category,
+      e.total.toString(),
+      e.currency,
+      getName(e.paidByUid),
+      e.splitType,
+      e.notes ?? "",
+    ]),
+    [],
+    ["Pagos registrados"],
+    ["Fecha", "De", "A", "Monto", "Moneda", "Nota"],
+    ...settlements.map((s) => [
+      format(s.date.toDate(), "yyyy-MM-dd"),
+      getName(s.fromUid),
+      getName(s.toUid),
+      s.amount.toString(),
+      s.currency,
+      s.note ?? "",
+    ]),
+  ]
+  const csv = rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n")
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" })
+  const a = document.createElement("a")
+  a.href = URL.createObjectURL(blob)
+  a.download = `grupo-${group.name.replace(/\s+/g, "-").toLowerCase()}-${format(new Date(), "yyyy-MM-dd")}.csv`
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
+
+async function exportGroupPDF(group: Group, expenses: GroupExpense[], settlements: GroupSettlement[], balances: Record<string, number>) {
+  const { default: jsPDF } = await import("jspdf")
+  const { default: autoTable } = await import("jspdf-autotable")
+
+  const getName = (uid: string) => group.members.find((m) => m.uid === uid)?.displayName ?? uid
+  const doc = new jsPDF()
+
+  // Title
+  doc.setFontSize(16)
+  doc.text(`Grupo: ${group.emoji} ${group.name}`, 14, 18)
+  doc.setFontSize(10)
+  doc.setTextColor(120)
+  doc.text(`Exportado: ${format(new Date(), "d MMMM yyyy", { locale: es })}`, 14, 25)
+  doc.setTextColor(0)
+
+  // Summary
+  const totalSpent = expenses.reduce((a, e) => a + e.total, 0)
+  doc.setFontSize(11)
+  doc.text(`Total gastado: ${formatCurrency(totalSpent)} · ${expenses.length} gastos · ${group.members.length} miembros`, 14, 34)
+
+  // Balances table
+  autoTable(doc, {
+    startY: 40,
+    head: [["Miembro", "Balance"]],
+    body: group.members.map((m) => {
+      const b = balances[m.uid] ?? 0
+      return [m.displayName, Math.abs(b) < 0.01 ? "En cero ✓" : b > 0 ? `+${formatCurrency(b)} (le deben)` : `${formatCurrency(b)} (debe)`]
+    }),
+    headStyles: { fillColor: [30, 30, 30] },
+    styles: { fontSize: 9 },
+    margin: { left: 14, right: 14 },
+  })
+
+  // Expenses table
+  const afterBalances = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6
+  doc.setFontSize(11)
+  doc.text("Gastos del grupo", 14, afterBalances)
+
+  autoTable(doc, {
+    startY: afterBalances + 4,
+    head: [["Fecha", "Comercio", "Total", "Pagado por", "División"]],
+    body: expenses.map((e) => [
+      format(e.date.toDate(), "d/M/yy"),
+      e.merchant.slice(0, 24),
+      formatCurrency(e.total, e.currency),
+      getName(e.paidByUid),
+      e.splitType === "equal" ? `÷${e.splitWith.length}` : e.splitType === "custom" ? "⚖️" : "Solo",
+    ]),
+    headStyles: { fillColor: [30, 30, 30] },
+    styles: { fontSize: 8 },
+    columnStyles: { 0: { cellWidth: 20 }, 2: { cellWidth: 24 }, 3: { cellWidth: 30 }, 4: { cellWidth: 18 } },
+    margin: { left: 14, right: 14 },
+  })
+
+  // Settlements
+  if (settlements.length > 0) {
+    const afterExp = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6
+    doc.setFontSize(11)
+    doc.text("Pagos / liquidaciones", 14, afterExp)
+    autoTable(doc, {
+      startY: afterExp + 4,
+      head: [["Fecha", "De", "A", "Monto", "Nota"]],
+      body: settlements.map((s) => [
+        format(s.date.toDate(), "d/M/yy"),
+        getName(s.fromUid),
+        getName(s.toUid),
+        formatCurrency(s.amount, s.currency),
+        s.note ?? "",
+      ]),
+      headStyles: { fillColor: [30, 30, 30] },
+      styles: { fontSize: 8 },
+      margin: { left: 14, right: 14 },
+    })
+  }
+
+  doc.save(`grupo-${group.name.replace(/\s+/g, "-").toLowerCase()}-${format(new Date(), "yyyy-MM-dd")}.pdf`)
+}
 
 // ─── Balance calculation (shared between tabs) ────────────────────────────────
 
@@ -68,6 +205,7 @@ function computeBalances(
         }
       })
     } else if (e.splitType === "custom" && e.customShares) {
+      // note: "percentage" splits are converted to "custom" + customShares at save time
       Object.entries(e.customShares).forEach(([uid, amount]) => {
         if (uid !== e.paidByUid && amount > 0) {
           map[e.paidByUid] = (map[e.paidByUid] ?? 0) + amount
@@ -93,9 +231,10 @@ interface ExpenseFormState {
   merchant: string; date: string; total: string
   subtotal: string; tax: string; category: string
   paymentMethod: string; currency: string; notes: string
-  splitType: "equal" | "full" | "custom"
+  splitType: "equal" | "full" | "custom" | "percentage"
   splitWith: string[]
   customShares: Record<string, string>
+  percentageShares: Record<string, string>
 }
 
 function emptyExpenseForm(members: Group["members"]): ExpenseFormState {
@@ -106,6 +245,7 @@ function emptyExpenseForm(members: Group["members"]): ExpenseFormState {
     splitType: "equal",
     splitWith: members.map((m) => m.uid),
     customShares: Object.fromEntries(members.map((m) => [m.uid, ""])),
+    percentageShares: Object.fromEntries(members.map((m) => [m.uid, ""])),
   }
 }
 
@@ -191,11 +331,11 @@ function ExpenseForm({
       {/* Split */}
       <div className="rounded-xl border p-3 space-y-3">
         <p className="text-xs font-semibold">División del gasto</p>
-        <div className="grid grid-cols-3 gap-1.5">
-          {(["equal", "custom", "full"] as const).map((type) => (
+        <div className="grid grid-cols-2 gap-1.5">
+          {(["equal", "percentage", "custom", "full"] as const).map((type) => (
             <button key={type} onClick={() => setForm({ ...form, splitType: type })}
               className={`rounded-lg border p-2 text-[11px] text-center transition-colors leading-tight ${form.splitType === type ? "border-foreground bg-accent font-medium" : "border-border text-muted-foreground hover:border-muted-foreground"}`}>
-              {type === "equal" ? "÷ Iguales" : type === "custom" ? "⚖️ Personal" : "👤 Solo yo"}
+              {type === "equal" ? "÷ Iguales" : type === "percentage" ? "% Porcentaje" : type === "custom" ? "⚖️ Monto fijo" : "👤 Solo yo"}
             </button>
           ))}
         </div>
@@ -205,6 +345,8 @@ function ExpenseForm({
             <p className="text-[11px] text-muted-foreground">¿Quiénes participan?</p>
             {group.members.map((m) => {
               const checked = form.splitWith.includes(m.uid)
+              const pct = parseFloat(form.percentageShares[m.uid] ?? "0") || 0
+              const pctAmount = totalAmt * (pct / 100)
               return (
                 <div key={m.uid} className="flex items-center gap-2">
                   <input type="checkbox" checked={checked}
@@ -225,6 +367,23 @@ function ExpenseForm({
                         customShares: { ...form.customShares, [m.uid]: e.target.value },
                       })}
                       className="w-24 h-7 text-xs tabular-nums text-right" placeholder="0.00" />
+                  )}
+                  {form.splitType === "percentage" && checked && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Input type="number" step="1" min={0} max={100}
+                        value={form.percentageShares[m.uid] ?? ""}
+                        onChange={(e) => setForm({
+                          ...form,
+                          percentageShares: { ...form.percentageShares, [m.uid]: e.target.value },
+                        })}
+                        className="w-16 h-7 text-xs tabular-nums text-right" placeholder="0" />
+                      <span className="text-[11px] text-muted-foreground">%</span>
+                      {totalAmt > 0 && pct > 0 && (
+                        <span className="text-[10px] text-muted-foreground tabular-nums w-14 text-right">
+                          {formatCurrency(pctAmount, form.currency)}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               )
@@ -251,6 +410,34 @@ function ExpenseForm({
                 </span>
               </div>
             )}
+
+            {form.splitType === "percentage" && (() => {
+              const pctSum = form.splitWith.reduce((a, uid) => a + (parseFloat(form.percentageShares[uid] ?? "0") || 0), 0)
+              const pctOk = Math.abs(pctSum - 100) < 0.01
+              return (
+                <div className="pt-1 border-t flex items-center justify-between">
+                  <button
+                    onClick={() => {
+                      const n = form.splitWith.length
+                      if (!n) return
+                      const base = Math.floor(100 / n)
+                      const remainder = 100 - base * n
+                      const shares = form.splitWith.reduce((acc, uid, i) => {
+                        acc[uid] = String(i === 0 ? base + remainder : base)
+                        return acc
+                      }, {} as Record<string, string>)
+                      setForm({ ...form, percentageShares: { ...form.percentageShares, ...shares } })
+                    }}
+                    className="text-[11px] text-primary hover:underline"
+                  >
+                    Distribuir igualmente
+                  </button>
+                  <span className={`text-[11px] tabular-nums font-medium ${pctOk ? "text-green-600" : "text-destructive"}`}>
+                    {pctOk ? "✓ 100%" : `${pctSum.toFixed(0)}% / 100%`}
+                  </span>
+                </div>
+              )
+            })()}
           </div>
         )}
       </div>
@@ -597,23 +784,49 @@ function BalanceTab({
                     {iOweM ? `Le debes ${formatCurrency(amount)}` : `Te debe ${formatCurrency(amount)}`}
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  variant={iOweM ? "destructive" : "outline"}
-                  className="h-7 px-2.5 text-xs gap-1 shrink-0"
-                  onClick={() => {
-                    // fromUid = debtor, toUid = creditor
-                    const fromUid = iOweM ? currentUid : m.uid
-                    const toUid   = iOweM ? m.uid       : currentUid
-                    setSettleDialog({ fromUid, toUid, amount })
-                    setSettleAmount(amount.toFixed(2))
-                    setSettleCurrency("USD")
-                    setSettleNote("")
-                  }}
-                >
-                  <HandCoins className="h-3 w-3" />
-                  Saldar
-                </Button>
+                <div className="flex items-center gap-1 shrink-0">
+                  {/* Recordar — only makes sense when someone owes you */}
+                  {!iOweM && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs gap-1"
+                      title="Enviar recordatorio de deuda"
+                      onClick={() => {
+                        const msg = `Hola ${m.displayName.split(" ")[0]} 👋\n\nTe recuerdo que me debes ${formatCurrency(amount)} del grupo. Cuando puedas, ¡muchas gracias! 🙏`
+                        if (navigator.share) {
+                          navigator.share({ text: msg }).catch(() => {
+                            navigator.clipboard.writeText(msg)
+                            toast.success("Mensaje copiado al portapapeles")
+                          })
+                        } else {
+                          navigator.clipboard.writeText(msg)
+                          toast.success("Mensaje copiado al portapapeles")
+                        }
+                      }}
+                    >
+                      <Bell className="h-3 w-3" />
+                      Recordar
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant={iOweM ? "destructive" : "outline"}
+                    className="h-7 px-2.5 text-xs gap-1"
+                    onClick={() => {
+                      // fromUid = debtor, toUid = creditor
+                      const fromUid = iOweM ? currentUid : m.uid
+                      const toUid   = iOweM ? m.uid       : currentUid
+                      setSettleDialog({ fromUid, toUid, amount })
+                      setSettleAmount(amount.toFixed(2))
+                      setSettleCurrency("USD")
+                      setSettleNote("")
+                    }}
+                  >
+                    <HandCoins className="h-3 w-3" />
+                    Saldar
+                  </Button>
+                </div>
               </div>
             )
           })}
@@ -891,6 +1104,8 @@ function GroupDetail({
   const [editGroupOpen, setEditGroupOpen] = useState(false)
   const [editGroupName, setEditGroupName] = useState(initialGroup.name)
   const [editGroupEmoji, setEditGroupEmoji] = useState(initialGroup.emoji)
+  const [editGroupDesc, setEditGroupDesc] = useState(initialGroup.description ?? "")
+  const [editGroupBudget, setEditGroupBudget] = useState(initialGroup.budget?.toString() ?? "")
 
   // Invite code
   const [copiedCode, setCopiedCode] = useState(false)
@@ -932,8 +1147,22 @@ function GroupDetail({
       customShares: Object.fromEntries(
         group.members.map((m) => [m.uid, (e.customShares?.[m.uid] ?? "").toString()])
       ),
+      percentageShares: Object.fromEntries(group.members.map((m) => [m.uid, ""])),
     })
     setEditExpense(e)
+  }
+
+  function resolveCustomShares(form: ExpenseFormState, totalAmt: number): Record<string, number> | undefined {
+    if (form.splitType === "custom") {
+      return Object.fromEntries(form.splitWith.map((uid) => [uid, parseFloat(form.customShares[uid] ?? "0") || 0]))
+    }
+    if (form.splitType === "percentage") {
+      return Object.fromEntries(form.splitWith.map((uid) => {
+        const pct = parseFloat(form.percentageShares[uid] ?? "0") || 0
+        return [uid, parseFloat((totalAmt * pct / 100).toFixed(2))]
+      }))
+    }
+    return undefined
   }
 
   async function handleAddExpense() {
@@ -943,8 +1172,13 @@ function GroupDetail({
       const sum = addForm.splitWith.reduce((a, uid) => a + (parseFloat(addForm.customShares[uid] ?? "0") || 0), 0)
       if (Math.abs(sum - totalAmt) > 0.01) { toast.error("La suma de partes no coincide con el total"); return }
     }
+    if (addForm.splitType === "percentage") {
+      const pctSum = addForm.splitWith.reduce((a, uid) => a + (parseFloat(addForm.percentageShares[uid] ?? "0") || 0), 0)
+      if (Math.abs(pctSum - 100) > 0.01) { toast.error("Los porcentajes deben sumar 100%"); return }
+    }
     setFormSaving(true)
     try {
+      const resolvedType = addForm.splitType === "percentage" ? "custom" : addForm.splitType
       await addExpense.mutateAsync({
         groupId: group.id,
         input: {
@@ -956,10 +1190,8 @@ function GroupDetail({
           notes: addForm.notes, tags: [], receiptImageUrl: null,
         },
         splitWith: addForm.splitWith,
-        splitType: addForm.splitType,
-        customShares: addForm.splitType === "custom"
-          ? Object.fromEntries(addForm.splitWith.map((uid) => [uid, parseFloat(addForm.customShares[uid] ?? "0") || 0]))
-          : undefined,
+        splitType: resolvedType,
+        customShares: resolveCustomShares(addForm, totalAmt),
       })
       toast.success("Gasto añadido")
       setAddOpen(false)
@@ -976,8 +1208,13 @@ function GroupDetail({
       const sum = editForm.splitWith.reduce((a, uid) => a + (parseFloat(editForm.customShares[uid] ?? "0") || 0), 0)
       if (Math.abs(sum - totalAmt) > 0.01) { toast.error("La suma de partes no coincide con el total"); return }
     }
+    if (editForm.splitType === "percentage") {
+      const pctSum = editForm.splitWith.reduce((a, uid) => a + (parseFloat(editForm.percentageShares[uid] ?? "0") || 0), 0)
+      if (Math.abs(pctSum - 100) > 0.01) { toast.error("Los porcentajes deben sumar 100%"); return }
+    }
     setFormSaving(true)
     try {
+      const resolvedType = editForm.splitType === "percentage" ? "custom" : editForm.splitType
       await updateExpense.mutateAsync({
         groupId: group.id, expenseId: editExpense.id,
         input: {
@@ -989,10 +1226,8 @@ function GroupDetail({
           notes: editForm.notes, tags: [], receiptImageUrl: null,
         },
         splitWith: editForm.splitWith,
-        splitType: editForm.splitType,
-        customShares: editForm.splitType === "custom"
-          ? Object.fromEntries(editForm.splitWith.map((uid) => [uid, parseFloat(editForm.customShares[uid] ?? "0") || 0]))
-          : undefined,
+        splitType: resolvedType,
+        customShares: resolveCustomShares(editForm, totalAmt),
       })
       toast.success("Gasto actualizado")
       setEditExpense(null)
@@ -1028,11 +1263,24 @@ function GroupDetail({
 
   async function handleUpdateGroup() {
     if (!editGroupName.trim()) { toast.error("El nombre no puede estar vacío"); return }
+    const budget = editGroupBudget ? parseFloat(editGroupBudget) : null
     try {
-      await updateGroup.mutateAsync({ groupId: group.id, name: editGroupName.trim(), emoji: editGroupEmoji })
+      await updateGroup.mutateAsync({
+        groupId: group.id,
+        name: editGroupName.trim(),
+        emoji: editGroupEmoji,
+        description: editGroupDesc.trim() || undefined,
+        budget,
+      })
       toast.success("Grupo actualizado")
       setEditGroupOpen(false)
-      onGroupUpdated({ ...group, name: editGroupName.trim(), emoji: editGroupEmoji })
+      onGroupUpdated({
+        ...group,
+        name: editGroupName.trim(),
+        emoji: editGroupEmoji,
+        description: editGroupDesc.trim() || undefined,
+        budget: budget ?? undefined,
+      })
     } catch { toast.error("Error al actualizar el grupo") }
   }
 
@@ -1085,6 +1333,9 @@ function GroupDetail({
           <p className="text-xs text-muted-foreground">
             {group.members.length} miembros · {formatCurrency(totalSpent)} total
           </p>
+          {group.description && (
+            <p className="text-xs text-muted-foreground mt-0.5 truncate italic">{group.description}</p>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <Button size="sm" className="gap-1.5 h-8" onClick={() => setAddOpen(true)}>
@@ -1123,6 +1374,38 @@ function GroupDetail({
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Budget progress bar */}
+      {group.budget && group.budget > 0 && (
+        <div className="rounded-xl border bg-card px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Target className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium">Presupuesto del grupo</span>
+            </div>
+            <span className={cn(
+              "text-xs font-semibold tabular-nums",
+              totalSpent > group.budget ? "text-destructive" : totalSpent > group.budget * 0.8 ? "text-amber-600" : "text-green-600"
+            )}>
+              {formatCurrency(totalSpent)} / {formatCurrency(group.budget)}
+            </span>
+          </div>
+          <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+            <div
+              className={cn(
+                "h-2 rounded-full transition-all",
+                totalSpent > group.budget ? "bg-destructive" : totalSpent > group.budget * 0.8 ? "bg-amber-500" : "bg-green-500"
+              )}
+              style={{ width: `${Math.min((totalSpent / group.budget) * 100, 100)}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            {totalSpent > group.budget
+              ? `Superado por ${formatCurrency(totalSpent - group.budget)}`
+              : `Quedan ${formatCurrency(group.budget - totalSpent)}`}
+          </p>
+        </div>
+      )}
 
       {/* Balance quick-pill */}
       {Math.abs(myBalance) > 0.01 && (
@@ -1308,7 +1591,28 @@ function GroupDetail({
 
       {/* ── Stats tab ── */}
       {tab === "stats" && (
-        <StatsTab expenses={filteredExpenses.length < expenses.length ? filteredExpenses : expenses} group={group} categories={categories} />
+        <div className="space-y-4">
+          {/* Export buttons */}
+          {expenses.length > 0 && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline" size="sm" className="gap-1.5 text-xs flex-1"
+                onClick={() => exportGroupCSV(group, expenses, settlements)}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Exportar CSV
+              </Button>
+              <Button
+                variant="outline" size="sm" className="gap-1.5 text-xs flex-1"
+                onClick={() => exportGroupPDF(group, expenses, settlements, computeBalances(expenses, settlements, group.members))}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Exportar PDF
+              </Button>
+            </div>
+          )}
+          <StatsTab expenses={filteredExpenses.length < expenses.length ? filteredExpenses : expenses} group={group} categories={categories} />
+        </div>
       )}
 
       {/* ── Miembros tab ── */}
@@ -1368,6 +1672,32 @@ function GroupDetail({
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground">Comparte este código para que otros se unan al grupo</p>
+              {/* Direct invite link via Web Share */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-1.5 text-xs"
+                onClick={() => {
+                  const url = `${window.location.origin}/join/${inviteCode}`
+                  const shareData = {
+                    title: `Únete al grupo "${group.name}"`,
+                    text: `Te invito a unirte al grupo de gastos compartidos "${group.name}" en ReciboTrack.`,
+                    url,
+                  }
+                  if (navigator.share) {
+                    navigator.share(shareData).catch(() => {
+                      navigator.clipboard.writeText(url)
+                      toast.success("Enlace copiado al portapapeles")
+                    })
+                  } else {
+                    navigator.clipboard.writeText(url)
+                    toast.success("Enlace de invitación copiado")
+                  }
+                }}
+              >
+                <LinkIcon className="h-3.5 w-3.5" />
+                Compartir enlace de invitación
+              </Button>
             </CardContent>
           </Card>
 
@@ -1433,10 +1763,37 @@ function GroupDetail({
           <DialogHeader>
             <DialogTitle>Editar grupo</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
             <div className="space-y-1.5">
-              <Label>Nombre</Label>
+              <Label>Nombre *</Label>
               <Input value={editGroupName} onChange={(e) => setEditGroupName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Descripción <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+              <Input
+                placeholder="Viaje de verano, gastos del apartamento..."
+                value={editGroupDesc}
+                onChange={(e) => setEditGroupDesc(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Presupuesto total <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+              <div className="relative">
+                <Target className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  type="number" step="0.01" min="0"
+                  placeholder="0.00 — sin límite"
+                  className="pl-8 tabular-nums"
+                  value={editGroupBudget}
+                  onChange={(e) => setEditGroupBudget(e.target.value)}
+                />
+              </div>
+              {editGroupBudget && parseFloat(editGroupBudget) > 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  Límite: {formatCurrency(parseFloat(editGroupBudget))} · Gastado: {formatCurrency(totalSpent)}
+                  {totalSpent > parseFloat(editGroupBudget) && <span className="text-destructive font-medium"> (superado)</span>}
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>Ícono</Label>
@@ -1462,6 +1819,7 @@ function GroupDetail({
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
 export default function GroupsPage() {
+  const { user } = useAuth()
   const { data: groups = [], isLoading } = useMyGroups()
   const createGroup = useCreateGroup()
   const joinGroup = useJoinGroup()
@@ -1471,6 +1829,7 @@ export default function GroupsPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(false)
   const [groupName, setGroupName] = useState("")
+  const [groupDesc, setGroupDesc] = useState("")
   const [groupEmoji, setGroupEmoji] = useState("👨‍👩‍👧‍👦")
   const [joinCode, setJoinCode] = useState("")
   const [newGroupCode, setNewGroupCode] = useState<string | null>(null)
@@ -1483,10 +1842,15 @@ export default function GroupsPage() {
   async function handleCreate() {
     if (!groupName.trim()) { toast.error("Ponle un nombre al grupo"); return }
     try {
-      const { inviteCode } = await createGroup.mutateAsync({ name: groupName, emoji: groupEmoji })
+      const { inviteCode } = await createGroup.mutateAsync({
+        name: groupName,
+        emoji: groupEmoji,
+        description: groupDesc.trim() || undefined,
+      })
       setNewGroupCode(inviteCode)
       toast.success("Grupo creado")
       setGroupName("")
+      setGroupDesc("")
     } catch { toast.error("Error al crear grupo") }
   }
 
@@ -1564,9 +1928,19 @@ export default function GroupsPage() {
                 <span className="text-3xl">{group.emoji}</span>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold truncate">{group.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                  {group.description && (
+                    <p className="text-[11px] text-muted-foreground truncate italic">{group.description}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {group.members.length} miembros · {group.members.map((m) => m.displayName.split(" ")[0]).join(", ")}
                   </p>
+                  {user && (
+                    <GroupBalanceBadge
+                      groupId={group.id}
+                      members={group.members}
+                      currentUid={user.uid}
+                    />
+                  )}
                 </div>
                 <Users className="h-4 w-4 text-muted-foreground shrink-0" />
               </div>
@@ -1638,6 +2012,11 @@ export default function GroupsPage() {
                 <Input placeholder="Familia, Viaje NY, Casa..." value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleCreate()} autoFocus />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Descripción <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+                <Input placeholder="Para qué es este grupo..." value={groupDesc}
+                  onChange={(e) => setGroupDesc(e.target.value)} />
               </div>
               <div className="space-y-1.5">
                 <Label>Ícono</Label>

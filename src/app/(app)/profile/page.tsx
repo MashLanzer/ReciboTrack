@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useMemo } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { useUserSettings, useUpdateUserSettings } from "@/hooks/use-user-settings"
 import { useExpenses } from "@/hooks/use-expenses"
+import { useExpensesPeriod } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
 import { useRecurring } from "@/hooks/use-recurring"
 import { exportToCSV, exportHoldedCsv, exportContasimpleCsv } from "@/components/expenses/export-utils"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, cn } from "@/lib/utils"
 import { CURRENCIES, PAYMENT_METHODS, DEFAULT_CATEGORIES } from "@/lib/constants"
 import { getFirebaseAuth, getFirebaseStorage } from "@/lib/firebase/client"
 import {
@@ -28,14 +29,18 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
 import {
-  User, Mail, Lock, Camera, Sun, Moon, Monitor, Download,
-  LogOut, Trash2, Bell, Calendar, LayoutList, Globe,
-  Shield, ChevronRight, Check, Loader2, AlertTriangle,
+  User, Camera, Sun, Moon, Monitor, Download,
+  LogOut, Trash2, Bell, Globe,
+  Shield, Check, Loader2, AlertTriangle, BarChart3, Wallet, EyeOff,
+  Sheet, Webhook, ExternalLink, Link2Off, Send, RefreshCw,
 } from "lucide-react"
 import { AccentColorPicker } from "@/components/shared/accent-color-picker"
 import { PwaInstallButton } from "@/components/shared/pwa-install-button"
-import { format } from "date-fns"
+import { format, startOfYear, endOfYear, getMonth, getDay } from "date-fns"
 import { es } from "date-fns/locale"
+import type { Expense } from "@/types"
+import { exportToGoogleSheets, SheetsRedirectPending } from "@/lib/google-sheets"
+import { fireWebhook } from "@/lib/webhook"
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
 function Section({ title, icon: Icon, children }: {
@@ -95,6 +100,117 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
   )
 }
 
+// ─── PersonalStats (wrapped-style) ───────────────────────────────────────────
+
+function PersonalStats() {
+  const now = new Date()
+  const yearStart = startOfYear(now)
+  const yearEnd = endOfYear(now)
+  const { data: yearExpenses = [], isLoading } = useExpensesPeriod(yearStart, yearEnd)
+  const { data: categories = [] } = useCategories()
+
+  const stats = useMemo(() => {
+    if (!yearExpenses.length) return null
+    const expDate = (e: Expense) => (e.date as { toDate(): Date }).toDate()
+
+    // Total gastado en el año
+    const totalYear = yearExpenses.reduce((s, e) => s + e.total, 0)
+
+    // Categoría con más gasto
+    const byCategory = new Map<string, number>()
+    yearExpenses.forEach(e => {
+      const k = e.category ?? "otros"
+      byCategory.set(k, (byCategory.get(k) ?? 0) + e.total)
+    })
+    const topCatId = [...byCategory.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+    const topCat = categories.find(c => c.id === topCatId)
+    const topCatLabel = topCat ? `${topCat.icon} ${topCat.name}` : topCatId ?? "—"
+
+    // Comercio más frecuente
+    const byMerchant = new Map<string, number>()
+    yearExpenses.forEach(e => {
+      const k = e.merchant.trim().toLowerCase()
+      byMerchant.set(k, (byMerchant.get(k) ?? 0) + 1)
+    })
+    const topMerchantKey = [...byMerchant.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+    const topMerchantCount = byMerchant.get(topMerchantKey ?? "") ?? 0
+    const topMerchantName = yearExpenses.find(e => e.merchant.trim().toLowerCase() === topMerchantKey)?.merchant ?? "—"
+
+    // Mes con más gasto
+    const byMonth = new Map<number, number>()
+    yearExpenses.forEach(e => {
+      const m = getMonth(expDate(e))
+      byMonth.set(m, (byMonth.get(m) ?? 0) + e.total)
+    })
+    const topMonthNum = [...byMonth.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+    const topMonth = topMonthNum !== undefined
+      ? format(new Date(now.getFullYear(), topMonthNum), "MMMM", { locale: es })
+      : "—"
+
+    // Día de la semana preferido (más gastos)
+    const byDow = new Map<number, number>()
+    yearExpenses.forEach(e => {
+      const d = getDay(expDate(e))
+      byDow.set(d, (byDow.get(d) ?? 0) + 1)
+    })
+    const DOW = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
+    const topDowNum = [...byDow.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+    const topDow = topDowNum !== undefined ? DOW[topDowNum] : "—"
+
+    // Promedio mensual (meses transcurridos)
+    const monthsElapsed = Math.max(getMonth(now) + 1, 1)
+    const monthlyAvg = totalYear / monthsElapsed
+
+    return { totalYear, topCatLabel, topMerchantName, topMerchantCount, topMonth, topDow, monthlyAvg }
+  }, [yearExpenses, categories, now])
+
+  if (isLoading) return (
+    <div className="grid grid-cols-2 gap-2">
+      {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)}
+    </div>
+  )
+  if (!stats) return (
+    <p className="text-xs text-muted-foreground text-center py-4">Aún no hay suficientes datos para tus estadísticas.</p>
+  )
+
+  const year = now.getFullYear()
+  return (
+    <div className="space-y-3">
+      {/* Hero stat */}
+      <div className="rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/10 p-4 text-center">
+        <p className="text-[10px] font-semibold text-primary/70 uppercase tracking-widest mb-1">{year} · Total gastado</p>
+        <p className="text-3xl font-bold tabular-nums">{formatCurrency(stats.totalYear)}</p>
+        <p className="text-xs text-muted-foreground mt-1">~{formatCurrency(stats.monthlyAvg)} / mes</p>
+      </div>
+
+      {/* Mini stats grid */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-xl bg-muted/40 border p-3">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Categoría top</p>
+          <p className="text-sm font-bold mt-1 truncate">{stats.topCatLabel}</p>
+        </div>
+        <div className="rounded-xl bg-muted/40 border p-3">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Mes más activo</p>
+          <p className="text-sm font-bold mt-1 capitalize">{stats.topMonth}</p>
+        </div>
+        <div className="rounded-xl bg-muted/40 border p-3 col-span-2">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Comercio favorito</p>
+          <p className="text-sm font-bold mt-1 truncate">{stats.topMerchantName}</p>
+          <p className="text-[10px] text-muted-foreground">{stats.topMerchantCount} visitas este año</p>
+        </div>
+        <div className="rounded-xl bg-muted/40 border p-3">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Día favorito</p>
+          <p className="text-sm font-bold mt-1">{stats.topDow}</p>
+        </div>
+        <div className="rounded-xl bg-muted/40 border p-3">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Recibos</p>
+          <p className="text-sm font-bold mt-1">{yearExpenses.length}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main page ─────────────────────────────────────────────────────────────────
 export default function ProfilePage() {
   const { user } = useAuth()
@@ -122,6 +238,16 @@ export default function ProfilePage() {
   const [deleteDialog, setDeleteDialog] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState("")
   const [deleteLoading, setDeleteLoading] = useState(false)
+
+  // Integrations
+  const [sheetsLoading, setSheetsLoading] = useState(false)
+  const [webhookUrl, setWebhookUrl] = useState<string>(() => {
+    try { return localStorage.getItem("rt-webhook-url") ?? "" } catch { return "" }
+  })
+  const [webhookEvents, setWebhookEvents] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("rt-webhook-events") ?? '["new_expense"]') } catch { return ["new_expense"] }
+  })
+  const [webhookTesting, setWebhookTesting] = useState(false)
 
   const isGoogleUser = user?.providerData.some((p) => p.providerId === "google.com")
   const initials = user?.displayName
@@ -248,6 +374,61 @@ export default function ProfilePage() {
     })
   }, [updateSettings])
 
+  // ── Google Sheets sync ────────────────────────────────────────────────────
+  async function handleSheetsSync() {
+    if (!expenseData?.expenses?.length) { toast.info("Sin gastos para exportar"); return }
+    setSheetsLoading(true)
+    try {
+      const url = await exportToGoogleSheets(expenseData.expenses, [])
+      const now = new Date().toISOString()
+      save({ sheetsLastUrl: url, sheetsLastSyncedAt: now })
+      toast.success("Hoja de cálculo creada", {
+        action: { label: "Abrir", onClick: () => window.open(url, "_blank") },
+      })
+    } catch (err) {
+      if (err instanceof SheetsRedirectPending) {
+        toast.info("Redirigiendo a Google para autorizar…")
+      } else {
+        toast.error(err instanceof Error ? err.message : "Error al exportar")
+      }
+    } finally {
+      setSheetsLoading(false)
+    }
+  }
+
+  // ── Webhook ───────────────────────────────────────────────────────────────
+  function saveWebhook() {
+    try {
+      localStorage.setItem("rt-webhook-url", webhookUrl)
+      localStorage.setItem("rt-webhook-events", JSON.stringify(webhookEvents))
+      toast.success("Webhook guardado")
+    } catch {
+      toast.error("Error al guardar")
+    }
+  }
+
+  async function testWebhook() {
+    if (!webhookUrl) { toast.error("Introduce una URL primero"); return }
+    setWebhookTesting(true)
+    const result = await fireWebhook(webhookUrl, {
+      event: "test",
+      ts: new Date().toISOString(),
+      data: { message: "Test desde ReciboTrack", merchant: "Comercio ejemplo", total: 42.5, currency: "USD" },
+    })
+    setWebhookTesting(false)
+    if (result.ok) {
+      toast.success(`Webhook respondió con ${result.status}`)
+    } else {
+      toast.error(result.error ?? `Error ${result.status}`)
+    }
+  }
+
+  function toggleWebhookEvent(event: string) {
+    setWebhookEvents(prev =>
+      prev.includes(event) ? prev.filter(e => e !== event) : [...prev, event]
+    )
+  }
+
   if (!user) return null
 
   return (
@@ -339,7 +520,12 @@ export default function ProfilePage() {
         </div>
       </Section>
 
-      {/* ── 2. Preferencias ── */}
+      {/* ── 2. Estadísticas personales ── */}
+      <Section title="Mis estadísticas" icon={BarChart3}>
+        <PersonalStats />
+      </Section>
+
+      {/* ── 3. Preferencias ── */}
       <Section title="Preferencias" icon={Globe}>
         {settingsLoading ? (
           <div className="space-y-3">
@@ -446,33 +632,305 @@ export default function ProfilePage() {
                 onChange={(v) => save({ compactView: v })}
               />
             </SettingRow>
+
+            {/* ── Presupuesto mensual ── */}
+            <div className="border-t pt-3">
+              <SettingRow label="Presupuesto mensual" description="Límite de gasto total al mes (0 = sin límite)">
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    min={0}
+                    step={10}
+                    value={settings?.monthlyBudget ?? ""}
+                    placeholder="Sin límite"
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value)
+                      save({ monthlyBudget: isNaN(v) || v === 0 ? null : v })
+                    }}
+                    className="w-28 h-8 text-xs tabular-nums text-right"
+                  />
+                  <span className="text-xs text-muted-foreground">{settings?.defaultCurrency ?? "USD"}</span>
+                </div>
+              </SettingRow>
+            </div>
+
+            {/* ── Día de inicio del mes ── */}
+            <SettingRow label="Día de inicio del mes" description="¿Cuándo consideras que empieza tu mes?">
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="number"
+                  min={1}
+                  max={28}
+                  value={settings?.monthStartDay ?? 1}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value)
+                    if (v >= 1 && v <= 28) save({ monthStartDay: v })
+                  }}
+                  className="w-16 h-8 text-xs text-center tabular-nums"
+                />
+                <span className="text-xs text-muted-foreground">de cada mes</span>
+              </div>
+            </SettingRow>
           </>
         )}
       </Section>
 
-      {/* ── 3. Gastos recurrentes / Notificaciones ── */}
-      <Section title="Recordatorios" icon={Bell}>
-        <SettingRow
-          label="Días de aviso anticipado"
-          description="Cuántos días antes de que venza un recurrente te avisamos"
-        >
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              min={0}
-              max={30}
-              value={settings?.reminderDaysBefore ?? 3}
-              onChange={(e) => save({ reminderDaysBefore: parseInt(e.target.value) || 0 })}
-              className="w-16 h-8 text-xs text-center tabular-nums"
-            />
-            <span className="text-xs text-muted-foreground">días</span>
-          </div>
-        </SettingRow>
-        <div className="rounded-lg bg-muted/40 border p-3 text-xs text-muted-foreground">
-          Tienes <strong className="text-foreground">{recurringData.length}</strong> gasto{recurringData.length !== 1 ? "s" : ""} recurrente{recurringData.length !== 1 ? "s" : ""} activo{recurringData.length !== 1 ? "s" : ""}.
-          Los recordatorios se muestran en el banner de la página de gastos y en los recurrentes.
-        </div>
+      {/* ── Notificaciones ── */}
+      <Section title="Notificaciones" icon={Bell}>
+        {settingsLoading ? (
+          <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-8 rounded" />)}</div>
+        ) : (
+          <>
+            <SettingRow label="Activar notificaciones push" description="Necesitas permitirlas en tu navegador">
+              <Toggle
+                checked={settings?.notificationsEnabled ?? false}
+                onChange={async (v) => {
+                  if (v && "Notification" in window) {
+                    const perm = await Notification.requestPermission()
+                    if (perm !== "granted") {
+                      toast.error("Permite las notificaciones en la configuración del navegador")
+                      return
+                    }
+                  }
+                  save({ notificationsEnabled: v })
+                }}
+              />
+            </SettingRow>
+            <SettingRow label="Avisar de gastos recurrentes" description="Recordatorio antes de que venza un recurrente">
+              <Toggle
+                checked={settings?.notifyRecurring ?? true}
+                onChange={(v) => save({ notifyRecurring: v })}
+              />
+            </SettingRow>
+            <SettingRow label="Resumen semanal" description="Notificación los lunes con el gasto de la semana pasada">
+              <Toggle
+                checked={settings?.notifyWeeklySummary ?? false}
+                onChange={(v) => save({ notifyWeeklySummary: v })}
+              />
+            </SettingRow>
+            <div className="border-t pt-3">
+              <SettingRow label="Días de aviso anticipado" description="Cuántos días antes de que venza un recurrente">
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={30}
+                    value={settings?.reminderDaysBefore ?? 3}
+                    onChange={(e) => save({ reminderDaysBefore: parseInt(e.target.value) || 0 })}
+                    className="w-16 h-8 text-xs text-center tabular-nums"
+                  />
+                  <span className="text-xs text-muted-foreground">días</span>
+                </div>
+              </SettingRow>
+            </div>
+            <p className="text-[10px] text-muted-foreground bg-muted/40 rounded-lg p-2.5">
+              Tienes <strong className="text-foreground">{recurringData.length}</strong> recurrente{recurringData.length !== 1 ? "s" : ""} activo{recurringData.length !== 1 ? "s" : ""}. Los avisos aparecen en el banner de gastos.
+            </p>
+          </>
+        )}
       </Section>
+
+      {/* ── Categorías ocultas ── */}
+      <Section title="Categorías visibles" icon={EyeOff}>
+        {settingsLoading ? (
+          <Skeleton className="h-32 rounded-xl" />
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">Oculta categorías que no usas para que no aparezcan en los formularios.</p>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {DEFAULT_CATEGORIES.map((cat) => {
+                const hidden = (settings?.hiddenDefaultCategories ?? []).includes(cat.id)
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => {
+                      const current = settings?.hiddenDefaultCategories ?? []
+                      const next = hidden
+                        ? current.filter(id => id !== cat.id)
+                        : [...current, cat.id]
+                      save({ hiddenDefaultCategories: next })
+                    }}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
+                      hidden
+                        ? "opacity-40 bg-muted border-muted-foreground/20 line-through text-muted-foreground"
+                        : "bg-background border-border hover:border-muted-foreground"
+                    }`}
+                  >
+                    {cat.icon} {cat.name}
+                  </button>
+                )
+              })}
+            </div>
+            {(settings?.hiddenDefaultCategories?.length ?? 0) > 0 && (
+              <button
+                onClick={() => save({ hiddenDefaultCategories: [] })}
+                className="text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+              >
+                Mostrar todas
+              </button>
+            )}
+          </>
+        )}
+      </Section>
+
+      {/* ── Integraciones ── */}
+      <div className="space-y-2">
+        {/* ── Google Sheets ── */}
+        <div className="rounded-2xl border bg-card px-4 py-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sheet className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-semibold">Google Sheets</p>
+            </div>
+            <span className={cn(
+              "text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full",
+              settings?.sheetsLastUrl
+                ? "bg-green-500/10 text-green-600"
+                : "bg-muted text-muted-foreground"
+            )}>
+              {settings?.sheetsLastUrl ? "Sincronizado" : "Sin conectar"}
+            </span>
+          </div>
+
+          {settings?.sheetsLastUrl && settings.sheetsLastSyncedAt && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>
+                Última sync · {format(new Date(settings.sheetsLastSyncedAt), "d MMM yyyy HH:mm", { locale: es })}
+              </span>
+              <a
+                href={settings.sheetsLastUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-primary hover:underline underline-offset-2 shrink-0"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Abrir hoja
+              </a>
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground">
+            Exporta todos tus gastos actuales a una nueva hoja de cálculo de Google. Necesitarás autorizar el acceso a Google Drive la primera vez.
+          </p>
+
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 gap-2"
+              onClick={handleSheetsSync}
+              disabled={sheetsLoading}
+            >
+              {sheetsLoading
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <RefreshCw className="h-3.5 w-3.5" />}
+              {settings?.sheetsLastUrl ? "Sincronizar de nuevo" : "Conectar y exportar"}
+            </Button>
+            {settings?.sheetsLastUrl && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="gap-1.5 text-muted-foreground hover:text-destructive"
+                onClick={() => save({ sheetsLastUrl: null, sheetsLastSyncedAt: null })}
+              >
+                <Link2Off className="h-3.5 w-3.5" />
+                Desconectar
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Webhook personal ── */}
+        <div className="rounded-2xl border bg-card px-4 py-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Webhook className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-semibold">Webhook personal</p>
+            </div>
+            <span className={cn(
+              "text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full",
+              webhookUrl
+                ? "bg-green-500/10 text-green-600"
+                : "bg-muted text-muted-foreground"
+            )}>
+              {webhookUrl ? "Activo" : "Inactivo"}
+            </span>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Envía una petición POST a tu URL cuando ocurra un evento. Compatible con Zapier, Make, n8n y cualquier endpoint HTTP.
+          </p>
+
+          <div className="space-y-2">
+            <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">URL del endpoint</p>
+            <Input
+              value={webhookUrl}
+              onChange={e => setWebhookUrl(e.target.value)}
+              placeholder="https://hooks.zapier.com/hooks/catch/…"
+              className="h-8 text-xs font-mono"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Disparar cuando</p>
+            <div className="space-y-1.5">
+              {([
+                { key: "new_expense",   label: "Se registra un nuevo gasto" },
+                { key: "budget_alert",  label: "Se supera el presupuesto mensual" },
+              ] as const).map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={webhookEvents.includes(key)}
+                    onChange={() => toggleWebhookEvent(key)}
+                    className="rounded border-border accent-primary"
+                  />
+                  <span className="text-xs">{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1"
+              onClick={saveWebhook}
+            >
+              Guardar
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={testWebhook}
+              disabled={webhookTesting || !webhookUrl}
+            >
+              {webhookTesting
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <Send className="h-3.5 w-3.5" />}
+              Probar
+            </Button>
+            {webhookUrl && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => { setWebhookUrl(""); try { localStorage.removeItem("rt-webhook-url") } catch {} }}
+              >
+                <Link2Off className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+
+          {webhookUrl && (
+            <div className="rounded-lg bg-muted/40 border px-3 py-2 text-[10px] font-mono text-muted-foreground break-all">
+              POST → {webhookUrl}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* ── 4. Tu cuenta ── */}
       <Section title="Tu cuenta" icon={Shield}>

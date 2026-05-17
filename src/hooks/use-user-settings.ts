@@ -17,6 +17,17 @@ export interface UserSettings {
   deductibleCategories: string[] // category IDs that are tax-deductible
   autoTheme: boolean             // auto switch dark/light based on time of day
   categoryLimits?: Record<string, number>  // catId → límite mensual en moneda base
+  monthlyBudget: number | null   // presupuesto mensual global (null = sin límite)
+  monthStartDay: number          // día del mes en que empieza el período (1–28)
+  notificationsEnabled: boolean  // push notification master toggle
+  notifyRecurring: boolean       // aviso de gastos recurrentes
+  notifyWeeklySummary: boolean   // resumen semanal push
+  hiddenDefaultCategories: string[] // categorías predeterminadas ocultadas
+  // Integraciones
+  sheetsLastUrl:      string | null  // URL de la última hoja de cálculo exportada
+  sheetsLastSyncedAt: string | null  // ISO timestamp de la última sincronización
+  webhookUrl:         string | null  // URL del webhook personal
+  webhookEvents:      string[]       // eventos que disparan el webhook: "new_expense" | "budget_alert"
 }
 
 const DEFAULTS: UserSettings = {
@@ -31,6 +42,16 @@ const DEFAULTS: UserSettings = {
   deductibleCategories: [],
   autoTheme: false,
   categoryLimits: {},
+  monthlyBudget: null,
+  monthStartDay: 1,
+  notificationsEnabled: false,
+  notifyRecurring: true,
+  notifyWeeklySummary: false,
+  hiddenDefaultCategories: [],
+  sheetsLastUrl:      null,
+  sheetsLastSyncedAt: null,
+  webhookUrl:         null,
+  webhookEvents:      ["new_expense"],
 }
 
 function settingsRef(uid: string) {

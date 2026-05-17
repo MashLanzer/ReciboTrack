@@ -144,6 +144,17 @@ function ManageDialog({
   const [form, setForm] = useState(emptyForm())
   const [tab, setTab] = useState<"list" | "new">("list")
 
+  function isDirty() {
+    return tab === "new" && !!(form.label.trim() || form.merchant.trim() || form.amount)
+  }
+
+  function handleDialogClose() {
+    if (isDirty() && !window.confirm("¿Descartar los datos del nuevo acceso rápido?")) return
+    setForm(emptyForm())
+    setTab("list")
+    onClose()
+  }
+
   function setField(key: string, val: string) {
     setForm((f) => ({ ...f, [key]: val }))
   }
@@ -165,7 +176,7 @@ function ManageDialog({
       category: form.category,
       currency: form.currency,
       paymentMethod: (form.paymentMethod && form.paymentMethod !== "none") ? form.paymentMethod : null,
-      tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+      tags: form.tags ? form.tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean) : [],
       icon: form.icon,
       order: quickExpenses.length,
     })
@@ -175,7 +186,7 @@ function ManageDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleDialogClose() }}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

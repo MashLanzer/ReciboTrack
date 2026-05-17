@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useCallback } from "react"
 import { useExpensesPeriod } from "@/hooks/use-expenses"
 import { useRecurring } from "@/hooks/use-recurring"
 import { useUIStore } from "@/stores/ui-store"
@@ -8,19 +8,19 @@ import { formatCurrency, cn } from "@/lib/utils"
 import {
   startOfDay, endOfDay, subDays,
   startOfWeek, endOfWeek,
-  startOfMonth, getDaysInMonth, getDate,
   isSameDay, isToday, isYesterday,
   differenceInDays, addWeeks, addMonths, addYears,
   format,
 } from "date-fns"
 import { es } from "date-fns/locale"
-import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   TrendingUp, TrendingDown, Minus,
-  Flame, CalendarClock, Receipt, Pencil,
+  CalendarClock, Receipt, Pencil,
+  Trophy, Flame, Zap,
 } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
 import type { Expense } from "@/types"
 import type { RecurringFrequency } from "@/types"
 
@@ -41,13 +41,7 @@ function nextOccurrence(freq: RecurringFrequency, from: Date): Date {
 
 // ─── TodaySpend ───────────────────────────────────────────────────────────────
 
-function TodaySpend({
-  expenses30,
-  isLoading,
-}: {
-  expenses30: Expense[]
-  isLoading: boolean
-}) {
+function TodaySpend({ expenses30, isLoading }: { expenses30: Expense[]; isLoading: boolean }) {
   const { activeAccount } = useUIStore()
 
   const { todayTotal, dailyAvg } = useMemo(() => {
@@ -60,52 +54,41 @@ function TodaySpend({
       .filter(e => isSameDay(expenseDate(e), today))
       .reduce((s, e) => s + e.total, 0)
 
-    // Daily average: total of last 30 days / 30
-    const monthTotal = filtered.reduce((s, e) => s + e.total, 0)
-    const dailyAvg = monthTotal / 30
-
+    const dailyAvg = filtered.reduce((s, e) => s + e.total, 0) / 30
     return { todayTotal, dailyAvg }
   }, [expenses30, activeAccount])
 
   const overBudget = dailyAvg > 0 && todayTotal > dailyAvg
   const pct = dailyAvg > 0 ? Math.min((todayTotal / dailyAvg) * 100, 100) : 0
 
-  if (isLoading) return <Skeleton className="h-[90px] rounded-2xl" />
+  if (isLoading) return <Skeleton className="h-[96px] rounded-2xl" />
 
   return (
-    <Card className="rounded-2xl border-0 bg-muted/50">
-      <CardContent className="p-4 space-y-2">
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Hoy</p>
-        <p className={cn("text-2xl font-bold tabular-nums leading-none", overBudget && "text-destructive")}>
-          {formatCurrency(todayTotal)}
-        </p>
-        {dailyAvg > 0 && (
-          <>
-            <div className="h-1 rounded-full bg-border overflow-hidden">
-              <div
-                className={cn("h-full rounded-full transition-all", overBudget ? "bg-destructive" : "bg-primary")}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-            <p className="text-[10px] text-muted-foreground">
-              Promedio diario {formatCurrency(dailyAvg)}
-            </p>
-          </>
-        )}
-      </CardContent>
-    </Card>
+    <div className="rounded-2xl border bg-card px-4 py-3 space-y-2">
+      <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Hoy</p>
+      <p className={cn("text-2xl font-bold tabular-nums leading-none", overBudget && "text-destructive")}>
+        {formatCurrency(todayTotal)}
+      </p>
+      {dailyAvg > 0 && (
+        <>
+          <div className="h-1 rounded-full bg-border overflow-hidden">
+            <div
+              className={cn("h-full rounded-full transition-all", overBudget ? "bg-destructive" : "bg-primary")}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            Media diaria {formatCurrency(dailyAvg)}
+          </p>
+        </>
+      )}
+    </div>
   )
 }
 
 // ─── SpendStreak ──────────────────────────────────────────────────────────────
 
-function SpendStreak({
-  expenses30,
-  isLoading,
-}: {
-  expenses30: Expense[]
-  isLoading: boolean
-}) {
+function SpendStreak({ expenses30, isLoading }: { expenses30: Expense[]; isLoading: boolean }) {
   const { activeAccount } = useUIStore()
 
   const streak = useMemo(() => {
@@ -116,14 +99,12 @@ function SpendStreak({
     const dailyAvg = filtered.reduce((s, e) => s + e.total, 0) / 30
     if (dailyAvg <= 0) return 0
 
-    // Group totals by day
     const byDay = new Map<string, number>()
     filtered.forEach(e => {
       const k = format(expenseDate(e), "yyyy-MM-dd")
       byDay.set(k, (byDay.get(k) ?? 0) + e.total)
     })
 
-    // Count consecutive days going back (from yesterday) under daily avg
     let count = 0
     for (let i = 1; i <= 30; i++) {
       const d = format(subDays(new Date(), i), "yyyy-MM-dd")
@@ -134,32 +115,27 @@ function SpendStreak({
     return count
   }, [expenses30, activeAccount])
 
-  if (isLoading) return <Skeleton className="h-[90px] rounded-2xl" />
+  if (isLoading) return <Skeleton className="h-[96px] rounded-2xl" />
 
-  const level = streak >= 14 ? "🏆" : streak >= 7 ? "🔥" : streak >= 3 ? "✨" : "💤"
+  const StreakIcon = streak >= 14 ? Trophy : streak >= 7 ? Flame : Zap
 
   return (
-    <Card className="rounded-2xl border-0 bg-muted/50">
-      <CardContent className="p-4 space-y-1 flex flex-col items-center justify-center text-center h-full">
-        <span className="text-3xl leading-none">{level}</span>
-        <p className="text-2xl font-bold tabular-nums leading-none">{streak}</p>
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider leading-tight">
-          {streak === 1 ? "día en racha" : "días en racha"}
-        </p>
-      </CardContent>
-    </Card>
+    <div className="rounded-2xl border bg-card px-4 py-3 flex flex-col items-center justify-center text-center h-full gap-1.5">
+      <StreakIcon className={cn(
+        "h-5 w-5",
+        streak >= 14 ? "text-amber-500" : streak >= 7 ? "text-orange-500" : streak >= 3 ? "text-primary" : "text-muted-foreground/40"
+      )} />
+      <p className="text-2xl font-bold tabular-nums leading-none">{streak}</p>
+      <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+        {streak === 1 ? "día en racha" : "días en racha"}
+      </p>
+    </div>
   )
 }
 
 // ─── WeekComparison ───────────────────────────────────────────────────────────
 
-function WeekComparison({
-  expenses30,
-  isLoading,
-}: {
-  expenses30: Expense[]
-  isLoading: boolean
-}) {
+function WeekComparison({ expenses30, isLoading }: { expenses30: Expense[]; isLoading: boolean }) {
   const { activeAccount } = useUIStore()
 
   const { thisWeek, lastWeek, delta } = useMemo(() => {
@@ -176,11 +152,9 @@ function WeekComparison({
     const thisWeek = filtered
       .filter(e => { const d = expenseDate(e); return d >= wsStart && d <= wsEnd })
       .reduce((s, e) => s + e.total, 0)
-
     const lastWeek = filtered
       .filter(e => { const d = expenseDate(e); return d >= lwStart && d <= lwEnd })
       .reduce((s, e) => s + e.total, 0)
-
     const delta = lastWeek > 0 ? ((thisWeek - lastWeek) / lastWeek) * 100 : 0
     return { thisWeek, lastWeek, delta }
   }, [expenses30, activeAccount])
@@ -192,27 +166,25 @@ function WeekComparison({
   const Icon   = isUp ? TrendingUp : isDown ? TrendingDown : Minus
 
   return (
-    <Card className="rounded-2xl border-0 bg-muted/50">
-      <CardContent className="px-4 py-3 flex items-center gap-4">
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Esta semana</p>
-          <p className="text-xl font-bold tabular-nums">{formatCurrency(thisWeek)}</p>
-        </div>
-        <div className={cn(
-          "flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold",
-          isUp   ? "bg-destructive/10 text-destructive"
-          : isDown ? "bg-green-500/10 text-green-600 dark:text-green-400"
-          : "bg-muted text-muted-foreground"
-        )}>
-          <Icon className="h-3.5 w-3.5" />
-          {Math.abs(delta) < 1 ? "igual" : `${Math.abs(delta).toFixed(0)}%`}
-        </div>
-        <div className="flex-1 min-w-0 text-right">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Sem. pasada</p>
-          <p className="text-xl font-bold tabular-nums text-muted-foreground">{formatCurrency(lastWeek)}</p>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="rounded-2xl border bg-card px-4 py-3 flex items-center gap-4">
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-0.5">Esta semana</p>
+        <p className="text-xl font-bold tabular-nums">{formatCurrency(thisWeek)}</p>
+      </div>
+      <div className={cn(
+        "flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold",
+        isUp   ? "bg-destructive/10 text-destructive"
+        : isDown ? "bg-green-500/10 text-green-600 dark:text-green-400"
+        : "bg-muted text-muted-foreground"
+      )}>
+        <Icon className="h-3.5 w-3.5" />
+        {Math.abs(delta) < 1 ? "igual" : `${Math.abs(delta).toFixed(0)}%`}
+      </div>
+      <div className="flex-1 min-w-0 text-right">
+        <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-0.5">Sem. pasada</p>
+        <p className="text-xl font-bold tabular-nums text-muted-foreground">{formatCurrency(lastWeek)}</p>
+      </div>
+    </div>
   )
 }
 
@@ -227,7 +199,6 @@ function NextRecurring() {
       .filter(t => t.isActive)
       .map(t => {
         let due = t.nextDueDate.toDate()
-        // Advance until due is >= today
         while (due < startOfDay(now)) {
           due = nextOccurrence(t.frequency, due)
         }
@@ -245,52 +216,43 @@ function NextRecurring() {
 
   return (
     <Link href="/recurring">
-      <Card className={cn(
-        "rounded-2xl border-0 transition-colors hover:bg-accent/60 cursor-pointer",
-        urgent ? "bg-amber-500/10" : "bg-muted/50"
+      <div className={cn(
+        "rounded-2xl border px-4 py-3 flex items-center gap-3 transition-colors hover:bg-accent/40 cursor-pointer",
+        urgent ? "bg-amber-500/8 border-amber-500/20" : "bg-card"
       )}>
-        <CardContent className="px-4 py-3 flex items-center gap-3">
-          <div className={cn(
-            "h-9 w-9 rounded-xl flex items-center justify-center shrink-0",
-            urgent ? "bg-amber-500/20" : "bg-muted"
-          )}>
-            <CalendarClock className={cn("h-4 w-4", urgent ? "text-amber-600" : "text-muted-foreground")} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Próximo recurrente</p>
-            <p className="text-sm font-semibold truncate leading-snug">{next.merchant}</p>
-          </div>
-          <div className="text-right shrink-0">
-            <p className={cn("text-sm font-bold tabular-nums", urgent && "text-amber-600")}>
-              {formatCurrency(next.total, next.currency)}
-            </p>
-            <p className={cn("text-[10px] font-medium", urgent ? "text-amber-600" : "text-muted-foreground")}>
-              {label}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+        <div className={cn(
+          "h-8 w-8 rounded-xl flex items-center justify-center shrink-0",
+          urgent ? "bg-amber-500/15" : "bg-muted"
+        )}>
+          <CalendarClock className={cn("h-4 w-4", urgent ? "text-amber-600" : "text-muted-foreground")} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Próximo recurrente</p>
+          <p className="text-sm font-semibold truncate leading-snug">{next.merchant}</p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className={cn("text-sm font-bold tabular-nums", urgent && "text-amber-600")}>
+            {formatCurrency(next.total, next.currency)}
+          </p>
+          <p className={cn("text-[10px] font-medium", urgent ? "text-amber-600" : "text-muted-foreground")}>
+            {label}
+          </p>
+        </div>
+      </div>
     </Link>
   )
 }
 
 // ─── LastExpense ──────────────────────────────────────────────────────────────
 
-function LastExpense({
-  expenses30,
-  isLoading,
-}: {
-  expenses30: Expense[]
-  isLoading: boolean
-}) {
-  const { setEditExpenseId } = useUIStore()
-  const { activeAccount } = useUIStore()
+function LastExpense({ expenses30, isLoading }: { expenses30: Expense[]; isLoading: boolean }) {
+  const { setEditExpenseId, activeAccount } = useUIStore()
 
   const last = useMemo(() => {
     const filtered = activeAccount === "business"
       ? expenses30.filter(e => e.account === "business")
       : expenses30.filter(e => e.account !== "business")
-    return filtered[0] ?? null // already sorted desc by date
+    return filtered[0] ?? null
   }, [expenses30, activeAccount])
 
   if (isLoading) return <Skeleton className="h-[64px] rounded-2xl" />
@@ -302,30 +264,28 @@ function LastExpense({
     : format(d, "d MMM", { locale: es })
 
   return (
-    <Card className="rounded-2xl border-0 bg-muted/50">
-      <CardContent className="px-4 py-3 flex items-center gap-3">
-        <div className="h-9 w-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
-          <Receipt className="h-4 w-4 text-muted-foreground" />
+    <div className="rounded-2xl border bg-card px-4 py-3 flex items-center gap-3">
+      <div className="h-8 w-8 rounded-xl bg-muted flex items-center justify-center shrink-0">
+        <Receipt className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Último gasto</p>
+        <p className="text-sm font-semibold truncate leading-snug">{last.merchant}</p>
+      </div>
+      <div className="text-right shrink-0 flex items-center gap-2">
+        <div>
+          <p className="text-sm font-bold tabular-nums">{formatCurrency(last.total, last.currency)}</p>
+          <p className="text-[10px] text-muted-foreground">{when}</p>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Último gasto</p>
-          <p className="text-sm font-semibold truncate leading-snug">{last.merchant}</p>
-        </div>
-        <div className="text-right shrink-0 flex items-center gap-2">
-          <div>
-            <p className="text-sm font-bold tabular-nums">{formatCurrency(last.total, last.currency)}</p>
-            <p className="text-[10px] text-muted-foreground">{when}</p>
-          </div>
-          <button
-            onClick={() => setEditExpenseId(last.id)}
-            className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
-            aria-label="Editar"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </CardContent>
-    </Card>
+        <button
+          onClick={() => setEditExpenseId(last.id)}
+          className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          aria-label="Editar"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -339,13 +299,13 @@ export function ResumenWidgets() {
 
   return (
     <div className="space-y-2.5">
-      {/* Row 1: Gasto hoy + Racha */}
+      {/* Row 1: Hoy + Racha */}
       <div className="grid grid-cols-2 gap-2.5">
         <TodaySpend expenses30={expenses30} isLoading={isLoading} />
         <SpendStreak expenses30={expenses30} isLoading={isLoading} />
       </div>
 
-      {/* Row 2: Semana vs semana pasada */}
+      {/* Row 2: Esta semana vs pasada */}
       <WeekComparison expenses30={expenses30} isLoading={isLoading} />
 
       {/* Row 3: Próximo recurrente */}

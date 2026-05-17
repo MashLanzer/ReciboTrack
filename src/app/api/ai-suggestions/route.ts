@@ -1,71 +1,143 @@
 import { NextRequest, NextResponse } from "next/server"
 
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+const MODEL    = "llama-3.3-70b-versatile"
+
+interface RawExpense {
+  total: number
+  merchant: string
+  category: string
+  paymentMethod?: string
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { expenses } = await req.json()
+    const { expenses } = await req.json() as { expenses: RawExpense[] }
 
-    const apiKey = process.env.GEMINI_API_KEY
-    if (!apiKey) return NextResponse.json({ error: "No API key" }, { status: 500 })
+    const apiKey = process.env.GROQ_API_KEY
+    if (!apiKey) return NextResponse.json({ error: "GROQ_API_KEY no configurada" }, { status: 500 })
 
-    // Build summary for the prompt — no raw sensitive data
-    const summary = {
-      totalGastos: expenses.reduce((s: number, e: { total: number }) => s + e.total, 0),
-      numTransacciones: expenses.length,
-      porCategoria: expenses.reduce((acc: Record<string, number>, e: { category: string; total: number }) => {
-        acc[e.category] = (acc[e.category] ?? 0) + e.total
-        return acc
-      }, {}),
-      comerciosMasFrecuentes: Object.entries(
-        expenses.reduce((acc: Record<string, number>, e: { merchant: string }) => {
-          acc[e.merchant] = (acc[e.merchant] ?? 0) + 1
-          return acc
-        }, {})
-      )
-        .sort((a, b) => (b[1] as number) - (a[1] as number))
-        .slice(0, 5)
-        .map(([merchant, count]) => ({ merchant, count })),
+    // Build compact summary — no raw user data
+    const totalGastos = expenses.reduce((s, e) => s + e.total, 0)
+    const numTx       = expenses.length
+
+    const porCategoria: Record<string, { total: number; count: number }> = {}
+    const porComercio:  Record<string, { total: number; count: number }> = {}
+    const porMetodo:    Record<string, number> = {}
+
+    expenses.forEach(e => {
+      if (!porCategoria[e.category]) porCategoria[e.category] = { total: 0, count: 0 }
+      porCategoria[e.category].total += e.total
+      porCategoria[e.category].count++
+
+      if (!porComercio[e.merchant]) porComercio[e.merchant] = { total: 0, count: 0 }
+      porComercio[e.merchant].total += e.total
+      porComercio[e.merchant].count++
+
+      const m = e.paymentMethod ?? "Sin especificar"
+      porMetodo[m] = (porMetodo[m] ?? 0) + 1
+    })
+
+    const topCats = Object.entries(porCategoria)
+      .sort((a, b) => b[1].total - a[1].total)
+      .slice(0, 5)
+      .map(([cat, { total, count }]) => ({
+        categoria: cat,
+        total: Math.round(total * 100) / 100,
+        transacciones: count,
+        pctTotal: totalGastos > 0 ? `${Math.round((total / totalGastos) * 100)}%` : "0%",
+      }))
+
+    const topMerchants = Object.entries(porComercio)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 5)
+      .map(([merchant, { total, count }]) => ({
+        comercio: merchant,
+        visitas: count,
+        totalGastado: Math.round(total * 100) / 100,
+      }))
+
+    const payload = {
+      periodo:         "últimos 3 meses",
+      totalGastado:    `$${Math.round(totalGastos * 100) / 100}`,
+      transacciones:   numTx,
+      topCategorias:   topCats,
+      topComercios:    topMerchants,
+      metodosDePago:   porMetodo,
     }
 
-    const prompt = `Eres un asesor financiero personal. Basándote en estos datos de gastos de los últimos 3 meses, genera EXACTAMENTE 3 sugerencias de ahorro concretas, accionables y realistas en español. Cada sugerencia debe tener: título corto (max 5 palabras) y descripción (max 30 palabras) con un ahorro estimado en euros/mes si es posible. Responde SOLO con JSON válido: [{"titulo": "...", "descripcion": "...", "ahorroEstimado": 50}]. Datos: ${JSON.stringify(summary)}`
+    const systemPrompt = `Eres un asesor financiero personal experto. Generas sugerencias de ahorro concretas, realistas y accionables basadas en patrones de gasto reales. Respondes SOLO en JSON válido, sin texto extra, sin markdown.`
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      }
-    )
+    const userPrompt = `Analiza estos datos de gasto de los últimos 3 meses y genera EXACTAMENTE 3 sugerencias de ahorro personalizadas.
 
-    const data = await response.json()
+Reglas:
+- Cada sugerencia debe ser específica a los datos (menciona categorías o comercios reales del análisis)
+- El ahorro estimado debe ser realista (10–30% de lo que se gasta en esa categoría)
+- Título: máximo 5 palabras, directo y motivador
+- Descripción: máximo 35 palabras, explica el por qué y el cómo
+- ahorroEstimado: número entero en la misma moneda (sin símbolo), o null si no aplica
 
-    if (!response.ok) {
-      console.error("[ai-suggestions] Gemini error:", JSON.stringify(data))
-      return NextResponse.json({ error: data.error?.message ?? "Gemini error" }, { status: 502 })
+Responde ÚNICAMENTE con JSON válido (array de 3 objetos):
+[{"titulo": "...", "descripcion": "...", "ahorroEstimado": 40}]
+
+Datos de gasto: ${JSON.stringify(payload)}`
+
+    const res = await fetch(GROQ_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user",   content: userPrompt   },
+        ],
+        temperature: 0.5,
+        max_tokens:  600,
+        response_format: { type: "json_object" },
+      }),
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      console.error("[ai-suggestions] Groq error:", JSON.stringify(data))
+      return NextResponse.json({ error: data.error?.message ?? "Error de Groq" }, { status: 502 })
     }
 
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text
+    const raw: string | undefined = data.choices?.[0]?.message?.content
     if (!raw) {
-      console.error("[ai-suggestions] Empty candidates:", JSON.stringify(data))
+      console.error("[ai-suggestions] Empty response:", JSON.stringify(data))
       return NextResponse.json({ suggestions: [] })
     }
 
-    // Strip markdown fences if Gemini wraps the JSON
-    const clean = raw
-      .replace(/^```json\s*/i, "")
-      .replace(/^```\s*/i, "")
-      .replace(/\s*```$/i, "")
-      .trim()
-
-    let suggestions: unknown[]
+    // Groq with json_object mode returns valid JSON — parse it
+    let suggestions: { titulo: string; descripcion: string; ahorroEstimado?: number }[] = []
     try {
-      suggestions = JSON.parse(clean) as unknown[]
+      const parsed = JSON.parse(raw)
+      // Groq may wrap the array in an object key
+      if (Array.isArray(parsed)) {
+        suggestions = parsed
+      } else {
+        // find the first array value in the object
+        const arr = Object.values(parsed).find(Array.isArray)
+        suggestions = (arr as typeof suggestions) ?? []
+      }
     } catch {
-      suggestions = []
+      // Fallback: try stripping markdown fences
+      const clean = raw
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim()
+      try { suggestions = JSON.parse(clean) } catch { suggestions = [] }
     }
 
     return NextResponse.json({ suggestions })
-  } catch {
+  } catch (err) {
+    console.error("[ai-suggestions] Unexpected error:", err)
     return NextResponse.json({ error: "Error generando sugerencias" }, { status: 500 })
   }
 }

@@ -3,7 +3,7 @@ import { formatDate, formatCurrency, toDate } from "@/lib/utils"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
-export function exportToCSV(expenses: Expense[]) {
+export function exportToCSV(expenses: Expense[], period?: { start?: Date; end?: Date }) {
   const headers = ["Fecha", "Comercio", "Categoría", "Total", "Moneda", "Método de pago", "Referencia", "Notas"]
   const rows = expenses.map((e) => [
     formatDate(toDate(e.date)),
@@ -16,18 +16,31 @@ export function exportToCSV(expenses: Expense[]) {
     e.notes,
   ])
 
-  const csv = [headers, ...rows].map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")).join("\n")
+  const csv = [headers, ...rows].map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\n")
 
   const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" })
   const url = URL.createObjectURL(blob)
   const a = document.createElement("a")
   a.href = url
-  a.download = `gastos-${new Date().toISOString().split("T")[0]}.csv`
+  a.download = buildFilename("gastos", period, "csv")
   a.click()
   URL.revokeObjectURL(url)
 }
 
-export async function exportToPDF(expenses: Expense[], categories: CategoryDoc[]) {
+/** Build an export filename using the period range when available. */
+function buildFilename(base: string, period: { start?: Date; end?: Date } | undefined, ext: string): string {
+  if (period?.start && period?.end) {
+    const s = period.start.toISOString().split("T")[0]
+    const e = period.end.toISOString().split("T")[0]
+    return s === e ? `${base}-${s}.${ext}` : `${base}-${s}_${e}.${ext}`
+  }
+  if (period?.start) return `${base}-desde-${period.start.toISOString().split("T")[0]}.${ext}`
+  if (period?.end)   return `${base}-hasta-${period.end.toISOString().split("T")[0]}.${ext}`
+  // Fallback: use the date range derived from the expenses themselves
+  return `${base}-${new Date().toISOString().split("T")[0]}.${ext}`
+}
+
+export async function exportToPDF(expenses: Expense[], categories: CategoryDoc[], period?: { start?: Date; end?: Date }) {
   const { default: jsPDF } = await import("jspdf")
   const { default: autoTable } = await import("jspdf-autotable")
 
@@ -58,7 +71,7 @@ export async function exportToPDF(expenses: Expense[], categories: CategoryDoc[]
     headStyles: { fillColor: [20, 20, 20] },
   })
 
-  doc.save(`gastos-${new Date().toISOString().split("T")[0]}.pdf`)
+  doc.save(buildFilename("gastos", period, "pdf"))
 }
 
 // ─── Monthly PDF report ────────────────────────────────────────────────────────

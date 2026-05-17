@@ -7,6 +7,7 @@ import { IncomeBalance } from "@/components/dashboard/income-balance"
 import { ResumenWidgets } from "@/components/dashboard/resumen-widgets"
 import { QuickExpenses } from "@/components/dashboard/quick-expenses"
 import { WeeklyWidget } from "@/components/dashboard/weekly-widget"
+import { WeekCalendar, BestWorstDay, NewMerchants, TodayFeed } from "@/components/dashboard/semana-widgets"
 import { MultiCurrencyBanner } from "@/components/dashboard/multicurrency-banner"
 import { RecurringBanner } from "@/components/expenses/recurring-banner"
 import { useUIStore } from "@/stores/ui-store"
@@ -91,7 +92,11 @@ export default function DashboardPage() {
       {tab === "semana" && (
         <div className="space-y-3">
           <QuickExpenses />
+          <WeekCalendar />
+          <BestWorstDay />
+          <NewMerchants />
           <WeeklyWidget />
+          <TodayFeed />
         </div>
       )}
 

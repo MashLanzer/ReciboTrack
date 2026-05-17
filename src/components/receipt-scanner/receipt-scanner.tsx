@@ -14,6 +14,8 @@ import { toast } from "sonner"
 import { Upload, Loader2, CheckCircle2, X, ScanLine, Plus, RefreshCw, ImageIcon, FileText, Bookmark, BookmarkCheck, Trash2 } from "lucide-react"
 import { useCategories } from "@/hooks/use-categories"
 import { useAddRecurring } from "@/hooks/use-recurring"
+import { useDeleteExpense } from "@/hooks/use-expenses"
+import { addMonths, addWeeks, addYears } from "date-fns"
 import { useTemplates, useAddTemplate, useDeleteTemplate, useIncrementTemplateUse } from "@/hooks/use-templates"
 import { PAYMENT_METHODS, CURRENCIES } from "@/lib/constants"
 import type { OcrResultInput } from "@/lib/firebase/schemas"
@@ -63,6 +65,7 @@ export function ReceiptScanner() {
   const { activeAccount } = useUIStore()
   const { checkDuplicate } = useDuplicateDetector()
   const addExpense = useAddExpense()
+  const deleteExpense = useDeleteExpense()
   const addRecurring = useAddRecurring()
   const addTemplate = useAddTemplate()
   const deleteTemplate = useDeleteTemplate()
@@ -74,6 +77,7 @@ export function ReceiptScanner() {
   const [allItems, setAllItems] = useState<ReceiptItem[]>([])
   const [scanCount, setScanCount] = useState(0)
   const [ocrProgress, setOcrProgress] = useState(0)
+  const [ocrEngine, setOcrEngine] = useState<"gemini" | "tesseract" | null>(null)  // #21
   const [tagInput, setTagInput] = useState("")
   const [form, setForm] = useState<FormData>({
     merchant: "", date: "", total: "", subtotal: "", tax: "",
@@ -90,6 +94,11 @@ export function ReceiptScanner() {
   const [templateDialog, setTemplateDialog] = useState(false)
   const [templateName, setTemplateName] = useState("")
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null)
+
+  // Duplicate confirmation dialog
+  const [dupDialog, setDupDialog] = useState(false)
+  const [dupInfo, setDupInfo] = useState<{ merchant: string; total: number } | null>(null)
+  const [pendingExpense, setPendingExpense] = useState<Parameters<typeof addExpense.mutateAsync>[0] | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
@@ -110,6 +119,7 @@ export function ReceiptScanner() {
     setItemCategories({})
     setScanCount(0)
     setOcrProgress(0)
+    setOcrEngine(null)
     setTagInput("")
     setTemplateDialog(false)
     setTemplateName("")
@@ -149,13 +159,21 @@ export function ReceiptScanner() {
         reference: data.reference ?? "",
       }))
     } else {
-      // Merge totals from additional scan
-      setForm((f) => ({
-        ...f,
-        total: ((parseFloat(f.total) || 0) + (data.total ?? 0)).toFixed(2),
-        subtotal: ((parseFloat(f.subtotal) || 0) + (data.subtotal ?? 0)).toFixed(2),
-        tax: ((parseFloat(f.tax) || 0) + (data.tax ?? 0)).toFixed(2),
-      }))
+      // Merge totals from additional scan — round to 2 decimals to avoid float drift
+      const round2 = (n: number) => Math.round(n * 100) / 100
+      setForm((f) => {
+        const newTotal    = round2((parseFloat(f.total)    || 0) + (data.total    ?? 0))
+        const newTax      = round2((parseFloat(f.tax)      || 0) + (data.tax      ?? 0))
+        const newSubtotal = round2((parseFloat(f.subtotal) || 0) + (data.subtotal ?? 0))
+        // Guarantee subtotal + tax = total to avoid internal inconsistency
+        const correctedSubtotal = newSubtotal > 0 ? newSubtotal : round2(newTotal - newTax)
+        return {
+          ...f,
+          total:    newTotal.toFixed(2),
+          tax:      newTax.toFixed(2),
+          subtotal: correctedSubtotal.toFixed(2),
+        }
+      })
     }
     setScanCount((n) => n + 1)
   }
@@ -273,12 +291,15 @@ export function ReceiptScanner() {
 
       if (res.status === 429 || !res.ok) {
         if (res.status !== 429) toast.info("Gemini no disponible, usando OCR local...")
+        setOcrEngine("tesseract")  // #21
         return runTesseract(file, setOcrProgress)
       }
 
+      setOcrEngine("gemini")  // #21
       return await res.json() as OcrResultInput
     } catch {
       toast.info("Sin conexión, usando OCR local...")
+      setOcrEngine("tesseract")  // #21
       return runTesseract(file, setOcrProgress)
     } finally {
       clearTimeout(timeout)
@@ -308,9 +329,16 @@ export function ReceiptScanner() {
     processFile(file, scanCount > 0)
   }
 
+  const MAX_TAGS = 10
+
   function addTag() {
     const t = tagInput.trim().toLowerCase()
     if (!t || form.tags.includes(t)) { setTagInput(""); return }
+    if (form.tags.length >= MAX_TAGS) {
+      toast.error(`Máximo ${MAX_TAGS} etiquetas por gasto`)
+      setTagInput("")
+      return
+    }
     setForm((f) => ({ ...f, tags: [...f.tags, t] }))
     setTagInput("")
   }
@@ -363,15 +391,26 @@ export function ReceiptScanner() {
     }
   }
 
+  /** Parse a "yyyy-MM-dd" string as a LOCAL date (avoids UTC shift). */
+  function parseLocalDate(dateStr: string): Date {
+    const [y, m, d] = dateStr.split("-").map(Number)
+    return new Date(y, m - 1, d)
+  }
+
   async function handleConfirm() {
+    const parsedTotal = parseFloat(form.total)
+    if (!parsedTotal || parsedTotal <= 0) {
+      toast.error("El importe debe ser mayor que cero")
+      return
+    }
     try {
       const expenseData = {
         merchant: form.merchant || "Sin nombre",
-        date: new Date(form.date + "T12:00:00"),
+        date: form.date ? parseLocalDate(form.date) : new Date(),
         items: allItems,
         subtotal: parseFloat(form.subtotal) || 0,
         tax: parseFloat(form.tax) || 0,
-        total: parseFloat(form.total) || 0,
+        total: parsedTotal,
         paymentMethod: form.paymentMethod || null,
         reference: form.reference || null,
         category: form.category,
@@ -384,56 +423,65 @@ export function ReceiptScanner() {
 
       const dup = checkDuplicate({ merchant: expenseData.merchant, total: expenseData.total })
       if (dup) {
-        toast.warning("Posible duplicado detectado", {
-          description: `Ya registraste ${formatCurrency(dup.total)} en ${dup.merchant} esta semana`,
-          duration: 6000,
-        })
+        // Block the save — show confirmation dialog
+        setPendingExpense(expenseData)
+        setDupInfo({ merchant: dup.merchant, total: dup.total })
+        setDupDialog(true)
+        return
       }
 
-      await addExpense.mutateAsync(expenseData)
-
-      if (form.isRecurring) {
-        const nextDue = new Date()
-        if (form.recurringFrequency === "weekly") nextDue.setDate(nextDue.getDate() + 7)
-        else if (form.recurringFrequency === "biweekly") nextDue.setDate(nextDue.getDate() + 14)
-        else if (form.recurringFrequency === "monthly") nextDue.setMonth(nextDue.getMonth() + 1)
-        else if (form.recurringFrequency === "yearly") nextDue.setFullYear(nextDue.getFullYear() + 1)
-
-        await addRecurring.mutateAsync({
-          merchant: expenseData.merchant,
-          category: expenseData.category,
-          subtotal: expenseData.subtotal,
-          tax: expenseData.tax,
-          total: expenseData.total,
-          paymentMethod: expenseData.paymentMethod,
-          currency: expenseData.currency,
-          notes: expenseData.notes,
-          tags: expenseData.tags,
-          frequency: form.recurringFrequency,
-          nextDueDate: nextDue,
-        })
-        toast.success("Gasto guardado como recurrente")
-      } else {
-        toast.success("Gasto guardado")
-      }
-      handleClose()
+      await saveExpense(expenseData)
     } catch {
       toast.error("Error al guardar el gasto")
     }
   }
 
-  // Save each OCR item as a separate expense
+  /** Core save — shared by normal confirm and "save anyway" after dup warning. */
+  async function saveExpense(expenseData: Parameters<typeof addExpense.mutateAsync>[0]) {
+    await addExpense.mutateAsync(expenseData)
+
+    if (form.isRecurring) {
+      const now = new Date()
+      const nextDue =
+        form.recurringFrequency === "weekly"   ? addWeeks(now, 1) :
+        form.recurringFrequency === "biweekly" ? addWeeks(now, 2) :
+        form.recurringFrequency === "monthly"  ? addMonths(now, 1) :
+        addYears(now, 1)
+
+      await addRecurring.mutateAsync({
+        merchant: expenseData.merchant,
+        category: expenseData.category,
+        subtotal: expenseData.subtotal,
+        tax: expenseData.tax,
+        total: expenseData.total,
+        paymentMethod: expenseData.paymentMethod,
+        currency: expenseData.currency,
+        notes: expenseData.notes,
+        tags: expenseData.tags,
+        frequency: form.recurringFrequency,
+        nextDueDate: nextDue,
+      })
+      toast.success("Gasto guardado como recurrente")
+    } else {
+      toast.success("Gasto guardado")
+    }
+    handleClose()
+  }
+
+  // Save each OCR item as a separate expense — with full rollback on partial failure
   async function handleSplitByItems() {
     if (allItems.length === 0) return
     setSplitSaving(true)
-    let ok = 0
-    const baseDate = form.date ? new Date(form.date + "T12:00:00") : new Date()
-    for (let i = 0; i < allItems.length; i++) {
-      const item = allItems[i]
-      const cat = itemCategories[i] ?? form.category
-      const total = item.price * item.quantity
-      try {
-        await addExpense.mutateAsync({
+    const baseDate = form.date ? parseLocalDate(form.date) : new Date()
+    const createdIds: string[] = []
+
+    try {
+      for (let i = 0; i < allItems.length; i++) {
+        const item = allItems[i]
+        const cat  = itemCategories[i] ?? form.category
+        const total = Math.round(item.price * item.quantity * 100) / 100
+        if (total <= 0) continue            // skip zero/negative items
+        const id = await addExpense.mutateAsync({
           merchant: item.name || form.merchant || "Ítem",
           date: baseDate,
           items: [item],
@@ -448,21 +496,27 @@ export function ReceiptScanner() {
           tags: [...form.tags, "division-recibo"],
           receiptImageUrl: null,
         })
-        ok++
-      } catch { /* continue */ }
-    }
-    setSplitSaving(false)
-    if (ok > 0) {
-      toast.success(`${ok} gastos separados guardados`)
+        createdIds.push(id)
+      }
+      toast.success(`${createdIds.length} gastos separados guardados`)
       handleClose()
-    } else {
-      toast.error("Error al guardar los gastos")
+    } catch {
+      // Rollback: delete all expenses created so far
+      if (createdIds.length > 0) {
+        await Promise.allSettled(createdIds.map(id => deleteExpense.mutateAsync(id)))
+        toast.error("Error al guardar — se revirtieron los gastos creados")
+      } else {
+        toast.error("Error al guardar los gastos")
+      }
+    } finally {
+      setSplitSaving(false)
     }
   }
 
   const isSaving = addExpense.isPending || addRecurring.isPending
 
   return (
+    <>
     <Dialog open={scannerOpen} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -595,165 +649,218 @@ export function ReceiptScanner() {
         {/* CONFIRM */}
         {step === "confirm" && (
           <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
-            {imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageUrl} alt="Recibo" className="w-full max-h-28 object-contain rounded-lg bg-muted" />
-            ) : (
-              <div className="w-full h-16 rounded-lg bg-muted flex items-center justify-center gap-2 text-muted-foreground text-sm">
-                <FileText className="h-5 w-5" />
-                PDF cargado
+
+            {/* Receipt preview + OCR engine badge (#21) */}
+            <div className="space-y-1.5">
+              {imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imageUrl} alt="Recibo" className="w-full max-h-28 object-contain rounded-lg bg-muted" />
+              ) : (
+                <div className="w-full h-16 rounded-lg bg-muted flex items-center justify-center gap-2 text-muted-foreground text-sm">
+                  <FileText className="h-5 w-5" />
+                  PDF cargado
+                </div>
+              )}
+              {/* #21 — OCR engine indicator */}
+              {ocrEngine && (
+                <div className="flex items-center gap-1.5">
+                  <span className={cn(
+                    "inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium",
+                    ocrEngine === "gemini"
+                      ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20"
+                      : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
+                  )}>
+                    <span className={cn("w-1.5 h-1.5 rounded-full inline-block", ocrEngine === "gemini" ? "bg-green-500" : "bg-amber-500")} />
+                    {ocrEngine === "gemini" ? "Gemini AI" : "OCR local"}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* ── Sección: Información principal ─────────────────────────── */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                Información principal
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2 space-y-1.5">
+                  <Label>Comercio</Label>
+                  <Input value={form.merchant} onChange={(e) => setForm({ ...form, merchant: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Fecha</Label>
+                  {/* #22 — Date range validation */}
+                  <Input
+                    type="date"
+                    value={form.date}
+                    min="2010-01-01"
+                    max={new Date().toISOString().split("T")[0]}
+                    onChange={(e) => setForm({ ...form, date: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Categoría</Label>
+                  <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.icon} {cat.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <CategorySuggestion
+                    merchant={form.merchant}
+                    currentCategory={form.category}
+                    onAccept={(cat) => setForm((f) => ({ ...f, category: cat }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Sección: Importes ───────────────────────────────────────── */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                Importes
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Total</Label>
+                  <Input type="number" step="0.01" value={form.total}
+                    onChange={(e) => setForm({ ...form, total: e.target.value })} className="tabular-nums" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Moneda</Label>
+                  <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Subtotal</Label>
+                  <Input type="number" step="0.01" value={form.subtotal}
+                    onChange={(e) => setForm({ ...form, subtotal: e.target.value })} className="tabular-nums" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Impuestos</Label>
+                  <Input type="number" step="0.01" value={form.tax}
+                    onChange={(e) => setForm({ ...form, tax: e.target.value })} className="tabular-nums" />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Sección: Detalles ───────────────────────────────────────── */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                Detalles
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Método de pago</Label>
+                  <Select value={form.paymentMethod || "__none__"}
+                    onValueChange={(v) => setForm({ ...form, paymentMethod: v === "__none__" ? "" : v })}>
+                    <SelectTrigger><SelectValue placeholder="Sin especificar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin especificar</SelectItem>
+                      {PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Referencia</Label>
+                  <Input value={form.reference}
+                    onChange={(e) => setForm({ ...form, reference: e.target.value })} placeholder="Nº transacción" />
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label>Notas</Label>
+                  <Input value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Notas opcionales..." />
+                </div>
+                {/* Tags */}
+                <div className="col-span-2 space-y-1.5">
+                  <Label>Etiquetas</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag() } }}
+                      placeholder="trabajo, viaje, deducible..."
+                      className="flex-1"
+                    />
+                    <Button type="button" variant="outline" size="icon" onClick={addTag}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {form.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {form.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="gap-1 cursor-pointer"
+                          onClick={() => removeTag(tag)}>
+                          {tag} <X className="h-3 w-3" />
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ── División por ítems ──────────────────────────────────────── */}
+            {allItems.length > 1 && (
+              <div className="rounded-lg border p-3 space-y-2.5">
+                <p className="text-xs font-semibold flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5" />
+                  Dividir por ítems ({allItems.length} detectados)
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  Asigna categorías individuales y guarda cada ítem como gasto separado
+                </p>
+                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  {allItems.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-2 text-xs">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{item.name}</p>
+                        <p className="text-muted-foreground tabular-nums">
+                          {item.quantity > 1 ? `${item.quantity}× ` : ""}{form.currency} {(item.price * item.quantity).toFixed(2)}
+                        </p>
+                      </div>
+                      <Select
+                        value={itemCategories[idx] ?? form.category}
+                        onValueChange={v => setItemCategories(prev => ({ ...prev, [idx]: v }))}
+                      >
+                        <SelectTrigger className="h-7 text-xs w-28 shrink-0">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map(c => (
+                            <SelectItem key={c.id} value={c.id} className="text-xs">{c.icon} {c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-1.5 text-xs"
+                  onClick={handleSplitByItems}
+                  disabled={splitSaving}
+                >
+                  {splitSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                  Guardar {allItems.length} gastos separados
+                </Button>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2 space-y-1.5">
-                <Label>Comercio</Label>
-                <Input value={form.merchant} onChange={(e) => setForm({ ...form, merchant: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Fecha</Label>
-                <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Total</Label>
-                <Input type="number" step="0.01" value={form.total}
-                  onChange={(e) => setForm({ ...form, total: e.target.value })} className="tabular-nums" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Subtotal</Label>
-                <Input type="number" step="0.01" value={form.subtotal}
-                  onChange={(e) => setForm({ ...form, subtotal: e.target.value })} className="tabular-nums" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Impuestos</Label>
-                <Input type="number" step="0.01" value={form.tax}
-                  onChange={(e) => setForm({ ...form, tax: e.target.value })} className="tabular-nums" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Categoría</Label>
-                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>{cat.icon} {cat.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <CategorySuggestion
-                  merchant={form.merchant}
-                  currentCategory={form.category}
-                  onAccept={(cat) => setForm((f) => ({ ...f, category: cat }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Moneda</Label>
-                <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Método de pago</Label>
-                <Select value={form.paymentMethod || "__none__"}
-                  onValueChange={(v) => setForm({ ...form, paymentMethod: v === "__none__" ? "" : v })}>
-                  <SelectTrigger><SelectValue placeholder="Sin especificar" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sin especificar</SelectItem>
-                    {PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Referencia</Label>
-                <Input value={form.reference}
-                  onChange={(e) => setForm({ ...form, reference: e.target.value })} placeholder="Nº transacción" />
-              </div>
-              <div className="col-span-2 space-y-1.5">
-                <Label>Notas</Label>
-                <Input value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Notas opcionales..." />
-              </div>
-
-              {/* Tags */}
-              <div className="col-span-2 space-y-1.5">
-                <Label>Etiquetas</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag() } }}
-                    placeholder="trabajo, viaje, deducible..."
-                    className="flex-1"
-                  />
-                  <Button type="button" variant="outline" size="icon" onClick={addTag}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                {form.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-1">
-                    {form.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="gap-1 cursor-pointer"
-                        onClick={() => removeTag(tag)}>
-                        {tag} <X className="h-3 w-3" />
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* División por ítems del recibo */}
-              {allItems.length > 1 && (
-                <div className="col-span-2 rounded-lg border p-3 space-y-2.5">
-                  <p className="text-xs font-semibold flex items-center gap-1.5">
-                    <span>🧾</span>
-                    Dividir por ítems ({allItems.length} detectados)
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    Asigna categorías individuales y guarda cada ítem como gasto separado
-                  </p>
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                    {allItems.map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-xs">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{item.name}</p>
-                          <p className="text-muted-foreground tabular-nums">
-                            {item.quantity > 1 ? `${item.quantity}× ` : ""}{form.currency} {(item.price * item.quantity).toFixed(2)}
-                          </p>
-                        </div>
-                        <Select
-                          value={itemCategories[idx] ?? form.category}
-                          onValueChange={v => setItemCategories(prev => ({ ...prev, [idx]: v }))}
-                        >
-                          <SelectTrigger className="h-7 text-xs w-28 shrink-0">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.map(c => (
-                              <SelectItem key={c.id} value={c.id} className="text-xs">{c.icon} {c.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ))}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-1.5 text-xs"
-                    onClick={handleSplitByItems}
-                    disabled={splitSaving}
-                  >
-                    {splitSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                    Guardar {allItems.length} gastos separados
-                  </Button>
-                </div>
-              )}
-
-              {/* Gasto recurrente */}
-              <div className="col-span-2 rounded-lg border p-3 space-y-2">
+            {/* ── Sección: Recurrente ─────────────────────────────────────── */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                Recurrente
+              </p>
+              <div className="rounded-lg border p-3 space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -761,7 +868,7 @@ export function ReceiptScanner() {
                     onChange={(e) => setForm({ ...form, isRecurring: e.target.checked })}
                     className="rounded"
                   />
-                  <span className="text-sm font-medium">Gasto recurrente</span>
+                  <span className="text-sm font-medium">Marcar como gasto recurrente</span>
                 </label>
                 {form.isRecurring && (
                   <Select
@@ -849,5 +956,46 @@ export function ReceiptScanner() {
         )}
       </DialogContent>
     </Dialog>
+
+    {/* ── Duplicate confirmation dialog ─────────────────────────────── */}
+    {dupDialog && dupInfo && (
+      <Dialog open={dupDialog} onOpenChange={(o) => { if (!o) { setDupDialog(false); setPendingExpense(null) } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Posible duplicado</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <p className="text-sm text-muted-foreground">
+              Ya registraste <span className="font-semibold text-foreground">{formatCurrency(dupInfo.total)}</span> en{" "}
+              <span className="font-semibold text-foreground">{dupInfo.merchant}</span> esta semana.
+              ¿Es un gasto distinto?
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { setDupDialog(false); setPendingExpense(null) }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={async () => {
+                  setDupDialog(false)
+                  if (pendingExpense) {
+                    try { await saveExpense(pendingExpense) }
+                    catch { toast.error("Error al guardar el gasto") }
+                    setPendingExpense(null)
+                  }
+                }}
+              >
+                Guardar igualmente
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    )}
+    </>
   )
 }
