@@ -159,9 +159,10 @@ service cloud.firestore {
             && isMember(get(/databases/$(database)/documents/groups/$(groupId)).data)
             && validGroupExpense();
 
-        // Solo quien pagó puede editar su gasto
+        // Solo quien pagó o el admin puede editar el gasto
         allow update: if isAuth()
-            && resource.data.paidByUid == request.auth.uid
+            && (resource.data.paidByUid == request.auth.uid
+                || isAdmin(get(/databases/$(database)/documents/groups/$(groupId)).data))
             && isMember(get(/databases/$(database)/documents/groups/$(groupId)).data)
             && validGroupExpense();
 
@@ -170,6 +171,44 @@ service cloud.firestore {
           resource.data.paidByUid == request.auth.uid
           || isAdmin(get(/databases/$(database)/documents/groups/$(groupId)).data)
         );
+
+        // ── Comentarios (/groups/{gid}/expenses/{eid}/comments/{cid}) ──────────
+
+        match /comments/{commentId} {
+          // Cualquier miembro del grupo puede leer comentarios
+          allow read, list: if isAuth()
+              && isMember(get(/databases/$(database)/documents/groups/$(groupId)).data);
+
+          // Cualquier miembro puede añadir un comentario
+          allow create: if isAuth()
+              && isMember(get(/databases/$(database)/documents/groups/$(groupId)).data)
+              && request.resource.data.keys().hasAll(["uid", "displayName", "text", "createdAt"])
+              && request.resource.data.uid == request.auth.uid
+              && request.resource.data.text is string
+              && request.resource.data.text.size() > 0
+              && request.resource.data.text.size() <= 1000;
+
+          // Solo quien escribió el comentario puede eliminarlo
+          allow delete: if isAuth()
+              && resource.data.uid == request.auth.uid;
+        }
+
+        // ── Audit log (/groups/{gid}/expenses/{eid}/auditLog/{logId}) ──────────
+
+        match /auditLog/{logId} {
+          // Cualquier miembro puede leer el historial de cambios
+          allow read, list: if isAuth()
+              && isMember(get(/databases/$(database)/documents/groups/$(groupId)).data);
+
+          // Cualquier miembro autenticado puede escribir entradas de auditoría
+          allow create: if isAuth()
+              && isMember(get(/databases/$(database)/documents/groups/$(groupId)).data)
+              && request.resource.data.keys().hasAll(["action", "byUid", "timestamp"])
+              && request.resource.data.byUid == request.auth.uid;
+
+          // Las entradas de auditoría no se modifican ni eliminan
+          allow update, delete: if false;
+        }
       }
 
       // ── Liquidaciones (/groups/{groupId}/settlements/{settlementId}) ─────────
