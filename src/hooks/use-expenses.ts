@@ -9,10 +9,12 @@ import {
   deleteDoc,
   doc,
   Timestamp,
+  serverTimestamp,
   where,
   getDocs,
 } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query"
+import { useEffect } from "react"
 import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
 import type { Expense, ExpenseInput } from "@/types"
@@ -37,14 +39,18 @@ export function useExpenses(filters?: {
 }) {
   const { user } = useAuth()
 
-  return useQuery({
-    queryKey: ["expenses", user?.uid, filters],
-    enabled: !!user,
-    placeholderData: keepPreviousData,  // #23 — keep previous page visible while next loads
-    queryFn: async () => {
-      if (!user) return { expenses: [], total: 0 }
+  const queryClient = useQueryClient()
+  const uid = user?.uid
 
-      const col = expensesCollection(user.uid)
+  const result = useQuery({
+    queryKey: ["expenses", uid, filters],
+    enabled: !!uid,
+    placeholderData: keepPreviousData,  // #23 — keep previous page visible while next loads
+    staleTime: 60_000,  // #23 — 1 minute stale time to avoid immediate refetch on back-nav
+    queryFn: async () => {
+      if (!uid) return { expenses: [], total: 0 }
+
+      const col = expensesCollection(uid)
       let q = query(col, orderBy("date", "desc"))
 
       if (filters?.category) {
@@ -119,6 +125,52 @@ export function useExpenses(filters?: {
       return { expenses: paginated, total, allTags }
     },
   })
+
+  // #23 — Prefetch next page in background when data is available
+  const page = filters?.page ?? 1
+  const data = result.data
+  useEffect(() => {
+    if (!uid || !data) return
+    const totalPages = Math.ceil(data.total / EXPENSES_PER_PAGE)
+    if (page >= totalPages) return
+    const nextFilters = { ...filters, page: page + 1 }
+    queryClient.prefetchQuery({
+      queryKey: ["expenses", uid, nextFilters],
+      staleTime: 30_000,
+      queryFn: async () => {
+        const col = expensesCollection(uid)
+        let q = query(col, orderBy("date", "desc"))
+        if (nextFilters.category) q = query(q, where("category", "==", nextFilters.category))
+        if (nextFilters.startDate) q = query(q, where("date", ">=", Timestamp.fromDate(nextFilters.startDate)))
+        if (nextFilters.endDate) q = query(q, where("date", "<=", Timestamp.fromDate(nextFilters.endDate)))
+        const snapshot = await getDocs(q)
+        let expenses = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
+        if (nextFilters.account && nextFilters.account !== "all") {
+          expenses = nextFilters.account === "business"
+            ? expenses.filter(e => e.account === "business")
+            : expenses.filter(e => !e.account || e.account === "personal")
+        }
+        if (nextFilters.search) {
+          const s = nextFilters.search.toLowerCase()
+          expenses = expenses.filter(e =>
+            e.merchant.toLowerCase().includes(s) ||
+            (e.reference?.toLowerCase().includes(s) ?? false) ||
+            (e.notes?.toLowerCase().includes(s) ?? false)
+          )
+        }
+        if (nextFilters.tags && nextFilters.tags.length > 0) {
+          const ft = nextFilters.tags.map(t => t.toLowerCase())
+          expenses = expenses.filter(e => ft.some(f => e.tags?.some(et => et.toLowerCase() === f)))
+        }
+        const allTags = [...new Set(expenses.flatMap(e => e.tags ?? []).map(t => t.toLowerCase()))].sort()
+        const total = expenses.length
+        const paginated = expenses.slice((page) * EXPENSES_PER_PAGE, (page + 1) * EXPENSES_PER_PAGE)
+        return { expenses: paginated, total, allTags }
+      },
+    }).catch(() => {/* ignore prefetch errors */})
+  }, [uid, page, data?.total]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return result
 }
 
 export function useExpensesForMonth(year: number, month: number) {
@@ -182,7 +234,30 @@ export function useAddExpense() {
       }
       // addDoc resolves immediately when offline (Firebase queues it locally)
       const ref = await addDoc(col, data)
-      return ref.id
+      const expenseId = ref.id
+
+      // Feature A — Link to matching active recurring template
+      try {
+        const recurringCol = collection(getFirebaseDb(), "users", user.uid, "recurring")
+        const recurringSnap = await getDocs(
+          query(recurringCol, where("isActive", "==", true))
+        )
+        const merchantLower = input.merchant.toLowerCase()
+        const match = recurringSnap.docs.find(
+          (d) => (d.data().merchant as string).toLowerCase() === merchantLower
+        )
+        if (match) {
+          const expenseRef = doc(getFirebaseDb(), "users", user.uid, "expenses", expenseId)
+          const templateRef = doc(getFirebaseDb(), "users", user.uid, "recurring", match.id)
+          await updateDoc(expenseRef, { recurringId: match.id })
+          await updateDoc(templateRef, {
+            lastLinkedExpenseId: expenseId,
+            lastLinkedAt: serverTimestamp(),
+          })
+        }
+      } catch { /* ignore — linking is best-effort */ }
+
+      return expenseId
     },
     // Optimistic update: insert the new expense into every cached expense list
     // so it appears instantly in the UI even before the server confirms.

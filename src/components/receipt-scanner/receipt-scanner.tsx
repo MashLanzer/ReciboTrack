@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { Upload, Loader2, CheckCircle2, X, ScanLine, Plus, RefreshCw, ImageIcon, FileText, Bookmark, BookmarkCheck, Trash2 } from "lucide-react"
+import { Upload, Loader2, CheckCircle2, X, ScanLine, Plus, RefreshCw, ImageIcon, FileText, Bookmark, BookmarkCheck, Trash2, ChevronDown, ChevronUp } from "lucide-react"
 import { useCategories } from "@/hooks/use-categories"
 import { useAddRecurring } from "@/hooks/use-recurring"
 import { useDeleteExpense } from "@/hooks/use-expenses"
@@ -78,6 +78,7 @@ export function ReceiptScanner() {
   const [scanCount, setScanCount] = useState(0)
   const [ocrProgress, setOcrProgress] = useState(0)
   const [ocrEngine, setOcrEngine] = useState<"gemini" | "tesseract" | null>(null)  // #21
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set(["basic"]))
   const [tagInput, setTagInput] = useState("")
   const [form, setForm] = useState<FormData>({
     merchant: "", date: "", total: "", subtotal: "", tax: "",
@@ -120,6 +121,7 @@ export function ReceiptScanner() {
     setScanCount(0)
     setOcrProgress(0)
     setOcrEngine(null)
+    setOpenSections(new Set(["basic"]))
     setTagInput("")
     setTemplateDialog(false)
     setTemplateName("")
@@ -130,6 +132,23 @@ export function ReceiptScanner() {
       reference: "", notes: "", tags: [], isRecurring: false,
       recurringFrequency: "monthly",
     })
+  }
+
+  function toggleSection(id: string) {
+    setOpenSections((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  /** #22 — Date range validation */
+  function isValidDate(dateStr: string): boolean {
+    if (!dateStr) return false
+    const d = new Date(dateStr)
+    const year = d.getFullYear()
+    return !isNaN(d.getTime()) && year >= 2000 && year <= 2030
   }
 
   function handleClose() {
@@ -403,6 +422,10 @@ export function ReceiptScanner() {
       toast.error("El importe debe ser mayor que cero")
       return
     }
+    if (form.date && !isValidDate(form.date)) {
+      toast.error("Fecha inválida — debe estar entre 2000 y 2030")
+      return
+    }
     try {
       const expenseData = {
         merchant: form.merchant || "Sin nombre",
@@ -626,8 +649,10 @@ export function ReceiptScanner() {
               <Loader2 className="h-4 w-4 animate-spin shrink-0" />
               <span>
                 {ocrProgress > 0
-                  ? `Extrayendo texto... ${ocrProgress}%`
-                  : "Analizando recibo con IA..."}
+                  ? `Extrayendo texto con OCR local... ${ocrProgress}%`
+                  : ocrEngine === "tesseract"
+                  ? "Procesando con Tesseract OCR..."
+                  : "Procesando con Gemini 2.0 Flash..."}
               </span>
             </div>
             {ocrProgress > 0 && (
@@ -648,9 +673,9 @@ export function ReceiptScanner() {
 
         {/* CONFIRM */}
         {step === "confirm" && (
-          <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+          <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
 
-            {/* Receipt preview + OCR engine badge (#21) */}
+            {/* Receipt preview */}
             <div className="space-y-1.5">
               {imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -661,231 +686,279 @@ export function ReceiptScanner() {
                   PDF cargado
                 </div>
               )}
-              {/* #21 — OCR engine indicator */}
-              {ocrEngine && (
-                <div className="flex items-center gap-1.5">
-                  <span className={cn(
-                    "inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium",
-                    ocrEngine === "gemini"
-                      ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20"
-                      : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
-                  )}>
-                    <span className={cn("w-1.5 h-1.5 rounded-full inline-block", ocrEngine === "gemini" ? "bg-green-500" : "bg-amber-500")} />
-                    {ocrEngine === "gemini" ? "Gemini AI" : "OCR local"}
-                  </span>
+
+              {/* #21 — OCR engine badge + confidence */}
+              {ocrEngine && (() => {
+                const populated = [form.merchant, form.date, form.total, form.category, form.currency].filter(Boolean).length
+                const total5 = 5
+                const pct = populated / total5
+                const totalNum = parseFloat(form.total) || 0
+                const isHighConf = ocrEngine === "gemini" && pct === 1 && totalNum > 0
+                const isMedConf  = ocrEngine === "gemini" && pct < 1
+                const confidence = isHighConf
+                  ? { icon: "🟢", label: "Alta confianza", color: "text-green-700 dark:text-green-400" }
+                  : isMedConf
+                  ? { icon: "🟡", label: "Confianza media — revisa los campos", color: "text-amber-600 dark:text-amber-400" }
+                  : { icon: "🔴", label: "Baja confianza — verifica los datos", color: "text-destructive" }
+                return (
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted font-mono border",
+                      ocrEngine === "gemini"
+                        ? "border-green-500/20 text-green-700 dark:text-green-400"
+                        : "border-amber-500/20 text-amber-700 dark:text-amber-400"
+                    )}>
+                      {ocrEngine === "gemini" ? "✨ Gemini 2.0 Flash" : "🔤 Tesseract OCR"}
+                    </span>
+                    <span>procesó este recibo</span>
+                    <span className={cn("font-medium", confidence.color)}>
+                      {confidence.icon} {confidence.label}
+                    </span>
+                  </div>
+                )
+              })()}
+            </div>
+
+            {/* ── Sección 1: 📋 Básico (always open) ──────────────────────── */}
+            <div className="rounded-lg border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleSection("basic")}
+                className="w-full flex items-center justify-between py-2 px-3 cursor-pointer text-xs font-mono uppercase tracking-widest text-muted-foreground border-b bg-muted/30 hover:bg-muted/50 transition-colors"
+              >
+                <span>📋 Básico</span>
+                {openSections.has("basic") ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+              {openSections.has("basic") && (
+                <div className="p-3 grid grid-cols-2 gap-3 transition-all">
+                  <div className="col-span-2 space-y-1.5">
+                    <Label>Comercio</Label>
+                    <Input value={form.merchant} onChange={(e) => setForm({ ...form, merchant: e.target.value })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Fecha</Label>
+                    {/* #22 — Date range validation */}
+                    <Input
+                      type="date"
+                      value={form.date}
+                      min="2000-01-01"
+                      max="2030-12-31"
+                      onChange={(e) => setForm({ ...form, date: e.target.value })}
+                    />
+                    {form.date && !isValidDate(form.date) && (
+                      <p className="text-[10px] text-destructive">Fecha inválida — debe estar entre 2000 y 2030</p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Total</Label>
+                    <Input type="number" step="0.01" value={form.total}
+                      onChange={(e) => setForm({ ...form, total: e.target.value })} className="tabular-nums" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Categoría</Label>
+                    <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id}>{cat.icon} {cat.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <CategorySuggestion
+                      merchant={form.merchant}
+                      currentCategory={form.category}
+                      onAccept={(cat) => setForm((f) => ({ ...f, category: cat }))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Moneda</Label>
+                    <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* ── Sección: Información principal ─────────────────────────── */}
-            <div className="space-y-2">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                Información principal
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2 space-y-1.5">
-                  <Label>Comercio</Label>
-                  <Input value={form.merchant} onChange={(e) => setForm({ ...form, merchant: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Fecha</Label>
-                  {/* #22 — Date range validation */}
-                  <Input
-                    type="date"
-                    value={form.date}
-                    min="2010-01-01"
-                    max={new Date().toISOString().split("T")[0]}
-                    onChange={(e) => setForm({ ...form, date: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Categoría</Label>
-                  <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>{cat.icon} {cat.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <CategorySuggestion
-                    merchant={form.merchant}
-                    currentCategory={form.category}
-                    onAccept={(cat) => setForm((f) => ({ ...f, category: cat }))}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* ── Sección: Importes ───────────────────────────────────────── */}
-            <div className="space-y-2">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                Importes
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Total</Label>
-                  <Input type="number" step="0.01" value={form.total}
-                    onChange={(e) => setForm({ ...form, total: e.target.value })} className="tabular-nums" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Moneda</Label>
-                  <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Subtotal</Label>
-                  <Input type="number" step="0.01" value={form.subtotal}
-                    onChange={(e) => setForm({ ...form, subtotal: e.target.value })} className="tabular-nums" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Impuestos</Label>
-                  <Input type="number" step="0.01" value={form.tax}
-                    onChange={(e) => setForm({ ...form, tax: e.target.value })} className="tabular-nums" />
-                </div>
-              </div>
-            </div>
-
-            {/* ── Sección: Detalles ───────────────────────────────────────── */}
-            <div className="space-y-2">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                Detalles
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Método de pago</Label>
-                  <Select value={form.paymentMethod || "__none__"}
-                    onValueChange={(v) => setForm({ ...form, paymentMethod: v === "__none__" ? "" : v })}>
-                    <SelectTrigger><SelectValue placeholder="Sin especificar" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Sin especificar</SelectItem>
-                      {PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Referencia</Label>
-                  <Input value={form.reference}
-                    onChange={(e) => setForm({ ...form, reference: e.target.value })} placeholder="Nº transacción" />
-                </div>
-                <div className="col-span-2 space-y-1.5">
-                  <Label>Notas</Label>
-                  <Input value={form.notes}
-                    onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Notas opcionales..." />
-                </div>
-                {/* Tags */}
-                <div className="col-span-2 space-y-1.5">
-                  <Label>Etiquetas</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag() } }}
-                      placeholder="trabajo, viaje, deducible..."
-                      className="flex-1"
-                    />
-                    <Button type="button" variant="outline" size="icon" onClick={addTag}>
-                      <Plus className="h-4 w-4" />
-                    </Button>
+            {/* ── Sección 2: 🧾 Desglose (collapsed by default) ───────────── */}
+            <div className="rounded-lg border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleSection("breakdown")}
+                className="w-full flex items-center justify-between py-2 px-3 cursor-pointer text-xs font-mono uppercase tracking-widest text-muted-foreground bg-muted/30 hover:bg-muted/50 transition-colors"
+              >
+                <span>🧾 Desglose</span>
+                {openSections.has("breakdown") ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+              {openSections.has("breakdown") && (
+                <div className="p-3 grid grid-cols-2 gap-3 border-t transition-all">
+                  <div className="space-y-1.5">
+                    <Label>Subtotal</Label>
+                    <Input type="number" step="0.01" value={form.subtotal}
+                      onChange={(e) => setForm({ ...form, subtotal: e.target.value })} className="tabular-nums" />
                   </div>
-                  {form.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {form.tags.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="gap-1 cursor-pointer"
-                          onClick={() => removeTag(tag)}>
-                          {tag} <X className="h-3 w-3" />
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
+                  <div className="space-y-1.5">
+                    <Label>IVA / Impuesto</Label>
+                    <Input type="number" step="0.01" value={form.tax}
+                      onChange={(e) => setForm({ ...form, tax: e.target.value })} className="tabular-nums" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Método de pago</Label>
+                    <Select value={form.paymentMethod || "__none__"}
+                      onValueChange={(v) => setForm({ ...form, paymentMethod: v === "__none__" ? "" : v })}>
+                      <SelectTrigger><SelectValue placeholder="Sin especificar" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Sin especificar</SelectItem>
+                        {PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Referencia</Label>
+                    <Input value={form.reference}
+                      onChange={(e) => setForm({ ...form, reference: e.target.value })} placeholder="Nº transacción" />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* ── División por ítems ──────────────────────────────────────── */}
-            {allItems.length > 1 && (
-              <div className="rounded-lg border p-3 space-y-2.5">
-                <p className="text-xs font-semibold flex items-center gap-1.5">
-                  <FileText className="h-3.5 w-3.5" />
-                  Dividir por ítems ({allItems.length} detectados)
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  Asigna categorías individuales y guarda cada ítem como gasto separado
-                </p>
-                <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                  {allItems.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-xs">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{item.name}</p>
-                        <p className="text-muted-foreground tabular-nums">
-                          {item.quantity > 1 ? `${item.quantity}× ` : ""}{form.currency} {(item.price * item.quantity).toFixed(2)}
-                        </p>
-                      </div>
-                      <Select
-                        value={itemCategories[idx] ?? form.category}
-                        onValueChange={v => setItemCategories(prev => ({ ...prev, [idx]: v }))}
-                      >
-                        <SelectTrigger className="h-7 text-xs w-28 shrink-0">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map(c => (
-                            <SelectItem key={c.id} value={c.id} className="text-xs">{c.icon} {c.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ))}
-                </div>
-                <Button
+            {/* ── Sección 3: 📦 Artículos (collapsed, only if items.length > 0) */}
+            {allItems.length > 0 && (
+              <div className="rounded-lg border overflow-hidden">
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full gap-1.5 text-xs"
-                  onClick={handleSplitByItems}
-                  disabled={splitSaving}
+                  onClick={() => toggleSection("items")}
+                  className="w-full flex items-center justify-between py-2 px-3 cursor-pointer text-xs font-mono uppercase tracking-widest text-muted-foreground bg-muted/30 hover:bg-muted/50 transition-colors"
                 >
-                  {splitSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                  Guardar {allItems.length} gastos separados
-                </Button>
+                  <span>📦 Artículos ({allItems.length})</span>
+                  {openSections.has("items") ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </button>
+                {openSections.has("items") && (
+                  <div className="border-t p-3 space-y-2.5 transition-all">
+                    {allItems.length > 1 && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Asigna categorías individuales y guarda cada ítem como gasto separado
+                      </p>
+                    )}
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                      {allItems.map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-xs">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{item.name}</p>
+                            <p className="text-muted-foreground tabular-nums">
+                              {item.quantity > 1 ? `${item.quantity}× ` : ""}{form.currency} {(item.price * item.quantity).toFixed(2)}
+                            </p>
+                          </div>
+                          <Select
+                            value={itemCategories[idx] ?? form.category}
+                            onValueChange={v => setItemCategories(prev => ({ ...prev, [idx]: v }))}
+                          >
+                            <SelectTrigger className="h-7 text-xs w-28 shrink-0">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.map(c => (
+                                <SelectItem key={c.id} value={c.id} className="text-xs">{c.icon} {c.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+                    {allItems.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-1.5 text-xs"
+                        onClick={handleSplitByItems}
+                        disabled={splitSaving}
+                      >
+                        {splitSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                        Guardar {allItems.length} gastos separados
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
-            {/* ── Sección: Recurrente ─────────────────────────────────────── */}
-            <div className="space-y-2">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                Recurrente
-              </p>
-              <div className="rounded-lg border p-3 space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.isRecurring}
-                    onChange={(e) => setForm({ ...form, isRecurring: e.target.checked })}
-                    className="rounded"
-                  />
-                  <span className="text-sm font-medium">Marcar como gasto recurrente</span>
-                </label>
-                {form.isRecurring && (
-                  <Select
-                    value={form.recurringFrequency}
-                    onValueChange={(v) => setForm({ ...form, recurringFrequency: v as RecurringFrequency })}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(Object.entries(RECURRING_LABELS) as [RecurringFrequency, string][]).map(([v, l]) => (
-                        <SelectItem key={v} value={v}>{l}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
+            {/* ── Sección 4: ⚙️ Opciones (collapsed) ──────────────────────── */}
+            <div className="rounded-lg border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleSection("options")}
+                className="w-full flex items-center justify-between py-2 px-3 cursor-pointer text-xs font-mono uppercase tracking-widest text-muted-foreground bg-muted/30 hover:bg-muted/50 transition-colors"
+              >
+                <span>⚙️ Opciones</span>
+                {openSections.has("options") ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+              {openSections.has("options") && (
+                <div className="border-t p-3 space-y-3 transition-all">
+                  {/* Recurring toggle */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.isRecurring}
+                        onChange={(e) => setForm({ ...form, isRecurring: e.target.checked })}
+                        className="rounded"
+                      />
+                      <span className="text-sm font-medium">Marcar como gasto recurrente</span>
+                    </label>
+                    {form.isRecurring && (
+                      <Select
+                        value={form.recurringFrequency}
+                        onValueChange={(v) => setForm({ ...form, recurringFrequency: v as RecurringFrequency })}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(Object.entries(RECURRING_LABELS) as [RecurringFrequency, string][]).map(([v, l]) => (
+                            <SelectItem key={v} value={v}>{l}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                  {/* Notes */}
+                  <div className="space-y-1.5">
+                    <Label>Notas</Label>
+                    <Input value={form.notes}
+                      onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Notas opcionales..." />
+                  </div>
+                  {/* Tags */}
+                  <div className="space-y-1.5">
+                    <Label>Etiquetas</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag() } }}
+                        placeholder="trabajo, viaje, deducible..."
+                        className="flex-1"
+                      />
+                      <Button type="button" variant="outline" size="icon" onClick={addTag}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {form.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {form.tags.map((tag) => (
+                          <Badge key={tag} variant="secondary" className="gap-1 cursor-pointer"
+                            onClick={() => removeTag(tag)}>
+                            {tag} <X className="h-3 w-3" />
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Acciones */}

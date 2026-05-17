@@ -70,6 +70,16 @@ export function WeekSparkCard() {
 
   if (isLoading) return <Skeleton className="h-40 rounded-2xl" />
 
+  if (thisTotal === 0 && lastTotal === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed bg-card/50 p-8 text-center space-y-2">
+        <p className="text-2xl">🌱</p>
+        <p className="text-sm font-semibold">Sin gastos esta semana</p>
+        <p className="text-xs text-muted-foreground">¡Lleva un registro de tus gastos diarios!</p>
+      </div>
+    )
+  }
+
   const maxTotal = Math.max(...days.map(d => d.total), 1)
   const isUp    = delta > 2
   const isDown  = delta < -2

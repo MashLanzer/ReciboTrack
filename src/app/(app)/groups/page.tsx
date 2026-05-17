@@ -35,6 +35,7 @@ import { GroupPolls } from "@/components/groups/group-polls"
 import { ExpenseReactions } from "@/components/groups/expense-reactions"
 import { GroupNotes } from "@/components/groups/group-notes"
 import { GroupWishlist } from "@/components/groups/group-wishlist"
+import { GroupBets } from "@/components/groups/group-bets"
 import {
   Users, Plus, LogOut, Copy, RefreshCw, Trash2, Archive, ArchiveRestore,
   ArrowLeft, Receipt, UserPlus, Crown, Check, Pencil, MoreVertical,
@@ -1119,7 +1120,7 @@ function GroupDetail({
   const updateGroup = useUpdateGroup()
   const archiveGroup = useArchiveGroup()
 
-  const [tab, setTab] = useState<"gastos" | "balance" | "stats" | "miembros" | "eventos" | "encuestas" | "deseos">("gastos")
+  const [tab, setTab] = useState<"gastos" | "balance" | "stats" | "miembros" | "eventos" | "encuestas" | "deseos" | "retos">("gastos")
   const [addOpen, setAddOpen] = useState(false)
   const [editExpense, setEditExpense] = useState<GroupExpense | null>(null)
   const [formSaving, setFormSaving] = useState(false)
@@ -1470,10 +1471,10 @@ function GroupDetail({
       {/* Tabs */}
       <div className="overflow-x-auto -mx-1 px-1">
         <div className="flex gap-1 rounded-xl bg-muted p-1 min-w-max">
-          {(["gastos", "balance", "stats", "miembros", "eventos", "encuestas", "deseos"] as const).map((t) => (
+          {(["gastos", "balance", "stats", "miembros", "eventos", "encuestas", "deseos", "retos"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-medium capitalize transition-colors ${tab === t ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
-              {t === "stats" ? "Análisis" : t === "eventos" ? "Eventos" : t === "encuestas" ? "Encuestas" : t === "deseos" ? "🎁 Deseos" : t.charAt(0).toUpperCase() + t.slice(1)}
+              {t === "stats" ? "Análisis" : t === "eventos" ? "Eventos" : t === "encuestas" ? "Encuestas" : t === "deseos" ? "🎁 Deseos" : t === "retos" ? "🎯 Retos" : t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
         </div>
@@ -1797,6 +1798,11 @@ function GroupDetail({
         <div className="rounded-2xl border bg-card p-4">
           <GroupWishlist groupId={group.id} currency="USD" />
         </div>
+      )}
+
+      {/* ── Retos tab (Feature B) ── */}
+      {tab === "retos" && (
+        <GroupBets groupId={group.id} members={group.members} />
       )}
 
       {/* ── Add expense dialog ── */}

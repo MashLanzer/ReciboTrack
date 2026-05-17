@@ -94,7 +94,7 @@ export function ExpenseList() {
   const knownCategoryIds = new Set(categories.map(c => c.id))
   const validCategory = category && knownCategoryIds.has(category) ? category : undefined
 
-  const { data, isLoading } = useExpenses({
+  const { data, isLoading, isFetching } = useExpenses({
     search: search || undefined,
     category: validCategory,
     startDate,
@@ -318,6 +318,13 @@ export function ExpenseList() {
 
   return (
     <div className="space-y-4">
+      {/* #23 — Background refetch indicator */}
+      {isFetching && !isLoading && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Actualizando...
+        </div>
+      )}
       {/* ── Row 1: Search + Filter toggle + Export ─────────────────────── */}
       <div className="flex gap-2">
         <div className="relative flex-1">
@@ -708,6 +715,14 @@ export function ExpenseList() {
                                 #{tag}
                               </button>
                             ))}
+                            {expense.recurringId && (
+                              <span
+                                className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary"
+                                title="Gasto recurrente"
+                              >
+                                🔄
+                              </span>
+                            )}
                             {(expense.items?.length ?? 0) > 0 && (
                               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
                                 {expense.items.length} art.

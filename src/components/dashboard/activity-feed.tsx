@@ -147,7 +147,15 @@ export function ActivityFeed() {
   const groups = useMemo(() => groupByDay(categoryFiltered), [categoryFiltered])
 
   if (isLoading) return <Skeleton className="h-48 rounded-2xl" />
-  if (filtered.length === 0) return null
+  if (filtered.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed bg-card/50 p-8 text-center space-y-2">
+        <p className="text-2xl">✅</p>
+        <p className="text-sm font-semibold">Sin movimientos recientes</p>
+        <p className="text-xs text-muted-foreground">Añade tu primer gasto para verlo aquí</p>
+      </div>
+    )
+  }
 
   async function handleFlag(e: Expense) {
     const newFlagged = !e.flagged
@@ -173,6 +181,7 @@ export function ActivityFeed() {
           <div className="flex items-center gap-1">
             <p className="text-sm font-semibold truncate leading-tight">{e.merchant}</p>
             {e.privacy === "group" && <span className="text-[10px] shrink-0" title="Compartido con grupo">👥</span>}
+            {e.recurringId && <span className="text-[10px] shrink-0 px-1 py-0.5 rounded-full bg-primary/10 text-primary" title="Gasto recurrente">🔄</span>}
             {showSmartBadge && score > 40 && (
               <span className="text-[10px] shrink-0" title="Sugerido por IA">✨</span>
             )}

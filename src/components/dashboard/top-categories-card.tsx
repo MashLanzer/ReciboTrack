@@ -72,7 +72,15 @@ export function TopCategoriesCard() {
   }, [expenses, categories])
 
   if (expLoading || catLoading) return <Skeleton className="h-44 rounded-2xl" />
-  if (topCats.length === 0) return null
+  if (topCats.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed bg-card/50 p-8 text-center space-y-2">
+        <p className="text-2xl">📊</p>
+        <p className="text-sm font-semibold">Sin gastos este mes</p>
+        <p className="text-xs text-muted-foreground">Añade gastos para ver el análisis por categorías</p>
+      </div>
+    )
+  }
 
   const maxAmount = topCats[0].amount
   const starredCats = starred?.categories ?? []

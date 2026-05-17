@@ -38,6 +38,7 @@ export interface Expense {
   archived?: boolean
   flagged?: boolean
   flaggedAt?: Timestamp
+  recurringId?: string
   createdAt: Timestamp
   updatedAt: Timestamp
 }
@@ -107,6 +108,8 @@ export interface RecurringTemplate {
   nextDueDate: Timestamp
   isActive: boolean
   createdAt: Timestamp
+  lastLinkedExpenseId?: string
+  lastLinkedAt?: Timestamp
 }
 
 export interface UserProfile {

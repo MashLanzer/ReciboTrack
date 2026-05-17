@@ -438,6 +438,23 @@ export default function AnalyticsPage() {
         }}
       />
 
+      {/* ── Empty state for selected period ── */}
+      {selected.length === 0 && all6.length > 0 && (
+        <div className="rounded-2xl border border-dashed border-amber-500/30 bg-amber-500/5 p-6 text-center space-y-2">
+          <p className="text-xl">🔍</p>
+          <p className="text-sm font-semibold">Sin datos con estos filtros</p>
+          <p className="text-xs text-muted-foreground">No hay gastos para el período seleccionado</p>
+          <Button variant="outline" size="sm" onClick={() => setSelectedOffset(0)}>Ver mes actual</Button>
+        </div>
+      )}
+      {all6.length === 0 && (
+        <div className="rounded-2xl border border-dashed bg-card/50 p-8 text-center space-y-2">
+          <p className="text-2xl">📊</p>
+          <p className="text-sm font-semibold">Sin datos para este período</p>
+          <p className="text-xs text-muted-foreground">Añade gastos para ver análisis detallados</p>
+        </div>
+      )}
+
       {/* ── Resumen IA del mes ── */}
       <AiMonthlySummary
         expenses={selected.map((e) => ({ total: e.total, merchant: e.merchant, category: e.category }))}

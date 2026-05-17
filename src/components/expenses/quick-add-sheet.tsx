@@ -217,6 +217,8 @@ export function QuickAddSheet() {
               <Input
                 type="date"
                 value={form.date}
+                min="2000-01-01"
+                max="2030-12-31"
                 onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
                 className="h-9 text-sm flex-1"
               />

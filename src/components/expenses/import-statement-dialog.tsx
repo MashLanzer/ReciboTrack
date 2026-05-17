@@ -67,32 +67,38 @@ function parseCsv(text: string): string[][] {
 
 // ─── Date parsers ─────────────────────────────────────────────────────────────
 
+/** #22 — Reject dates outside 2000-2030 range */
+function isValidDateRange(d: Date): boolean {
+  const y = d.getFullYear()
+  return y >= 2000 && y <= 2030
+}
+
 function parseDate(s: string): Date | null {
   s = s.trim()
   // YYYY-MM-DD
   let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
   if (m) {
     const d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]))
-    if (!isNaN(d.getTime())) return d
+    if (!isNaN(d.getTime()) && isValidDateRange(d)) return d
   }
   // DD/MM/YYYY
   m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
   if (m) {
     // Try DD/MM/YYYY first, then MM/DD/YYYY
     const d = new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]))
-    if (!isNaN(d.getTime()) && d.getMonth() === parseInt(m[2]) - 1) return d
+    if (!isNaN(d.getTime()) && d.getMonth() === parseInt(m[2]) - 1 && isValidDateRange(d)) return d
     const d2 = new Date(parseInt(m[3]), parseInt(m[1]) - 1, parseInt(m[2]))
-    if (!isNaN(d2.getTime())) return d2
+    if (!isNaN(d2.getTime()) && isValidDateRange(d2)) return d2
   }
   // MM/DD/YYYY
   m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/)
   if (m) {
     const d = new Date(parseInt(m[3]), parseInt(m[1]) - 1, parseInt(m[2]))
-    if (!isNaN(d.getTime())) return d
+    if (!isNaN(d.getTime()) && isValidDateRange(d)) return d
   }
   // Try native Date parse as fallback
   const d = new Date(s)
-  if (!isNaN(d.getTime())) return d
+  if (!isNaN(d.getTime()) && isValidDateRange(d)) return d
   return null
 }
 

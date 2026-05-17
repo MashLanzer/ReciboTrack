@@ -50,10 +50,11 @@ import {
   History,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { useUIStore } from "@/stores/ui-store"
 import { addDays, addWeeks, addMonths, addYears, startOfDay, format, isSameDay, isToday, isTomorrow } from "date-fns"
 import { es } from "date-fns/locale"
 import { PAYMENT_METHODS, CURRENCIES, DEFAULT_CATEGORIES } from "@/lib/constants"
-import type { RecurringTemplate, RecurringFrequency } from "@/types"
+import type { RecurringTemplate, RecurringFrequency, Expense } from "@/types"
 import { Timestamp } from "firebase/firestore"
 
 const FREQUENCY_LABELS: Record<RecurringFrequency, string> = {
@@ -183,6 +184,14 @@ export default function RecurringPage() {
     if (!form.merchant.trim()) { toast.error("El comercio es obligatorio"); return }
     const total = parseFloat(form.total)
     if (!total || total <= 0) { toast.error("El total debe ser mayor que 0"); return }
+    if (form.nextDueDate) {
+      const d = new Date(form.nextDueDate)
+      const y = d.getFullYear()
+      if (isNaN(d.getTime()) || y < 2000 || y > 2030) {
+        toast.error("Fecha inválida — debe estar entre 2000 y 2030")
+        return
+      }
+    }
 
     setSaving(true)
     try {
@@ -361,17 +370,43 @@ export default function RecurringPage() {
       )}
 
       {/* #20 — All clear banner */}
-      {!isLoading && viewMode === "list" && templates.length > 0 && overdue.length === 0 && soon.length === 0 && (
-        <div className="flex items-center gap-3 rounded-xl border border-green-500/20 bg-green-500/5 px-4 py-3">
-          <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-500 shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-green-800 dark:text-green-400">Todo al día</p>
-            <p className="text-xs text-green-700/70 dark:text-green-500/70">
-              No tienes pagos pendientes ni vencidos. ¡Buen trabajo!
-            </p>
+      {!isLoading && viewMode === "list" && templates.length > 0 && overdue.length === 0 && soon.length === 0 && (() => {
+        const nextTemplate = later.length > 0
+          ? later.reduce((a, b) => a.nextDueDate.toDate() < b.nextDueDate.toDate() ? a : b)
+          : null
+        const daysToNext = nextTemplate
+          ? Math.ceil((nextTemplate.nextDueDate.toDate().getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          : null
+        return (
+          <div className="rounded-xl border border-green-500/30 bg-green-500/5 px-4 py-4 space-y-2">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-500 shrink-0 animate-bounce" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-green-800 dark:text-green-400">
+                  🎉✅💚 Todo al día — {templates.length} recurrente{templates.length !== 1 ? "s" : ""} al día
+                </p>
+                <p className="text-xs text-green-700/70 dark:text-green-500/70 mt-0.5">
+                  No tienes pagos pendientes ni vencidos. ¡Buen trabajo!
+                </p>
+              </div>
+            </div>
+            {nextTemplate && daysToNext !== null && (
+              <p className="text-xs text-green-700/80 dark:text-green-500/80 pl-9">
+                Próximo: <span className="font-semibold">{nextTemplate.merchant}</span> en {daysToNext} día{daysToNext !== 1 ? "s" : ""}
+              </p>
+            )}
+            <div className="pl-9">
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className="text-xs text-green-700 dark:text-green-400 underline underline-offset-2 hover:no-underline transition-all"
+              >
+                Ver todos los recurrentes →
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* List sections */}
       {!isLoading && viewMode === "list" && (
@@ -538,9 +573,18 @@ export default function RecurringPage() {
                 <Input
                   type="date"
                   value={form.nextDueDate}
-                  min="2010-01-01"
+                  min="2000-01-01"
+                  max="2030-12-31"
                   onChange={(e) => setForm({ ...form, nextDueDate: e.target.value })}
                 />
+                {form.nextDueDate && (() => {
+                  const d = new Date(form.nextDueDate)
+                  const y = d.getFullYear()
+                  const invalid = isNaN(d.getTime()) || y < 2000 || y > 2030
+                  return invalid ? (
+                    <p className="text-[10px] text-destructive">Fecha inválida — debe estar entre 2000 y 2030</p>
+                  ) : null
+                })()}
               </div>
               <div className="space-y-1.5">
                 <Label>Método de pago</Label>
@@ -849,7 +893,7 @@ function useRecurringHistory(merchant: string, enabled: boolean) {
       const snap = await getDocs(q)
       const normalized = merchant.toLowerCase()
       return snap.docs
-        .map((d) => ({ id: d.id, ...d.data() } as { id: string; merchant: string; total: number; currency: string; date: { toDate: () => Date } }))
+        .map((d) => ({ id: d.id, ...d.data() } as Expense))
         .filter((e) => e.merchant.toLowerCase() === normalized)
         .slice(0, 12) // Keep last 12 payments
     },
@@ -877,12 +921,22 @@ function RecurringItem({
   const status = getDueStatus(t.nextDueDate)
   const cat = categories.find((c) => c.id === t.category)
   const isRegistering = registeringId === t.id
+  const { setEditExpense } = useUIStore()
 
   const { data: history = [], isLoading: historyLoading } = useRecurringHistory(t.merchant, historyOpen)
 
   // Stats from history
   const historyTotal = history.reduce((s, e) => s + e.total, 0)
   const historyAvg = history.length > 0 ? historyTotal / history.length : 0
+
+  /** Find a history entry that matches within ±2 days of a given date */
+  function findMatch(historyDate: Date): typeof history[number] | undefined {
+    const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000
+    return history.find((e) => {
+      const diff = Math.abs(e.date.toDate().getTime() - historyDate.getTime())
+      return diff <= TWO_DAYS_MS
+    })
+  }
 
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
@@ -1004,17 +1058,15 @@ function RecurringItem({
                 {history.map((payment, idx) => {
                   const prev = history[idx + 1]
                   const delta = prev ? ((payment.total - prev.total) / prev.total) * 100 : null
+                  const paymentDate = payment.date.toDate()
+                  // #17 — match this history entry to itself (since we already have the full Expense)
+                  const matchedExpense = findMatch(paymentDate)
                   return (
-                    <div key={payment.id} className="flex items-center justify-between py-1">
-                      {/* #17 — link to expense list filtered by merchant */}
-                      <Link
-                        href={`/expenses?q=${encodeURIComponent(t.merchant)}`}
-                        className="text-xs text-muted-foreground hover:text-primary hover:underline transition-colors"
-                        title="Ver en lista de gastos"
-                      >
-                        {payment.date.toDate().toLocaleDateString("es", { day: "2-digit", month: "short", year: "2-digit" })}
-                      </Link>
-                      <div className="flex items-center gap-2">
+                    <div key={payment.id} className="flex items-center justify-between py-1 gap-2">
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {paymentDate.toLocaleDateString("es", { day: "2-digit", month: "short", year: "2-digit" })}
+                      </span>
+                      <div className="flex items-center gap-2 ml-auto">
                         {delta !== null && (
                           <span className={`text-[10px] tabular-nums ${delta > 5 ? "text-destructive" : delta < -5 ? "text-green-600" : "text-muted-foreground"}`}>
                             {delta > 0 ? "+" : ""}{delta.toFixed(1)}%
@@ -1023,6 +1075,16 @@ function RecurringItem({
                         <span className="text-xs font-medium tabular-nums">
                           {formatCurrency(payment.total, t.currency)}
                         </span>
+                        {/* #17 — Ver gasto pill */}
+                        {matchedExpense && (
+                          <button
+                            type="button"
+                            onClick={() => setEditExpense(matchedExpense)}
+                            className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium shrink-0"
+                          >
+                            💳 Ver gasto
+                          </button>
+                        )}
                       </div>
                     </div>
                   )

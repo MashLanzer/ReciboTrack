@@ -124,6 +124,14 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!expense) return
+    if (form.date) {
+      const d = new Date(form.date)
+      const y = d.getFullYear()
+      if (isNaN(d.getTime()) || y < 2000 || y > 2030) {
+        toast.error("Fecha inválida — debe estar entre 2000 y 2030")
+        return
+      }
+    }
     try {
       const cleanItems = items.filter((it) => it.name.trim())
       await updateExpense.mutateAsync({
@@ -201,7 +209,22 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
             </div>
             <div className="space-y-1.5">
               <Label>Fecha</Label>
-              <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
+              <Input
+                type="date"
+                value={form.date}
+                min="2000-01-01"
+                max="2030-12-31"
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                required
+              />
+              {form.date && (() => {
+                const d = new Date(form.date)
+                const y = d.getFullYear()
+                const invalid = isNaN(d.getTime()) || y < 2000 || y > 2030
+                return invalid ? (
+                  <p className="text-[10px] text-destructive">Fecha inválida — debe estar entre 2000 y 2030</p>
+                ) : null
+              })()}
             </div>
             <div className="space-y-1.5">
               <Label>Total</Label>
