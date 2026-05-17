@@ -246,7 +246,7 @@ function NextRecurring() {
 // ─── LastExpense ──────────────────────────────────────────────────────────────
 
 function LastExpense({ expenses30, isLoading }: { expenses30: Expense[]; isLoading: boolean }) {
-  const { setEditExpenseId, activeAccount } = useUIStore()
+  const { setEditExpense, activeAccount } = useUIStore()
 
   const last = useMemo(() => {
     const filtered = activeAccount === "business"
@@ -278,7 +278,7 @@ function LastExpense({ expenses30, isLoading }: { expenses30: Expense[]; isLoadi
           <p className="text-[10px] text-muted-foreground">{when}</p>
         </div>
         <button
-          onClick={() => setEditExpenseId(last.id)}
+          onClick={() => setEditExpense(last)}
           className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label="Editar"
         >

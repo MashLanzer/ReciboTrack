@@ -261,7 +261,7 @@ export function NewMerchants() {
 
 export function TodayFeed() {
   const { days, isLoading } = useWeekData()
-  const { setEditExpenseId } = useUIStore()
+  const { setEditExpense } = useUIStore()
 
   const today = useMemo(() => days.find(d => d.isToday), [days])
   const todayExpenses = today?.expenses ?? []
@@ -299,7 +299,7 @@ export function TodayFeed() {
                 {formatCurrency(e.total, e.currency)}
               </span>
               <button
-                onClick={() => setEditExpenseId(e.id)}
+                onClick={() => setEditExpense(e)}
                 className="opacity-0 group-hover:opacity-100 h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground transition-all shrink-0"
                 aria-label="Editar"
               >

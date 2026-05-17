@@ -2,6 +2,7 @@
 
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import type { Expense } from "@/types"
 
 export type ActiveAccount = "personal" | "business"
 
@@ -10,6 +11,7 @@ interface UIStore {
   quickAddOpen: boolean
   incomeAddOpen: boolean
   editExpenseId: string | null
+  editExpense: Expense | null
   sharedFile: File | null
   commandOpen: boolean
   activeAccount: ActiveAccount
@@ -17,6 +19,7 @@ interface UIStore {
   setQuickAddOpen: (open: boolean) => void
   setIncomeAddOpen: (open: boolean) => void
   setEditExpenseId: (id: string | null) => void
+  setEditExpense: (expense: Expense | null) => void
   setSharedFile: (file: File | null) => void
   setCommandOpen: (open: boolean) => void
   setActiveAccount: (account: ActiveAccount) => void
@@ -29,6 +32,7 @@ export const useUIStore = create<UIStore>()(
       quickAddOpen: false,
       incomeAddOpen: false,
       editExpenseId: null,
+      editExpense: null,
       sharedFile: null,
       commandOpen: false,
       activeAccount: "personal",
@@ -36,6 +40,7 @@ export const useUIStore = create<UIStore>()(
       setQuickAddOpen: (open) => set({ quickAddOpen: open }),
       setIncomeAddOpen: (open) => set({ incomeAddOpen: open }),
       setEditExpenseId: (id) => set({ editExpenseId: id }),
+      setEditExpense: (expense) => set({ editExpense: expense }),
       setSharedFile: (file) => set({ sharedFile: file }),
       setCommandOpen: (open) => set({ commandOpen: open }),
       setActiveAccount: (account) => set({ activeAccount: account }),
