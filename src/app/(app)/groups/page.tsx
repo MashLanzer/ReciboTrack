@@ -9,7 +9,7 @@ import {
   useAddGroupExpense, useDeleteGroupExpense, useUpdateGroupExpense,
   useSettleDebt, useDeleteSettlement,
   useRefreshInviteCode, useUpdateGroup, useArchiveGroup, useUnarchiveGroup,
-  type Group, type GroupExpense, type GroupSettlement,
+  type Group, type GroupExpense, type GroupSettlement, type GroupType,
 } from "@/hooks/use-groups"
 import { formatCurrency, toDate } from "@/lib/utils"
 import { format, startOfMonth, endOfMonth, subMonths, isSameMonth } from "date-fns"
@@ -30,6 +30,9 @@ import {
 import { toast } from "sonner"
 import { CommentButton } from "@/components/groups/group-comments"
 import { AuditLogButton } from "@/components/groups/expense-audit-log"
+import { GroupEvents } from "@/components/groups/group-events"
+import { GroupPolls } from "@/components/groups/group-polls"
+import { ExpenseReactions } from "@/components/groups/expense-reactions"
 import {
   Users, Plus, LogOut, Copy, RefreshCw, Trash2, Archive, ArchiveRestore,
   ArrowLeft, Receipt, UserPlus, Crown, Check, Pencil, MoreVertical,
@@ -46,6 +49,25 @@ import { cn } from "@/lib/utils"
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 const GROUP_EMOJIS = ["👨‍👩‍👧‍👦", "👫", "🏠", "💼", "🎓", "✈️", "🎉", "💰", "🍽️", "🛒", "🚗", "🏋️", "🏖️", "🎮", "🐾"]
+
+const GROUP_TYPES: { value: GroupType; label: string; emoji: string }[] = [
+  { value: "casa",    label: "Casa",    emoji: "🏠" },
+  { value: "amigos",  label: "Amigos",  emoji: "👥" },
+  { value: "trabajo", label: "Trabajo", emoji: "💼" },
+  { value: "viaje",   label: "Viaje",   emoji: "✈️" },
+  { value: "otro",    label: "Otro",    emoji: "📦" },
+]
+
+function GroupTypeBadge({ type }: { type?: GroupType }) {
+  if (!type) return null
+  const meta = GROUP_TYPES.find((t) => t.value === type)
+  if (!meta) return null
+  return (
+    <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+      {meta.emoji} {meta.label}
+    </span>
+  )
+}
 
 // ─── Group balance badge (for the list cards) ────────────────────────────────
 
@@ -1095,7 +1117,7 @@ function GroupDetail({
   const updateGroup = useUpdateGroup()
   const archiveGroup = useArchiveGroup()
 
-  const [tab, setTab] = useState<"gastos" | "balance" | "stats" | "miembros">("gastos")
+  const [tab, setTab] = useState<"gastos" | "balance" | "stats" | "miembros" | "eventos" | "encuestas">("gastos")
   const [addOpen, setAddOpen] = useState(false)
   const [editExpense, setEditExpense] = useState<GroupExpense | null>(null)
   const [formSaving, setFormSaving] = useState(false)
@@ -1330,12 +1352,26 @@ function GroupDetail({
             <span className="text-2xl">{group.emoji}</span>
             <h1 className="font-serif text-xl truncate">{group.name}</h1>
           </div>
-          <p className="text-xs text-muted-foreground">
-            {group.members.length} miembros · {formatCurrency(totalSpent)} total
-          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-xs text-muted-foreground">
+              {group.members.length} miembros · {formatCurrency(totalSpent)} total
+            </p>
+            <GroupTypeBadge type={group.type} />
+          </div>
           {group.description && (
             <p className="text-xs text-muted-foreground mt-0.5 truncate italic">{group.description}</p>
           )}
+          {/* Historial total */}
+          {expenses.length > 0 && (() => {
+            const firstExpDate = [...expenses].sort((a, b) => a.date.toDate().getTime() - b.date.toDate().getTime())[0]
+            const since = firstExpDate ? format(firstExpDate.date.toDate(), "d MMM yyyy", { locale: es }) : null
+            return (
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                📊 Total desde siempre: <span className="font-semibold">{formatCurrency(totalSpent)}</span>
+                {since && <> · Activo desde {since}</>}
+              </p>
+            )
+          })()}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <Button size="sm" className="gap-1.5 h-8" onClick={() => setAddOpen(true)}>
@@ -1425,13 +1461,15 @@ function GroupDetail({
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-xl bg-muted p-1">
-        {(["gastos", "balance", "stats", "miembros"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`flex-1 rounded-lg py-1.5 text-[11px] font-medium capitalize transition-colors ${tab === t ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
-            {t === "stats" ? "Análisis" : t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
+      <div className="overflow-x-auto -mx-1 px-1">
+        <div className="flex gap-1 rounded-xl bg-muted p-1 min-w-max">
+          {(["gastos", "balance", "stats", "miembros", "eventos", "encuestas"] as const).map((t) => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-medium capitalize transition-colors ${tab === t ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
+              {t === "stats" ? "Análisis" : t === "eventos" ? "Eventos" : t === "encuestas" ? "Encuestas" : t.charAt(0).toUpperCase() + t.slice(1)}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Gastos tab ── */}
@@ -1536,47 +1574,59 @@ function GroupDetail({
               : e.total
             const splitLabel = e.splitType === "equal" ? `÷${e.splitWith.length}` : e.splitType === "custom" ? "⚖️" : null
 
+            // Privacy filter: hide private expenses from non-creators
+            if (e.privacy === "private" && e.paidByUid !== currentUid) return null
+
             return (
-              <div key={e.id} className="flex items-center gap-3 p-3 rounded-xl border hover:bg-accent/20 transition-colors group">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-base"
-                  style={{ backgroundColor: `${cat?.color ?? "#6b7280"}20` }}>
-                  {cat?.icon ?? "📦"}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{e.merchant}</p>
-                  <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                    <p className="text-xs text-muted-foreground">
-                      {isMyExpense ? "Tú pagaste" : `Pagó ${e.paidByName}`}
-                    </p>
-                    {splitLabel && <Badge variant="outline" className="text-[10px] h-4 px-1">{splitLabel}</Badge>}
-                    <span className="text-[10px] text-muted-foreground">
-                      {format(toDate(e.date), "d MMM", { locale: es })}
-                    </span>
+              <div key={e.id} className="rounded-xl border hover:bg-accent/20 transition-colors group">
+                <div className="flex items-center gap-3 p-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-base"
+                    style={{ backgroundColor: `${cat?.color ?? "#6b7280"}20` }}>
+                    {cat?.icon ?? "📦"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1">
+                      <p className="text-sm font-medium truncate">{e.merchant}</p>
+                      {e.privacy === "private" && <span className="text-[10px]" title="Privado">🔒</span>}
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                      <p className="text-xs text-muted-foreground">
+                        {isMyExpense ? "Tú pagaste" : `Pagó ${e.paidByName}`}
+                      </p>
+                      {splitLabel && <Badge variant="outline" className="text-[10px] h-4 px-1">{splitLabel}</Badge>}
+                      <span className="text-[10px] text-muted-foreground">
+                        {format(toDate(e.date), "d MMM", { locale: es })}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="tabular-nums text-sm font-semibold">{formatCurrency(e.total, e.currency)}</p>
+                    {e.splitType !== "full" && e.splitWith.length > 1 && (
+                      <p className="text-[11px] text-muted-foreground tabular-nums">
+                        {isMyExpense
+                          ? `cobras ${formatCurrency(e.total - myShare, e.currency)}`
+                          : `tu parte ${formatCurrency(myShare, e.currency)}`}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all ml-1 shrink-0">
+                    <CommentButton groupId={group.id} expenseId={e.id} expenseName={e.merchant} />
+                    <AuditLogButton groupId={group.id} expenseId={e.id} merchant={e.merchant} />
+                    {canEdit && (
+                      <>
+                        <button onClick={() => openEdit(e)} className="text-muted-foreground hover:text-foreground">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => handleDelete(e)} className="text-muted-foreground hover:text-destructive">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="tabular-nums text-sm font-semibold">{formatCurrency(e.total, e.currency)}</p>
-                  {e.splitType !== "full" && e.splitWith.length > 1 && (
-                    <p className="text-[11px] text-muted-foreground tabular-nums">
-                      {isMyExpense
-                        ? `cobras ${formatCurrency(e.total - myShare, e.currency)}`
-                        : `tu parte ${formatCurrency(myShare, e.currency)}`}
-                    </p>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all ml-1 shrink-0">
-                  <CommentButton groupId={group.id} expenseId={e.id} expenseName={e.merchant} />
-                  <AuditLogButton groupId={group.id} expenseId={e.id} merchant={e.merchant} />
-                  {canEdit && (
-                    <>
-                      <button onClick={() => openEdit(e)} className="text-muted-foreground hover:text-foreground">
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button onClick={() => handleDelete(e)} className="text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </>
-                  )}
+                {/* Reactions */}
+                <div className="px-3 pb-2">
+                  <ExpenseReactions groupId={group.id} expenseId={e.id} />
                 </div>
               </div>
             )
@@ -1725,6 +1775,16 @@ function GroupDetail({
         </div>
       )}
 
+      {/* ── Eventos tab ── */}
+      {tab === "eventos" && (
+        <GroupEvents groupId={group.id} members={group.members} />
+      )}
+
+      {/* ── Encuestas tab ── */}
+      {tab === "encuestas" && (
+        <GroupPolls groupId={group.id} members={group.members} />
+      )}
+
       {/* ── Add expense dialog ── */}
       <Dialog open={addOpen} onOpenChange={(o) => { setAddOpen(o); if (!o) setAddForm(emptyExpenseForm(group.members)) }}>
         <DialogContent className="sm:max-w-sm">
@@ -1831,6 +1891,7 @@ export default function GroupsPage() {
   const [groupName, setGroupName] = useState("")
   const [groupDesc, setGroupDesc] = useState("")
   const [groupEmoji, setGroupEmoji] = useState("👨‍👩‍👧‍👦")
+  const [groupType, setGroupType] = useState<GroupType>("otro")
   const [joinCode, setJoinCode] = useState("")
   const [newGroupCode, setNewGroupCode] = useState<string | null>(null)
   const [copiedNewCode, setCopiedNewCode] = useState(false)
@@ -1846,11 +1907,13 @@ export default function GroupsPage() {
         name: groupName,
         emoji: groupEmoji,
         description: groupDesc.trim() || undefined,
+        type: groupType,
       })
       setNewGroupCode(inviteCode)
       toast.success("Grupo creado")
       setGroupName("")
       setGroupDesc("")
+      setGroupType("otro")
     } catch { toast.error("Error al crear grupo") }
   }
 
@@ -1927,7 +1990,10 @@ export default function GroupsPage() {
               <div className="flex items-center gap-3">
                 <span className="text-3xl">{group.emoji}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate">{group.name}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold truncate">{group.name}</p>
+                    <GroupTypeBadge type={group.type} />
+                  </div>
                   {group.description && (
                     <p className="text-[11px] text-muted-foreground truncate italic">{group.description}</p>
                   )}
@@ -2017,6 +2083,23 @@ export default function GroupsPage() {
                 <Label>Descripción <span className="text-muted-foreground font-normal">(opcional)</span></Label>
                 <Input placeholder="Para qué es este grupo..." value={groupDesc}
                   onChange={(e) => setGroupDesc(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tipo de grupo</Label>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {GROUP_TYPES.map((t) => (
+                    <button
+                      key={t.value}
+                      onClick={() => setGroupType(t.value)}
+                      className={`flex flex-col items-center gap-1 rounded-xl border p-2 text-xs font-medium transition-colors ${
+                        groupType === t.value ? "border-foreground bg-accent" : "border-border text-muted-foreground hover:border-muted-foreground"
+                      }`}
+                    >
+                      <span className="text-lg">{t.emoji}</span>
+                      <span className="text-[10px]">{t.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Ícono</Label>

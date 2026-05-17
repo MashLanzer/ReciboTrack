@@ -36,6 +36,7 @@ import {
 } from "lucide-react"
 import { AccentColorPicker } from "@/components/shared/accent-color-picker"
 import { PwaInstallButton } from "@/components/shared/pwa-install-button"
+import { PasskeySetupCard } from "@/components/auth/passkey-setup-card"
 import { format, startOfYear, endOfYear, getMonth, getDay } from "date-fns"
 import { es } from "date-fns/locale"
 import type { Expense } from "@/types"
@@ -517,6 +518,11 @@ export default function ProfilePage() {
               </div>
             </SettingRow>
           )}
+        </div>
+
+        {/* Passkey / Biometric */}
+        <div className="border-t pt-3">
+          <PasskeySetupCard />
         </div>
       </Section>
 

@@ -5,6 +5,7 @@ import { format, subMonths, startOfMonth, endOfMonth, getYear, getMonth } from "
 import { es } from "date-fns/locale"
 import { TrendingUp } from "lucide-react"
 import { IncomeBalance } from "@/components/dashboard/income-balance"
+import { IncomeSourcesBreakdown } from "@/components/income/income-sources-breakdown"
 import { useIncomePeriod } from "@/hooks/use-income"
 import { useExpensesPeriod } from "@/hooks/use-expenses"
 import { formatCurrency, cn } from "@/lib/utils"
@@ -79,6 +80,9 @@ export default function IncomePage() {
           <p className="text-xs text-muted-foreground">Cuánto ganas vs cuánto gastas</p>
         </div>
       </div>
+
+      {/* Income sources breakdown */}
+      <IncomeSourcesBreakdown />
 
       {/* Month selector */}
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">

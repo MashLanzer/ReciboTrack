@@ -34,6 +34,7 @@ export interface Expense {
   tags: string[]
   receiptImageUrl: string | null
   project?: string  // nombre del cliente/proyecto
+  privacy?: "private" | "group" | "public"
   createdAt: Timestamp
   updatedAt: Timestamp
 }
@@ -54,6 +55,7 @@ export interface ExpenseInput {
   receiptImageUrl: string | null
   account?: "personal" | "business"  // defaults to "personal" when absent
   project?: string  // nombre del cliente/proyecto
+  privacy?: "private" | "group" | "public"
 }
 
 export interface CategoryDoc {

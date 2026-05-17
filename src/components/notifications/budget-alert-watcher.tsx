@@ -100,6 +100,30 @@ export function BudgetAlertWatcher() {
 
       fireNotification(title, `Vence el ${dueDateStr} · ${item.total.toFixed(2)} ${item.currency}`)
     }
+
+    // ── 3. Financial anniversary alerts (recurring > 365 days old) ───────────
+    const currentYear = now.getFullYear()
+    for (const item of recurring) {
+      if (!item.createdAt) continue
+      const createdDate = toDate(item.createdAt)
+      const daysSinceCreation = differenceInDays(now, createdDate)
+      if (daysSinceCreation < 365) continue
+
+      const key = `anniv:${item.id}:${currentYear}`
+      if (sessionFired(key)) continue
+
+      const years = Math.floor(daysSinceCreation / 365)
+      const totalPaid = item.total * years * (
+        item.frequency === "weekly"   ? 52 :
+        item.frequency === "biweekly" ? 26 :
+        item.frequency === "monthly"  ? 12 : 1
+      )
+
+      fireNotification(
+        `🎂 '${item.merchant}' lleva ${years} año${years > 1 ? "s" : ""} contigo`,
+        `Te ha costado aprox. ${totalPaid.toFixed(2)} ${item.currency} en total.`
+      )
+    }
   }, [budgets, expenses, categories, recurring, monthStr])
 
   void processedRef // suppress unused warning

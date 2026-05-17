@@ -34,6 +34,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
     merchant: "", date: "", total: "", subtotal: "", tax: "",
     category: "otros", paymentMethod: "", currency: "USD", reference: "", notes: "",
     tags: [] as string[], project: "",
+    privacy: "private" as "private" | "group" | "public",
   })
   const [tagInput, setTagInput] = useState("")
   const [items, setItems] = useState<ReceiptItem[]>([])
@@ -88,6 +89,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
         notes: expense.notes,
         tags: expense.tags ?? [],
         project: expense.project ?? "",
+        privacy: expense.privacy ?? "private",
       })
       setItems(expense.items ?? [])
       setItemsOpen((expense.items ?? []).length > 0)
@@ -138,6 +140,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
           notes: form.notes,
           tags: form.tags,
           project: form.project || undefined,
+          privacy: form.privacy,
         },
       })
       toast.success("Gasto actualizado")
@@ -301,6 +304,31 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Privacy */}
+            <div className="col-span-2 space-y-1.5">
+              <Label>Privacidad</Label>
+              <div className="flex gap-2">
+                {([
+                  { value: "private", label: "🔒 Privado" },
+                  { value: "group",   label: "👥 Grupo" },
+                  { value: "public",  label: "🌍 Público" },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setForm({ ...form, privacy: opt.value })}
+                    className={`flex-1 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors ${
+                      form.privacy === opt.value
+                        ? "border-foreground bg-accent font-semibold"
+                        : "border-border text-muted-foreground hover:border-muted-foreground"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

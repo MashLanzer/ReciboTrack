@@ -21,12 +21,15 @@ export interface GroupMember {
   joinedAt: Timestamp
 }
 
+export type GroupType = "casa" | "amigos" | "trabajo" | "viaje" | "otro"
+
 export interface Group {
   id: string
   name: string
   emoji: string
   description?: string
   budget?: number
+  type?: GroupType
   adminUid: string
   memberUids: string[]
   members: GroupMember[]
@@ -100,7 +103,7 @@ export function useCreateGroup() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ name, emoji, description }: { name: string; emoji: string; description?: string }) => {
+    mutationFn: async ({ name, emoji, description, type }: { name: string; emoji: string; description?: string; type?: GroupType }) => {
       if (!user) throw new Error("No autenticado")
       const inviteCode = generateInviteCode()
       const member: GroupMember = {
@@ -114,6 +117,7 @@ export function useCreateGroup() {
         name,
         emoji,
         ...(description ? { description } : {}),
+        ...(type ? { type } : {}),
         adminUid: user.uid,
         memberUids: [user.uid],
         members: [member],

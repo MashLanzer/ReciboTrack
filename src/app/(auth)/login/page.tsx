@@ -17,7 +17,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
-import { Loader2, Receipt, Smartphone } from "lucide-react"
+import { Loader2, Receipt, Smartphone, Fingerprint } from "lucide-react"
+import { usePasskeySupport, usePasskeyLogin } from "@/hooks/use-passkey"
 
 /** Returns true when running inside a Capacitor native WebView */
 function useIsNativeApp() {
@@ -53,6 +54,8 @@ function LoginForm() {
 
   const isNative = useIsNativeApp()
   const firebaseConfigured = !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+  const passkeySupported = usePasskeySupport()
+  const { login: passkeyLogin, isLoading: passkeyLoading, hasPasskey } = usePasskeyLogin()
 
   function setSessionCookie() {
     document.cookie = `session=1; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`
@@ -176,6 +179,28 @@ function LoginForm() {
       </div>
 
       <div className="space-y-4">
+        {/* Passkey quick login */}
+        {passkeySupported && hasPasskey && mode === "login" && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full gap-3"
+            onClick={async () => {
+              const ok = await passkeyLogin()
+              if (ok) {
+                toast.success("Autenticado con biometría")
+                navigateAfterLogin()
+              } else {
+                toast.error("La autenticación biométrica falló")
+              }
+            }}
+            disabled={passkeyLoading}
+          >
+            {passkeyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4" />}
+            Entrar con huella / Face ID
+          </Button>
+        )}
+
         {!firebaseConfigured && (
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive space-y-1">
             <p className="font-semibold">⚠️ Firebase no configurado</p>

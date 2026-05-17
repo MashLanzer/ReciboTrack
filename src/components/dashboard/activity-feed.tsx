@@ -126,7 +126,10 @@ export function ActivityFeed() {
                       {emoji}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate leading-tight">{e.merchant}</p>
+                      <div className="flex items-center gap-1">
+                        <p className="text-sm font-semibold truncate leading-tight">{e.merchant}</p>
+                        {e.privacy === "group" && <span className="text-[10px] shrink-0" title="Compartido con grupo">👥</span>}
+                      </div>
                       <p className="text-[10px] text-muted-foreground">{catName}</p>
                     </div>
                     <div className="text-right shrink-0">
