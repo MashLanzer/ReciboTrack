@@ -35,6 +35,9 @@ export interface Expense {
   receiptImageUrl: string | null
   project?: string  // nombre del cliente/proyecto
   privacy?: "private" | "group" | "public"
+  archived?: boolean
+  flagged?: boolean
+  flaggedAt?: Timestamp
   createdAt: Timestamp
   updatedAt: Timestamp
 }
@@ -56,6 +59,8 @@ export interface ExpenseInput {
   account?: "personal" | "business"  // defaults to "personal" when absent
   project?: string  // nombre del cliente/proyecto
   privacy?: "private" | "group" | "public"
+  archived?: boolean
+  flagged?: boolean
 }
 
 export interface CategoryDoc {
@@ -193,4 +198,63 @@ export interface DashboardStats {
   monthlyTrend: { month: string; total: number }[]
   topMerchants: { merchant: string; total: number }[]
   paymentMethods: { method: string; total: number }[]
+}
+
+// ─── Trusted Circle ───────────────────────────────────────────────────────────
+
+export interface TrustedCircleMember {
+  id: string
+  userId: string
+  displayName: string
+  email: string
+  addedAt: Timestamp
+  canSeeFullBudget: boolean
+}
+
+export interface TrustedCircleMemberInput {
+  userId: string
+  displayName: string
+  email: string
+  canSeeFullBudget: boolean
+}
+
+// ─── Pinned Items ─────────────────────────────────────────────────────────────
+
+export interface PinnedItem {
+  type: "category" | "goal" | "alert"
+  id: string
+  label: string
+  icon: string
+}
+
+// ─── Group Wishlist ───────────────────────────────────────────────────────────
+
+export interface WishlistItem {
+  id: string
+  title: string
+  url?: string
+  estimatedPrice?: number
+  currency: string
+  addedBy: string
+  likes: string[]
+  purchased: boolean
+  purchasedBy?: string
+  purchasedAt?: Timestamp
+  createdAt: Timestamp
+}
+
+export interface WishlistItemInput {
+  title: string
+  url?: string
+  estimatedPrice?: number
+  currency: string
+}
+
+// ─── Group Notes ──────────────────────────────────────────────────────────────
+
+export interface GroupNote {
+  userId: string
+  text: string
+  createdAt: Timestamp
+  expiresAt: Timestamp
 }

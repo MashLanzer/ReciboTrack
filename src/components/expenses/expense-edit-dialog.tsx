@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
-import { useUpdateExpense, useExpensesPeriod } from "@/hooks/use-expenses"
+import { useUpdateExpense, useExpensesPeriod, useArchiveExpense } from "@/hooks/use-expenses"
 import { QuickSplit } from "./quick-split"
 import { useCategories } from "@/hooks/use-categories"
 import { useProjects } from "@/hooks/use-projects"
@@ -14,10 +14,11 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { Loader2, Plus, X, ChevronDown, ChevronUp, ShoppingCart, AlertTriangle, Split } from "lucide-react"
+import { Loader2, Plus, X, ChevronDown, ChevronUp, ShoppingCart, AlertTriangle, Split, Archive } from "lucide-react"
 import { format, subDays, addDays, isValid, parseISO } from "date-fns"
 import { formatCurrency } from "@/lib/utils"
 import { CategorySuggestion } from "@/components/shared/category-suggestion"
+import { CashtagInput } from "@/components/ui/cashtag-input"
 
 interface Props {
   expense: Expense | null
@@ -28,6 +29,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
   const { data: categories = [] } = useCategories()
   const { projectNames, expenses: allExpenses } = useProjects()
   const updateExpense = useUpdateExpense()
+  const archiveExpense = useArchiveExpense()
   const [splitOpen, setSplitOpen] = useState(false)
 
   const [form, setForm] = useState({
@@ -254,7 +256,11 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
             </div>
             <div className="col-span-2 space-y-1.5">
               <Label>Notas</Label>
-              <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+              <CashtagInput
+                value={form.notes}
+                onChange={(v) => setForm({ ...form, notes: v })}
+                placeholder="Notas... escribe $categoria para vincular"
+              />
             </div>
             <div className="col-span-2 space-y-1.5">
               <Label>Cliente / Proyecto <span className="text-muted-foreground font-normal">(opcional)</span></Label>
@@ -403,7 +409,23 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
             )}
           </div>
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="pt-2 flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-muted-foreground hover:text-destructive mr-auto"
+              onClick={async () => {
+                if (!expense) return
+                await archiveExpense.mutateAsync(expense.id)
+                toast.success("Gasto archivado")
+                onClose()
+              }}
+              disabled={archiveExpense.isPending}
+            >
+              <Archive className="h-4 w-4" />
+              Archivar
+            </Button>
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
             <Button
               type="button"

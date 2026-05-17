@@ -1,8 +1,11 @@
 import { Suspense } from "react"
 import { ExpenseList } from "@/components/expenses/expense-list"
 import { ExpenseCalendar } from "@/components/expenses/expense-calendar"
+import { ExpenseThreads } from "@/components/expenses/expense-threads"
+import { FlaggedExpensesPanel } from "@/components/expenses/flagged-expenses-panel"
+import { ArchivedExpensesSection } from "@/components/expenses/archived-expenses-section"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ViewToggle } from "@/components/expenses/view-toggle"
+import { ViewToggle, type ViewMode } from "@/components/expenses/view-toggle"
 import { ShareSummary } from "@/components/expenses/share-summary"
 import { ImportStatementButton } from "@/components/expenses/import-statement-button"
 
@@ -22,7 +25,11 @@ interface ExpensesPageProps {
 
 export default async function ExpensesPage({ searchParams }: ExpensesPageProps) {
   const params = await searchParams
-  const view = params.view === "cal" ? "cal" : "list"
+  const rawView = params.view
+  const view: ViewMode =
+    rawView === "cal" ? "cal" :
+    rawView === "threads" ? "threads" :
+    "list"
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6">
@@ -38,9 +45,18 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
         </div>
       </div>
 
+      {/* Flagged expenses panel (Feature B) */}
+      <div className="mb-4">
+        <FlaggedExpensesPanel />
+      </div>
+
       {view === "cal" ? (
         <Suspense fallback={<ExpenseListFallback />}>
           <ExpenseCalendar />
+        </Suspense>
+      ) : view === "threads" ? (
+        <Suspense fallback={<ExpenseListFallback />}>
+          <ExpenseThreads />
         </Suspense>
       ) : (
         <Suspense fallback={<ExpenseListFallback />}>
@@ -48,6 +64,10 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
         </Suspense>
       )}
 
+      {/* Archived expenses (Feature A) */}
+      <div className="mt-6">
+        <ArchivedExpensesSection />
+      </div>
     </div>
   )
 }

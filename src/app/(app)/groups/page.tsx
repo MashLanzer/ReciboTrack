@@ -33,6 +33,8 @@ import { AuditLogButton } from "@/components/groups/expense-audit-log"
 import { GroupEvents } from "@/components/groups/group-events"
 import { GroupPolls } from "@/components/groups/group-polls"
 import { ExpenseReactions } from "@/components/groups/expense-reactions"
+import { GroupNotes } from "@/components/groups/group-notes"
+import { GroupWishlist } from "@/components/groups/group-wishlist"
 import {
   Users, Plus, LogOut, Copy, RefreshCw, Trash2, Archive, ArchiveRestore,
   ArrowLeft, Receipt, UserPlus, Crown, Check, Pencil, MoreVertical,
@@ -1117,7 +1119,7 @@ function GroupDetail({
   const updateGroup = useUpdateGroup()
   const archiveGroup = useArchiveGroup()
 
-  const [tab, setTab] = useState<"gastos" | "balance" | "stats" | "miembros" | "eventos" | "encuestas">("gastos")
+  const [tab, setTab] = useState<"gastos" | "balance" | "stats" | "miembros" | "eventos" | "encuestas" | "deseos">("gastos")
   const [addOpen, setAddOpen] = useState(false)
   const [editExpense, setEditExpense] = useState<GroupExpense | null>(null)
   const [formSaving, setFormSaving] = useState(false)
@@ -1342,6 +1344,11 @@ function GroupDetail({
 
   return (
     <div className="space-y-4">
+      {/* Group Notes (Feature I) — ephemeral notes row */}
+      <div className="rounded-2xl border bg-card overflow-hidden -mb-2">
+        <GroupNotes groupId={group.id} members={group.members} />
+      </div>
+
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={onBack}>
@@ -1463,10 +1470,10 @@ function GroupDetail({
       {/* Tabs */}
       <div className="overflow-x-auto -mx-1 px-1">
         <div className="flex gap-1 rounded-xl bg-muted p-1 min-w-max">
-          {(["gastos", "balance", "stats", "miembros", "eventos", "encuestas"] as const).map((t) => (
+          {(["gastos", "balance", "stats", "miembros", "eventos", "encuestas", "deseos"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-medium capitalize transition-colors ${tab === t ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
-              {t === "stats" ? "Análisis" : t === "eventos" ? "Eventos" : t === "encuestas" ? "Encuestas" : t.charAt(0).toUpperCase() + t.slice(1)}
+              {t === "stats" ? "Análisis" : t === "eventos" ? "Eventos" : t === "encuestas" ? "Encuestas" : t === "deseos" ? "🎁 Deseos" : t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
         </div>
@@ -1783,6 +1790,13 @@ function GroupDetail({
       {/* ── Encuestas tab ── */}
       {tab === "encuestas" && (
         <GroupPolls groupId={group.id} members={group.members} />
+      )}
+
+      {/* ── Lista de deseos tab (Feature H) ── */}
+      {tab === "deseos" && (
+        <div className="rounded-2xl border bg-card p-4">
+          <GroupWishlist groupId={group.id} currency="USD" />
+        </div>
       )}
 
       {/* ── Add expense dialog ── */}

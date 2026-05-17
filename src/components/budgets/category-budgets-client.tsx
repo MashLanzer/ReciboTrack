@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
 import { Pencil, Check, X, Trash2 } from "lucide-react"
 import { toast } from "sonner"
+import { SnoozeControls } from "@/components/notifications/snooze-controls"
 
 function getProgressColor(pct: number): string {
   if (pct >= 90) return "[&>div]:bg-rose-500"
@@ -217,6 +218,10 @@ export function CategoryBudgetsClient() {
                       ? `Excedido por ${formatCurrency(spent - budget.amount, budget.currency)}`
                       : `Quedan ${formatCurrency(budget.amount - spent, budget.currency)}`}
                   </span>
+                </div>
+                {/* Snooze controls (Feature C) */}
+                <div className="flex justify-end pt-0.5">
+                  <SnoozeControls categoryId={cat.id} />
                 </div>
               </div>
             ) : (

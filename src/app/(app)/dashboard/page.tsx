@@ -18,6 +18,7 @@ import { GoalsWidget }        from "@/components/dashboard/goals-widget"
 import { MemoriesWidget }     from "@/components/dashboard/memories-widget"
 import { AnniversaryWidget }  from "@/components/dashboard/anniversary-widget"
 import { HighlightsWidget }   from "@/components/dashboard/highlights-widget"
+import { PinnedItemsBar }     from "@/components/dashboard/pinned-items-bar"
 import { useUIStore }         from "@/stores/ui-store"
 import { useAuth }            from "@/hooks/use-auth"
 import { cn }                 from "@/lib/utils"
@@ -96,6 +97,9 @@ export default function DashboardPage() {
         {/* Account badge */}
         <AccountBadge />
       </div>
+
+      {/* ── Pinned items bar (Feature J) ──────────────────────────────── */}
+      <PinnedItemsBar />
 
       {/* ── Alerts ────────────────────────────────────────────────────── */}
       <RecurringBanner />

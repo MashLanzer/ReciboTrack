@@ -5,9 +5,11 @@ import { format, differenceInDays } from "date-fns"
 import { es } from "date-fns/locale"
 import { useCategoryBudgets } from "@/hooks/use-category-budgets"
 import { useExpensesForMonth } from "@/hooks/use-expenses"
+import { useFlaggedExpenses } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
 import { useRecurring } from "@/hooks/use-recurring"
 import { toDate } from "@/lib/utils"
+import { isAlertSnoozed } from "@/lib/alert-snooze"
 
 /** Debounce key → only fire once per browser session per category / recurring item */
 function sessionFired(key: string): boolean {
@@ -36,11 +38,13 @@ export function BudgetAlertWatcher() {
   const year = now.getFullYear()
   const month = now.getMonth() + 1
   const monthStr = format(now, "yyyy-MM")
+  const today = format(now, "yyyy-MM-dd")
 
   const { data: budgets = [] } = useCategoryBudgets(monthStr)
   const { data: expenses = [] } = useExpensesForMonth(year, month)
   const { data: categories = [] } = useCategories()
   const { data: recurring = [] } = useRecurring()
+  const { data: flagged = [] } = useFlaggedExpenses()
 
   // Track what's already been processed this render cycle
   const processedRef = useRef(false)
@@ -61,6 +65,9 @@ export function BudgetAlertWatcher() {
 
         if (pct < 0.8) continue
 
+        // Check snooze (Feature C)
+        if (isAlertSnoozed(`budget:${budget.categoryId}`)) continue
+
         const cat = categories.find((c) => c.id === budget.categoryId)
         const catLabel = cat ? `${cat.icon} ${cat.name}` : budget.categoryId
         const pctDisplay = Math.round(pct * 100)
@@ -80,6 +87,21 @@ export function BudgetAlertWatcher() {
           )
         }
       }
+    }
+
+    // ── Feature E: Bookmark reminders (flagged > 5 days ago) ─────────────────
+    for (const e of flagged) {
+      if (!e.flaggedAt) continue
+      const flaggedDate = (e.flaggedAt as { toDate(): Date }).toDate()
+      const daysAgo = differenceInDays(now, flaggedDate)
+      if (daysAgo < 5) continue
+      if (isAlertSnoozed(`flag:${e.id}`)) continue
+      const remindKey = `flag-remind:${e.id}:${today}`
+      if (sessionFired(remindKey)) continue
+      fireNotification(
+        `🔖 Pendiente sin resolver`,
+        `${e.merchant} fue marcado hace ${daysAgo} día${daysAgo > 1 ? "s" : ""}`
+      )
     }
 
     // ── 2. Recurring expense due-soon alerts (within 2 days) ─────────────────
@@ -124,7 +146,7 @@ export function BudgetAlertWatcher() {
         `Te ha costado aprox. ${totalPaid.toFixed(2)} ${item.currency} en total.`
       )
     }
-  }, [budgets, expenses, categories, recurring, monthStr])
+  }, [budgets, expenses, categories, recurring, flagged, monthStr, today])
 
   void processedRef // suppress unused warning
 

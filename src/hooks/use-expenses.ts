@@ -268,3 +268,101 @@ export function useDeleteExpense() {
     },
   })
 }
+
+export function useArchiveExpense() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      if (!user) throw new Error("No autenticado")
+      const ref = doc(getFirebaseDb(), "users", user.uid, "expenses", id)
+      await updateDoc(ref, { archived: true, updatedAt: Timestamp.now() })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
+      queryClient.invalidateQueries({ queryKey: ["expenses-month", user?.uid] })
+      queryClient.invalidateQueries({ queryKey: ["expenses-archived", user?.uid] })
+    },
+  })
+}
+
+export function useUnarchiveExpense() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      if (!user) throw new Error("No autenticado")
+      const ref = doc(getFirebaseDb(), "users", user.uid, "expenses", id)
+      await updateDoc(ref, { archived: false, updatedAt: Timestamp.now() })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
+      queryClient.invalidateQueries({ queryKey: ["expenses-month", user?.uid] })
+      queryClient.invalidateQueries({ queryKey: ["expenses-archived", user?.uid] })
+    },
+  })
+}
+
+export function useArchivedExpenses() {
+  const { user } = useAuth()
+
+  return useQuery({
+    queryKey: ["expenses-archived", user?.uid],
+    enabled: !!user,
+    queryFn: async () => {
+      if (!user) return [] as Expense[]
+      const col = expensesCollection(user.uid)
+      const q = query(
+        col,
+        where("archived", "==", true),
+        orderBy("updatedAt", "desc")
+      )
+      const snap = await getDocs(q)
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
+    },
+  })
+}
+
+export function useFlagExpense() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, flagged }: { id: string; flagged: boolean }) => {
+      if (!user) throw new Error("No autenticado")
+      const ref = doc(getFirebaseDb(), "users", user.uid, "expenses", id)
+      if (flagged) {
+        await updateDoc(ref, { flagged: true, flaggedAt: Timestamp.now(), updatedAt: Timestamp.now() })
+      } else {
+        await updateDoc(ref, { flagged: false, flaggedAt: null, updatedAt: Timestamp.now() })
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
+      queryClient.invalidateQueries({ queryKey: ["expenses-period", user?.uid] })
+      queryClient.invalidateQueries({ queryKey: ["expenses-flagged", user?.uid] })
+    },
+  })
+}
+
+export function useFlaggedExpenses() {
+  const { user } = useAuth()
+
+  return useQuery({
+    queryKey: ["expenses-flagged", user?.uid],
+    enabled: !!user,
+    queryFn: async () => {
+      if (!user) return [] as Expense[]
+      const col = expensesCollection(user.uid)
+      const q = query(
+        col,
+        where("flagged", "==", true),
+        orderBy("flaggedAt", "desc")
+      )
+      const snap = await getDocs(q)
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
+    },
+  })
+}

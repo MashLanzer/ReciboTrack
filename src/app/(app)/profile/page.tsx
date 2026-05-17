@@ -35,6 +35,7 @@ import {
   Sheet, Webhook, ExternalLink, Link2Off, Send, RefreshCw,
 } from "lucide-react"
 import { AccentColorPicker } from "@/components/shared/accent-color-picker"
+import { TrustedCircleCard } from "@/components/profile/trusted-circle-card"
 import { PwaInstallButton } from "@/components/shared/pwa-install-button"
 import { PasskeySetupCard } from "@/components/auth/passkey-setup-card"
 import { format, startOfYear, endOfYear, getMonth, getDay } from "date-fns"
@@ -937,6 +938,9 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+
+      {/* ── Privacidad: Círculo de confianza (Feature G) ── */}
+      <TrustedCircleCard />
 
       {/* ── 4. Tu cuenta ── */}
       <Section title="Tu cuenta" icon={Shield}>
