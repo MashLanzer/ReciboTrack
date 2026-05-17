@@ -35,6 +35,8 @@ import {
   Sheet, Webhook, ExternalLink, Link2Off, Send, RefreshCw, Trophy, Zap, CreditCard,
 } from "lucide-react"
 import { AccentColorPicker } from "@/components/shared/accent-color-picker"
+import { useGoals } from "@/hooks/use-goals"
+import { useRoundupSettings, useSetRoundupSettings } from "@/hooks/use-roundup-settings"
 import { TrustedCircleCard } from "@/components/profile/trusted-circle-card"
 import { PwaInstallButton } from "@/components/shared/pwa-install-button"
 import { PasskeySetupCard } from "@/components/auth/passkey-setup-card"
@@ -223,6 +225,10 @@ export default function ProfilePage() {
   const updateSettings = useUpdateUserSettings()
   const { data: categories = [] } = useCategories()
   const { data: recurringData = [] } = useRecurring()
+  const { data: goals = [] } = useGoals()
+  const { data: roundupSettings } = useRoundupSettings()
+  const setRoundupSettings = useSetRoundupSettings()
+  const activeGoals = goals.filter(g => g.isActive && g.type === "saving")
   const { data: expenseData } = useExpenses({ page: 1 })
   const { theme, setTheme } = useTheme()
 
@@ -761,6 +767,36 @@ export default function ProfilePage() {
                 <span className="text-xs text-muted-foreground">de cada mes</span>
               </div>
             </SettingRow>
+
+            {/* Round-Ups */}
+            <div className="border-t pt-3 space-y-3">
+              <SettingRow
+                label="Round-Ups automaticos"
+                description="Redondea cada gasto y ahorra la diferencia en una meta"
+              >
+                <Toggle
+                  checked={roundupSettings?.roundupEnabled ?? false}
+                  onChange={(v) => setRoundupSettings.mutate({ roundupEnabled: v })}
+                />
+              </SettingRow>
+              {roundupSettings?.roundupEnabled && (
+                <SettingRow label="Meta para Round-Ups" description="Los redondeos se añaden a esta meta">
+                  <Select
+                    value={roundupSettings?.roundupGoalId ?? ""}
+                    onValueChange={(v) => setRoundupSettings.mutate({ roundupGoalId: v })}
+                  >
+                    <SelectTrigger className="w-40 h-8 text-xs">
+                      <SelectValue placeholder="Seleccionar meta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeGoals.map(g => (
+                        <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </SettingRow>
+              )}
+            </div>
           </>
         )}
       </Section>

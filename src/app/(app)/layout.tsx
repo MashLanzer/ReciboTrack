@@ -14,6 +14,7 @@ import { ReceiptScanner } from "@/components/receipt-scanner/receipt-scanner"
 import { QuickAddSheet } from "@/components/expenses/quick-add-sheet"
 import { AddIncomeDialog } from "@/components/income/add-income-dialog"
 import { GlobalExpenseEditDialog } from "@/components/expenses/global-expense-edit-dialog"
+import { RoundUpWatcher } from "@/components/expenses/round-up-watcher"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -31,6 +32,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <QuickAddSheet />
       <AddIncomeDialog />
       <GlobalExpenseEditDialog />
+      <RoundUpWatcher />
       <div className="flex flex-col min-h-screen">
         <TopNav />
         <UpdateBanner />

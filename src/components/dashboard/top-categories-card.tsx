@@ -7,6 +7,8 @@ import { ArrowRight } from "lucide-react"
 import { useExpenses } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
 import { useUIStore } from "@/stores/ui-store"
+import { useStarred, useToggleStarCategory } from "@/hooks/use-starred"
+import { StarButton } from "@/components/ui/star-button"
 import { formatCurrency, cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Expense } from "@/types"
@@ -32,6 +34,8 @@ const PALETTE_LIGHT = [
 export function TopCategoriesCard() {
   const now = new Date()
   const { activeAccount } = useUIStore()
+  const { data: starred } = useStarred()
+  const toggleStar = useToggleStarCategory()
   const { data: result, isLoading: expLoading } = useExpenses({
     startDate: startOfMonth(now),
     endDate: endOfMonth(now),
@@ -71,6 +75,7 @@ export function TopCategoriesCard() {
   if (topCats.length === 0) return null
 
   const maxAmount = topCats[0].amount
+  const starredCats = starred?.categories ?? []
 
   return (
     <div className="rounded-2xl border bg-card p-4 space-y-4">
@@ -90,7 +95,9 @@ export function TopCategoriesCard() {
 
       {/* Category rows */}
       <div className="space-y-3">
-        {topCats.map((cat, i) => (
+        {topCats.map((cat, i) => {
+          const isStarred = starredCats.includes(cat.id)
+          return (
           <div key={cat.id} className="space-y-1.5">
             <div className="flex items-center gap-2">
               <span className={cn(
@@ -99,7 +106,15 @@ export function TopCategoriesCard() {
               )}>
                 {cat.icon}
               </span>
-              <span className="text-xs font-semibold flex-1 truncate">{cat.label}</span>
+              <span className="text-xs font-semibold flex-1 truncate">
+                {cat.label}
+                {isStarred && <span className="ml-1 text-amber-500">⭐</span>}
+              </span>
+              <StarButton
+                isStarred={isStarred}
+                onToggle={() => toggleStar.mutate({ categoryId: cat.id, isStarred })}
+                size="sm"
+              />
               <span className="text-xs tabular-nums font-bold shrink-0">{formatCurrency(cat.amount)}</span>
               <span className="text-[10px] text-muted-foreground tabular-nums shrink-0 w-8 text-right">
                 {cat.pct.toFixed(0)}%
@@ -112,7 +127,8 @@ export function TopCategoriesCard() {
               />
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

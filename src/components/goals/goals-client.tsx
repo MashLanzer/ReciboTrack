@@ -66,7 +66,12 @@ function emptyForm() {
 
 // ─── Goal Card ────────────────────────────────────────────────────────────────
 
-function GoalCard({ goal }: { goal: Goal }) {
+// Extended Goal type to include optional dailyContribution field
+interface GoalWithDaily extends Goal {
+  dailyContribution?: number
+}
+
+function GoalCard({ goal }: { goal: GoalWithDaily }) {
   const updateProgress = useUpdateGoalProgress()
   const deleteGoal = useDeleteGoal()
   const updateGoal = useUpdateGoal()
@@ -74,6 +79,12 @@ function GoalCard({ goal }: { goal: Goal }) {
   const [aportarOpen, setAportarOpen] = useState(false)
   const [aportarAmount, setAportarAmount] = useState("")
   const [deleting, setDeleting] = useState(false)
+  const [aportMode, setAportMode] = useState<"single" | "daily">("single")
+  const [dailyInput, setDailyInput] = useState(() => {
+    if (goal.dailyContribution) return String(goal.dailyContribution)
+    if (goal.targetAmount > 0) return String(Math.max(1, Math.round(goal.targetAmount / 365 * 100) / 100))
+    return ""
+  })
 
   const pct = goal.targetAmount > 0
     ? Math.min((goal.currentAmount / goal.targetAmount) * 100, 100)
@@ -191,6 +202,16 @@ function GoalCard({ goal }: { goal: Goal }) {
           />
         </div>
 
+        {/* Daily contribution badge */}
+        {goal.dailyContribution && goal.dailyContribution > 0 && (
+          <div className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5">
+            <span className="text-sm">⚡</span>
+            <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
+              Aportando {formatCurrency(goal.dailyContribution, goal.currency)}/día
+            </span>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex gap-2 pt-1">
           {!isComplete && (
@@ -216,28 +237,104 @@ function GoalCard({ goal }: { goal: Goal }) {
           </Button>
         </div>
 
-        {/* Aportar inline input */}
+        {/* Aportar section */}
         {aportarOpen && (
-          <div className="flex gap-2 items-center pt-1">
-            <Input
-              type="number"
-              step="0.01"
-              min={0}
-              placeholder="0.00"
-              value={aportarAmount}
-              onChange={e => setAportarAmount(e.target.value)}
-              className="h-8 text-sm tabular-nums flex-1"
-              autoFocus
-              onKeyDown={e => { if (e.key === "Enter") handleAportar() }}
-            />
-            <Button
-              size="sm"
-              className="h-8 text-xs"
-              onClick={handleAportar}
-              disabled={updateProgress.isPending}
-            >
-              {updateProgress.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Añadir"}
-            </Button>
+          <div className="space-y-2 pt-1">
+            {/* Mode toggle */}
+            <div className="flex items-center gap-1 p-0.5 rounded-lg border bg-muted/50 text-xs w-fit">
+              <button
+                onClick={() => setAportMode("single")}
+                className={cn(
+                  "px-2.5 py-1 rounded-md font-medium transition-colors",
+                  aportMode === "single"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Aporte unico
+              </button>
+              <button
+                onClick={() => setAportMode("daily")}
+                className={cn(
+                  "px-2.5 py-1 rounded-md font-medium transition-colors",
+                  aportMode === "daily"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Aporte diario
+              </button>
+            </div>
+
+            {aportMode === "single" && (
+              <div className="flex gap-2 items-center">
+                <Input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  placeholder="0.00"
+                  value={aportarAmount}
+                  onChange={e => setAportarAmount(e.target.value)}
+                  className="h-8 text-sm tabular-nums flex-1"
+                  autoFocus
+                  onKeyDown={e => { if (e.key === "Enter") handleAportar() }}
+                />
+                <Button
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={handleAportar}
+                  disabled={updateProgress.isPending}
+                >
+                  {updateProgress.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Añadir"}
+                </Button>
+              </div>
+            )}
+
+            {aportMode === "daily" && (() => {
+              const dailyAmt = parseFloat(dailyInput) || 0
+              const remaining = Math.max(goal.targetAmount - goal.currentAmount, 0)
+              const daysToGoal = dailyAmt > 0 ? Math.ceil(remaining / dailyAmt) : null
+              const monthlyEquiv = dailyAmt * 30
+
+              return (
+                <div className="space-y-2">
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min={0.01}
+                      placeholder="Cuanto por dia"
+                      value={dailyInput}
+                      onChange={e => setDailyInput(e.target.value)}
+                      className="h-8 text-sm tabular-nums flex-1"
+                    />
+                    <Button
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={async () => {
+                        if (!dailyAmt || dailyAmt <= 0) { toast.error("Importe invalido"); return }
+                        try {
+                          await updateGoal.mutateAsync({ id: goal.id, dailyContribution: dailyAmt } as Parameters<typeof updateGoal.mutateAsync>[0])
+                          toast.success(`Aporte diario de ${formatCurrency(dailyAmt, goal.currency)} activado`)
+                          setAportarOpen(false)
+                        } catch { toast.error("Error al activar") }
+                      }}
+                      disabled={updateGoal.isPending || !dailyAmt}
+                    >
+                      {updateGoal.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Activar"}
+                    </Button>
+                  </div>
+                  {dailyAmt > 0 && (
+                    <div className="rounded-lg bg-muted/40 px-3 py-2 space-y-0.5 text-xs text-muted-foreground">
+                      {daysToGoal !== null && (
+                        <p>En <strong className="text-foreground">{daysToGoal} dias</strong> alcanzaras tu meta</p>
+                      )}
+                      <p>Equivale a <strong className="text-foreground">{formatCurrency(monthlyEquiv, goal.currency)}/mes</strong></p>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         )}
       </div>
@@ -318,8 +415,8 @@ export function GoalsClient() {
   const [form, setForm] = useState(emptyForm())
   const [showCompleted, setShowCompleted] = useState(false)
 
-  const active = goals.filter(g => g.isActive)
-  const completed = goals.filter(g => !g.isActive)
+  const active = (goals as GoalWithDaily[]).filter(g => g.isActive)
+  const completed = (goals as GoalWithDaily[]).filter(g => !g.isActive)
 
   // Compute estimated surplus: budget - current month spend
   const monthTotal = useMemo(() => monthExpenses.reduce((s, e) => s + e.total, 0), [monthExpenses])

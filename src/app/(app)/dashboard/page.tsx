@@ -19,6 +19,7 @@ import { MemoriesWidget }     from "@/components/dashboard/memories-widget"
 import { AnniversaryWidget }  from "@/components/dashboard/anniversary-widget"
 import { HighlightsWidget }   from "@/components/dashboard/highlights-widget"
 import { PinnedItemsBar }     from "@/components/dashboard/pinned-items-bar"
+import { SwipeableFeed }      from "@/components/dashboard/swipeable-feed"
 import { useUIStore }         from "@/stores/ui-store"
 import { useAuth }            from "@/hooks/use-auth"
 import { cn }                 from "@/lib/utils"
@@ -72,10 +73,26 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+function useDashMode(): ["normal" | "quick", (m: "normal" | "quick") => void] {
+  const [mode, setModeState] = useState<"normal" | "quick">("normal")
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("rbt_dash_mode")
+      if (saved === "normal" || saved === "quick") setModeState(saved)
+    } catch { /* ignore */ }
+  }, [])
+  function setMode(m: "normal" | "quick") {
+    setModeState(m)
+    try { localStorage.setItem("rbt_dash_mode", m) } catch { /* ignore */ }
+  }
+  return [mode, setMode]
+}
+
 export default function DashboardPage() {
   const { user } = useAuth()
   const { setScannerOpen, setQuickAddOpen } = useUIStore()
   const [showAnalytics, setShowAnalytics] = useState(false)
+  const [dashMode, setDashMode] = useDashMode()
   const dateLabel = useMemo(() => format(new Date(), "EEEE d 'de' MMMM", { locale: es }), [])
 
   return (
@@ -100,6 +117,42 @@ export default function DashboardPage() {
 
       {/* ── Pinned items bar (Feature J) ──────────────────────────────── */}
       <PinnedItemsBar />
+
+      {/* ── Dashboard mode toggle ─────────────────────────────────────── */}
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-muted self-start">
+        <button
+          onClick={() => setDashMode("normal")}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+            dashMode === "normal"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Vista normal
+        </button>
+        <button
+          onClick={() => setDashMode("quick")}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+            dashMode === "quick"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Vista rapida
+        </button>
+      </div>
+
+      {/* ── Quick mode: swipeable feed ────────────────────────────────── */}
+      {dashMode === "quick" && (
+        <div className="space-y-2">
+          <SectionLabel>Vista rapida</SectionLabel>
+          <SwipeableFeed />
+        </div>
+      )}
+
+      {dashMode === "normal" && (<>
 
       {/* ── Alerts ────────────────────────────────────────────────────── */}
       <RecurringBanner />
@@ -182,6 +235,8 @@ export default function DashboardPage() {
           <DashboardStats />
         </div>
       )}
+
+      </>)} {/* END dashMode normal */}
 
     </div>
   )

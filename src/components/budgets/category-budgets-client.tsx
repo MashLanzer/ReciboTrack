@@ -4,10 +4,12 @@ import { useState, useRef, useMemo } from "react"
 import { useCategoryBudgets, useSetCategoryBudget, useDeleteCategoryBudget } from "@/hooks/use-category-budgets"
 import { useCategories } from "@/hooks/use-categories"
 import { useExpensesForMonth } from "@/hooks/use-expenses"
+import { useStarred, useToggleStarCategory } from "@/hooks/use-starred"
 import { formatCurrency, cn } from "@/lib/utils"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
+import { StarButton } from "@/components/ui/star-button"
 import { Pencil, Check, X, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { SnoozeControls } from "@/components/notifications/snooze-controls"
@@ -34,6 +36,8 @@ export function CategoryBudgetsClient() {
 
   const setBudget = useSetCategoryBudget()
   const deleteBudget = useDeleteCategoryBudget()
+  const { data: starred } = useStarred()
+  const toggleStar = useToggleStarCategory()
 
   // Map categoryId → budget
   const budgetMap = useMemo(() => {
@@ -55,6 +59,16 @@ export function CategoryBudgetsClient() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Starred categories float to top (must be before any early returns)
+  const starredCats = starred?.categories ?? []
+  const sortedCategories = useMemo(() => {
+    return [...categories].sort((a, b) => {
+      const aStarred = starredCats.includes(a.id) ? 0 : 1
+      const bStarred = starredCats.includes(b.id) ? 0 : 1
+      return aStarred - bStarred
+    })
+  }, [categories, starredCats])
 
   function startEdit(categoryId: string) {
     const existing = budgetMap.get(categoryId)
@@ -120,7 +134,7 @@ export function CategoryBudgetsClient() {
         <span className="text-xs text-muted-foreground font-mono">{month}</span>
       </div>
 
-      {categories.map((cat) => {
+      {sortedCategories.map((cat) => {
         const budget = budgetMap.get(cat.id)
         const spent = spendMap.get(cat.id) ?? 0
         const hasBudget = !!budget && budget.amount > 0
@@ -135,6 +149,11 @@ export function CategoryBudgetsClient() {
             {/* Row 1: icon + name + controls */}
             <div className="flex items-center gap-3">
               <span className="text-xl shrink-0 leading-none">{cat.icon}</span>
+              <StarButton
+                isStarred={starredCats.includes(cat.id)}
+                onToggle={() => toggleStar.mutate({ categoryId: cat.id, isStarred: starredCats.includes(cat.id) })}
+                size="sm"
+              />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{cat.name}</p>
                 <p className="text-xs text-muted-foreground tabular-nums">

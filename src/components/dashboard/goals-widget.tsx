@@ -6,10 +6,20 @@ import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { Target } from "lucide-react"
 
+interface GoalWithDaily {
+  id: string
+  name: string
+  isActive: boolean
+  currentAmount: number
+  targetAmount: number
+  currency: string
+  dailyContribution?: number
+}
+
 export function GoalsWidget() {
   const { data: goals = [], isLoading } = useGoals()
 
-  const active = goals.filter(g => g.isActive).slice(0, 3)
+  const active = (goals as GoalWithDaily[]).filter(g => g.isActive).slice(0, 3)
 
   if (isLoading || active.length === 0) return null
 
@@ -38,7 +48,14 @@ export function GoalsWidget() {
           return (
             <div key={goal.id} className="space-y-1">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-medium truncate">{goal.name}</p>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <p className="text-xs font-medium truncate">{goal.name}</p>
+                  {goal.dailyContribution && goal.dailyContribution > 0 && (
+                    <span className="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
+                      ⚡ {formatCurrency(goal.dailyContribution, goal.currency)}/d
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground tabular-nums shrink-0">
                   {pct.toFixed(0)}%
                 </p>

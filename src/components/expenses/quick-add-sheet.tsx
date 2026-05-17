@@ -17,7 +17,7 @@ import { toast } from "sonner"
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function QuickAddSheet() {
-  const { quickAddOpen, setQuickAddOpen } = useUIStore()
+  const { quickAddOpen, setQuickAddOpen, setRoundupExpense } = useUIStore()
   const { data: categories = [] } = useCategories()
   const addExpense = useAddExpense()
   const allCats = categories.length > 0 ? categories : DEFAULT_CATEGORIES
@@ -69,9 +69,11 @@ export function QuickAddSheet() {
       return
     }
     try {
-      await addExpense.mutateAsync({
+      const { Timestamp } = await import("firebase/firestore")
+      const expenseDate = new Date(form.date + "T12:00:00")
+      const id = await addExpense.mutateAsync({
         merchant: form.merchant.trim(),
-        date: new Date(form.date + "T12:00:00"),
+        date: expenseDate,
         total: totalNum,
         subtotal: totalNum,
         tax: 0,
@@ -89,6 +91,29 @@ export function QuickAddSheet() {
         description: isOffline ? "Se sincronizará al reconectar" : undefined,
       })
       setQuickAddOpen(false)
+      // Trigger round-up prompt if total is not a whole number
+      const diff = Math.ceil(totalNum) - totalNum
+      if (diff > 0 && typeof id === "string") {
+        const now = Timestamp.now()
+        setRoundupExpense({
+          id,
+          merchant: form.merchant.trim(),
+          date: Timestamp.fromDate(expenseDate),
+          total: totalNum,
+          subtotal: totalNum,
+          tax: 0,
+          category: form.category,
+          currency: form.currency,
+          notes: form.notes.trim(),
+          paymentMethod: null,
+          reference: null,
+          tags: [],
+          items: [],
+          receiptImageUrl: null,
+          createdAt: now,
+          updatedAt: now,
+        })
+      }
     } catch {
       toast.error("Error al guardar")
     }

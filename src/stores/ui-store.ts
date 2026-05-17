@@ -15,6 +15,7 @@ interface UIStore {
   sharedFile: File | null
   commandOpen: boolean
   activeAccount: ActiveAccount
+  roundupExpense: Expense | null
   setScannerOpen: (open: boolean) => void
   setQuickAddOpen: (open: boolean) => void
   setIncomeAddOpen: (open: boolean) => void
@@ -23,6 +24,7 @@ interface UIStore {
   setSharedFile: (file: File | null) => void
   setCommandOpen: (open: boolean) => void
   setActiveAccount: (account: ActiveAccount) => void
+  setRoundupExpense: (expense: Expense | null) => void
 }
 
 export const useUIStore = create<UIStore>()(
@@ -36,6 +38,7 @@ export const useUIStore = create<UIStore>()(
       sharedFile: null,
       commandOpen: false,
       activeAccount: "personal",
+      roundupExpense: null,
       setScannerOpen: (open) => set({ scannerOpen: open }),
       setQuickAddOpen: (open) => set({ quickAddOpen: open }),
       setIncomeAddOpen: (open) => set({ incomeAddOpen: open }),
@@ -44,6 +47,7 @@ export const useUIStore = create<UIStore>()(
       setSharedFile: (file) => set({ sharedFile: file }),
       setCommandOpen: (open) => set({ commandOpen: open }),
       setActiveAccount: (account) => set({ activeAccount: account }),
+      setRoundupExpense: (expense) => set({ roundupExpense: expense }),
     }),
     {
       name: "recibotrack-ui",

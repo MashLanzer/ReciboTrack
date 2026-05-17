@@ -27,6 +27,7 @@ import { ShareSummary } from "@/components/expenses/share-summary"
 import { FinancialHealth } from "@/components/analytics/financial-health"
 import { AiMonthlySummary } from "@/components/analytics/ai-monthly-summary"
 import { AiSuggestions } from "@/components/analytics/ai-suggestions"
+import { TimeTravelSelector } from "@/components/analytics/time-travel-selector"
 
 // Lazy-loaded — only mounted when their tab is selected
 const CategoryTrend   = lazy(() => import("@/components/analytics/category-trend").then(m => ({ default: m.CategoryTrend })))
@@ -38,6 +39,8 @@ const SankeyChart     = lazy(() => import("@/components/analytics/sankey-chart")
 const MerchantTracker = lazy(() => import("@/components/analytics/merchant-tracker").then(m => ({ default: m.MerchantTracker })))
 // Finanzas tab
 const PersonalPL       = lazy(() => import("@/components/analytics/personal-pl").then(m => ({ default: m.PersonalPL })))
+const CitySpendingMap  = lazy(() => import("@/components/analytics/city-spending-map").then(m => ({ default: m.CitySpendingMap })))
+const BudgetOptimizer  = lazy(() => import("@/components/analytics/budget-optimizer").then(m => ({ default: m.BudgetOptimizer })))
 const CashFlowChart    = lazy(() => import("@/components/analytics/cash-flow-chart").then(m => ({ default: m.CashFlowChart })))
 const AdvancedChart    = lazy(() => import("@/components/analytics/advanced-chart").then(m => ({ default: m.AdvancedChart })))
 const SpendingTimeline = lazy(() => import("@/components/analytics/spending-timeline").then(m => ({ default: m.SpendingTimeline })))
@@ -111,6 +114,12 @@ export default function AnalyticsPage() {
 
   // 0 = current month, 1 = last month, …, 5 = 5 months ago
   const [selectedOffset, setSelectedOffset] = useState(0)
+
+  // Time-travel analytics month (for the Resumen tab)
+  const [analyticsMonth, setAnalyticsMonth] = useState(() => {
+    const n = new Date()
+    return { year: n.getFullYear(), month: n.getMonth() }
+  })
 
   const [activeTab, setActiveTab] = useState<"resumen" | "metas" | "finanzas" | "informes">("resumen")
   const [goalDialog, setGoalDialog] = useState(false)
@@ -416,6 +425,18 @@ export default function AnalyticsPage() {
 
       {/* ════════════════════ TAB: RESUMEN ════════════════════ */}
       {activeTab === "resumen" && (<>
+
+      {/* ── Time travel selector ── */}
+      <TimeTravelSelector
+        year={analyticsMonth.year}
+        month={analyticsMonth.month}
+        onMonthChange={(y, m) => {
+          setAnalyticsMonth({ year: y, month: m })
+          const nowDate = new Date()
+          const offset = (nowDate.getFullYear() - y) * 12 + (nowDate.getMonth() - m)
+          if (offset >= 0 && offset <= 5) setSelectedOffset(offset)
+        }}
+      />
 
       {/* ── Resumen IA del mes ── */}
       <AiMonthlySummary
@@ -942,6 +963,12 @@ export default function AnalyticsPage() {
         }>
           {/* P&L estado de resultados */}
           <PersonalPL />
+
+          {/* Gastos por region */}
+          <CitySpendingMap expenses={all} />
+
+          {/* Budget optimizer */}
+          <BudgetOptimizer expenses={selected} />
 
           {/* Cash flow 6 meses */}
           <CashFlowChart />
