@@ -23,7 +23,7 @@ function expensesCollection(uid: string) {
   return collection(getFirebaseDb(), "users", uid, "expenses")
 }
 
-export type ExpenseSort = "date_desc" | "date_asc" | "amount_desc" | "amount_asc"
+export type ExpenseSort = "date_desc" | "date_asc" | "amount_desc" | "amount_asc" | "merchant_asc" | "merchant_desc" | "category_asc"
 
 export function useExpenses(filters?: {
   category?: string
@@ -103,6 +103,12 @@ export function useExpenses(filters?: {
         expenses = [...expenses].sort((a, b) => b.total - a.total)
       } else if (sort === "amount_asc") {
         expenses = [...expenses].sort((a, b) => a.total - b.total)
+      } else if (sort === "merchant_asc") {
+        expenses = [...expenses].sort((a, b) => a.merchant.localeCompare(b.merchant))
+      } else if (sort === "merchant_desc") {
+        expenses = [...expenses].sort((a, b) => b.merchant.localeCompare(a.merchant))
+      } else if (sort === "category_asc") {
+        expenses = [...expenses].sort((a, b) => a.category.localeCompare(b.category))
       }
       // date_desc: already ordered by Firestore
 

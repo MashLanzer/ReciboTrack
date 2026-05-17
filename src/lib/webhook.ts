@@ -3,7 +3,7 @@
  * Called client-side; errors are silently caught so they never block the user.
  */
 export interface WebhookPayload {
-  event:    "new_expense" | "budget_alert" | "test"
+  event:    "new_expense" | "budget_alert" | "test" | "automation"
   ts:       string            // ISO timestamp
   data:     Record<string, unknown>
 }

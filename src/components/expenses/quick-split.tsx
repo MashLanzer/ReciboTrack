@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { Plus, X, Copy, Share, Link2 } from "lucide-react"
+import { Plus, X, Copy, Share, Link2, QrCode } from "lucide-react"
 
 interface Person {
   name: string
@@ -19,6 +19,39 @@ interface Props {
   defaultUserName?: string
   initialAmount?: number
   initialDescription?: string
+}
+
+function QRModal({ url, label, onClose }: { url: string; label: string; onClose: () => void }) {
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(url)}&size=180x180`
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="rounded-2xl bg-card border p-6 space-y-4 max-w-xs w-full text-center"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-sm font-semibold truncate">QR · {label}</p>
+        <div className="flex items-center justify-center">
+          <img
+            src={qrSrc}
+            alt={`QR para ${label}`}
+            width={180}
+            height={180}
+            className="rounded-xl border"
+          />
+        </div>
+        <p className="text-[10px] text-muted-foreground break-all">{url}</p>
+        <button
+          onClick={onClose}
+          className="w-full rounded-xl border py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+        >
+          Cerrar
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function generatePayUrl(from: string, to: string, amount: number, concept: string, currency: string): string {
@@ -36,6 +69,7 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo", initialAmoun
     { name: "", customAmount: "" },
   ])
   const [mode, setMode] = useState<"equal" | "custom">("equal")
+  const [qrModal, setQrModal] = useState<{ url: string; label: string } | null>(null)
 
   const totalNum = Math.round((parseFloat(total) || 0) * 100) / 100
   const activePeople = people.filter((p) => p.name.trim())
@@ -116,6 +150,7 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo", initialAmoun
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose() }}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
@@ -264,12 +299,12 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo", initialAmoun
                   : Math.round((parseFloat(people.find(p => p.name === d.name)?.customAmount ?? "0") || 0) * 100) / 100
                 const url = generatePayUrl(d.name, payer.name, amount, description, "USD")
 
-                async function copyPayUrl() {
+                const copyPayUrl = async () => {
                   await navigator.clipboard.writeText(url)
                   toast.success(`Enlace de ${d.name} copiado`)
                 }
 
-                async function sharePayUrl() {
+                const sharePayUrl = async () => {
                   if (navigator.share) {
                     await navigator.share({ title: `Pago de ${description || "gasto"}`, text: `${d.name} te debe ${amount.toFixed(2)}`, url })
                   } else {
@@ -300,6 +335,14 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo", initialAmoun
                       <Share className="h-3 w-3" />
                       Compartir
                     </button>
+                    <button
+                      onClick={() => setQrModal({ url, label: d.name })}
+                      className="text-muted-foreground hover:text-foreground transition-colors shrink-0 flex items-center gap-1 text-[10px]"
+                      title="Ver QR"
+                    >
+                      <QrCode className="h-3 w-3" />
+                      QR
+                    </button>
                   </div>
                 )
               })}
@@ -308,5 +351,14 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo", initialAmoun
         </div>
       </DialogContent>
     </Dialog>
+
+    {qrModal && (
+      <QRModal
+        url={qrModal.url}
+        label={qrModal.label}
+        onClose={() => setQrModal(null)}
+      />
+    )}
+    </>
   )
 }

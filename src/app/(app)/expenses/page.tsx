@@ -2,6 +2,7 @@ import { Suspense } from "react"
 import { ExpenseList } from "@/components/expenses/expense-list"
 import { ExpenseCalendar } from "@/components/expenses/expense-calendar"
 import { ExpenseThreads } from "@/components/expenses/expense-threads"
+import { ExpenseGridView } from "@/components/expenses/expense-grid-view"
 import { FlaggedExpensesPanel } from "@/components/expenses/flagged-expenses-panel"
 import { ArchivedExpensesSection } from "@/components/expenses/archived-expenses-section"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -29,6 +30,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
   const view: ViewMode =
     rawView === "cal" ? "cal" :
     rawView === "threads" ? "threads" :
+    rawView === "grid" ? "grid" :
     "list"
 
   return (
@@ -57,6 +59,10 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
       ) : view === "threads" ? (
         <Suspense fallback={<ExpenseListFallback />}>
           <ExpenseThreads />
+        </Suspense>
+      ) : view === "grid" ? (
+        <Suspense fallback={<ExpenseListFallback />}>
+          <ExpenseGridView />
         </Suspense>
       ) : (
         <Suspense fallback={<ExpenseListFallback />}>

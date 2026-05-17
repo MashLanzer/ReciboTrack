@@ -28,7 +28,7 @@ import { FinancialHealth } from "@/components/analytics/financial-health"
 import { AiMonthlySummary } from "@/components/analytics/ai-monthly-summary"
 import { AiSuggestions } from "@/components/analytics/ai-suggestions"
 
-// Lazy-loaded — only mounted when the "Informes" tab is selected
+// Lazy-loaded — only mounted when their tab is selected
 const CategoryTrend   = lazy(() => import("@/components/analytics/category-trend").then(m => ({ default: m.CategoryTrend })))
 const YearComparison  = lazy(() => import("@/components/analytics/year-comparison").then(m => ({ default: m.YearComparison })))
 const YearProjection  = lazy(() => import("@/components/analytics/year-projection").then(m => ({ default: m.YearProjection })))
@@ -36,6 +36,13 @@ const MonthlyPrediction = lazy(() => import("@/components/analytics/monthly-pred
 const VATReport       = lazy(() => import("@/components/analytics/vat-report").then(m => ({ default: m.VATReport })))
 const SankeyChart     = lazy(() => import("@/components/analytics/sankey-chart").then(m => ({ default: m.SankeyChart })))
 const MerchantTracker = lazy(() => import("@/components/analytics/merchant-tracker").then(m => ({ default: m.MerchantTracker })))
+// Finanzas tab
+const PersonalPL       = lazy(() => import("@/components/analytics/personal-pl").then(m => ({ default: m.PersonalPL })))
+const CashFlowChart    = lazy(() => import("@/components/analytics/cash-flow-chart").then(m => ({ default: m.CashFlowChart })))
+const AdvancedChart    = lazy(() => import("@/components/analytics/advanced-chart").then(m => ({ default: m.AdvancedChart })))
+const SpendingTimeline = lazy(() => import("@/components/analytics/spending-timeline").then(m => ({ default: m.SpendingTimeline })))
+const AskFinance       = lazy(() => import("@/components/analytics/ask-finance").then(m => ({ default: m.AskFinance })))
+const ExpenseTypeGroups = lazy(() => import("@/components/analytics/expense-type-groups").then(m => ({ default: m.ExpenseTypeGroups })))
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
   CartesianGrid, Cell, LineChart, Line, Legend,
@@ -104,7 +111,7 @@ export default function AnalyticsPage() {
   // 0 = current month, 1 = last month, …, 5 = 5 months ago
   const [selectedOffset, setSelectedOffset] = useState(0)
 
-  const [activeTab, setActiveTab] = useState<"resumen" | "metas" | "informes">("resumen")
+  const [activeTab, setActiveTab] = useState<"resumen" | "metas" | "finanzas" | "informes">("resumen")
   const [goalDialog, setGoalDialog] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [progressDialog, setProgressDialog] = useState<{ id: string; current: number; name: string } | null>(null)
@@ -353,6 +360,7 @@ export default function AnalyticsPage() {
   const TABS = [
     { id: "resumen",  label: "Resumen" },
     { id: "metas",    label: "Metas" },
+    { id: "finanzas", label: "Finanzas" },
     { id: "informes", label: "Informes" },
   ] as const
 
@@ -919,6 +927,40 @@ export default function AnalyticsPage() {
           <SankeyChart />
           <MerchantTracker />
           <CategoryTrend />
+        </Suspense>
+      )}
+
+      {/* ════════════════════ TAB: FINANZAS ════════════════════ */}
+      {activeTab === "finanzas" && (
+        <Suspense fallback={
+          <div className="space-y-4">
+            {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-48 rounded-2xl" />)}
+          </div>
+        }>
+          {/* P&L estado de resultados */}
+          <PersonalPL />
+
+          {/* Cash flow 6 meses */}
+          <CashFlowChart />
+
+          {/* Advanced chart con indicadores */}
+          <AdvancedChart expenses={all} />
+
+          {/* Spending timeline */}
+          <SpendingTimeline expenses={all} days={30} />
+
+          {/* Expense type groups */}
+          <ExpenseTypeGroups expenses={all} categories={categories} />
+
+          {/* Ask Finance AI */}
+          <AskFinance
+            context={{
+              monthTotal: selectedTotal,
+              prevMonthTotal: comparedTotal,
+              topCategories: categoryComparison.slice(0, 5).map((c) => ({ name: c.name, total: c.current })),
+              savingsRate: undefined,
+            }}
+          />
         </Suspense>
       )}
 

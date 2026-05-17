@@ -32,12 +32,15 @@ import {
   User, Camera, Sun, Moon, Monitor, Download,
   LogOut, Trash2, Bell, Globe,
   Shield, Check, Loader2, AlertTriangle, BarChart3, Wallet, EyeOff,
-  Sheet, Webhook, ExternalLink, Link2Off, Send, RefreshCw,
+  Sheet, Webhook, ExternalLink, Link2Off, Send, RefreshCw, Trophy, Zap, CreditCard,
 } from "lucide-react"
 import { AccentColorPicker } from "@/components/shared/accent-color-picker"
 import { TrustedCircleCard } from "@/components/profile/trusted-circle-card"
 import { PwaInstallButton } from "@/components/shared/pwa-install-button"
 import { PasskeySetupCard } from "@/components/auth/passkey-setup-card"
+import { BudgetCardPreview } from "@/components/profile/budget-card-preview"
+import { TierCard } from "@/components/profile/tier-card"
+import { AchievementsGrid } from "@/components/profile/achievements-grid"
 import { format, startOfYear, endOfYear, getMonth, getDay } from "date-fns"
 import { es } from "date-fns/locale"
 import type { Expense } from "@/types"
@@ -226,6 +229,11 @@ export default function ProfilePage() {
   // Profile edit
   const [displayName, setDisplayName] = useState("")
   const [editingName, setEditingName] = useState(false)
+  const [handle, setHandle] = useState<string>(() => {
+    try { return localStorage.getItem("rt-handle") ?? "" } catch { return "" }
+  })
+  const [editingHandle, setEditingHandle] = useState(false)
+  const [handleInput, setHandleInput] = useState("")
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
 
@@ -289,6 +297,20 @@ export default function ProfilePage() {
     } catch {
       toast.error("Error al subir la imagen")
       setUploadProgress(null)
+    }
+  }
+
+  // ── Handle ($usuario) ─────────────────────────────────────────────────────
+  function handleSaveHandle() {
+    const cleaned = handleInput.trim().replace(/[^a-z0-9_]/gi, "").toLowerCase()
+    if (!cleaned) { toast.error("Handle inválido"); return }
+    try {
+      localStorage.setItem("rt-handle", cleaned)
+      setHandle(cleaned)
+      setEditingHandle(false)
+      toast.success(`Handle guardado: $${cleaned}`)
+    } catch {
+      toast.error("Error al guardar el handle")
     }
   }
 
@@ -501,6 +523,40 @@ export default function ProfilePage() {
           </div>
         )}
 
+        {/* Handle personal */}
+        <div className="border-t pt-3">
+          <SettingRow
+            label="Handle personal"
+            description="Tu identificador público, ej. $juan"
+          >
+            {editingHandle ? (
+              <div className="flex gap-2 items-center">
+                <span className="text-sm text-muted-foreground">$</span>
+                <Input
+                  value={handleInput}
+                  onChange={(e) => setHandleInput(e.target.value.replace(/[^a-z0-9_]/gi, "").toLowerCase())}
+                  onKeyDown={(e) => e.key === "Enter" && handleSaveHandle()}
+                  placeholder="tuhandle"
+                  className="h-7 text-xs w-28 font-mono"
+                  autoFocus
+                  maxLength={20}
+                />
+                <Button size="sm" className="h-7 text-xs px-2" onClick={handleSaveHandle}>
+                  <Check className="h-3 w-3" />
+                </Button>
+                <button onClick={() => setEditingHandle(false)} className="text-xs text-muted-foreground hover:text-foreground">✕</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setHandleInput(handle); setEditingHandle(true) }}
+                className="text-sm font-mono text-primary hover:underline underline-offset-2"
+              >
+                {handle ? `$${handle}` : <span className="text-muted-foreground text-xs">+ Añadir</span>}
+              </button>
+            )}
+          </SettingRow>
+        </div>
+
         {/* Password */}
         <div className="border-t pt-3">
           {isGoogleUser ? (
@@ -530,6 +586,33 @@ export default function ProfilePage() {
       {/* ── 2. Estadísticas personales ── */}
       <Section title="Mis estadísticas" icon={BarChart3}>
         <PersonalStats />
+      </Section>
+
+      {/* ── Presupuesto visual ── */}
+      <Section title="Presupuesto del mes" icon={CreditCard}>
+        <BudgetCardPreview />
+      </Section>
+
+      {/* ── Nivel / Tier ── */}
+      <Section title="Nivel y beneficios" icon={Zap}>
+        <TierCard totalExpenses={totalExpenses} />
+      </Section>
+
+      {/* ── Logros / Gamification ── */}
+      <Section title="Logros" icon={Trophy}>
+        <AchievementsGrid
+          input={{
+            totalExpenses,
+            totalGroups: 0,
+            totalGoals: 0,
+            completedGoals: 0,
+            recurringCount: recurringData.length,
+            hasExportedPDF: false,
+            hasWebhook: !!webhookUrl,
+            hasBudget: !!(settings?.monthlyBudget),
+            streakDays: 0,
+          }}
+        />
       </Section>
 
       {/* ── 3. Preferencias ── */}

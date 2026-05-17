@@ -80,6 +80,7 @@ export async function exportMonthlyPDF(
   categories: CategoryDoc[],
   monthDate: Date,
   prevTotal: number,
+  options?: { userName?: string; logoUrl?: string }
 ) {
   const { default: jsPDF } = await import("jspdf")
   const { default: autoTable } = await import("jspdf-autotable")
@@ -108,6 +109,12 @@ export async function exportMonthlyPDF(
   doc.setFontSize(10)
   doc.setFont("helvetica", "normal")
   doc.text(`Reporte mensual · ${monthLabelCap}`, margin, 20)
+
+  // User name badge (top-right corner of header)
+  if (options?.userName) {
+    doc.setFontSize(8)
+    doc.text(options.userName, pageW - margin, 12, { align: "right" })
+  }
 
   doc.setFontSize(8)
   doc.text(`Generado el ${format(new Date(), "dd/MM/yyyy HH:mm")}`, pageW - margin, 20, { align: "right" })

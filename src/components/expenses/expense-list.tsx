@@ -143,7 +143,7 @@ export function ExpenseList() {
   useEffect(() => {
     if (!searchParams.get("sort")) {
       const saved = localStorage.getItem("rt-expense-sort") as ExpenseSort | null
-      const valid: ExpenseSort[] = ["date_desc", "date_asc", "amount_desc", "amount_asc"]
+      const valid: ExpenseSort[] = ["date_desc", "date_asc", "amount_desc", "amount_asc", "merchant_asc", "merchant_desc", "category_asc"]
       if (saved && valid.includes(saved) && saved !== "date_desc") {
         setParams({ sort: saved })
       }
@@ -495,7 +495,7 @@ export function ExpenseList() {
               setParams({ sort: v === "date_desc" ? null : v })
             }}
           >
-            <SelectTrigger className={`h-8 w-36 text-xs ${sort !== "date_desc" ? "border-primary text-primary" : ""}`}>
+            <SelectTrigger className={`h-8 w-40 text-xs ${sort !== "date_desc" ? "border-primary text-primary" : ""}`}>
               <SelectValue placeholder="Ordenar" />
             </SelectTrigger>
             <SelectContent>
@@ -503,6 +503,9 @@ export function ExpenseList() {
               <SelectItem value="date_asc">Más antiguo</SelectItem>
               <SelectItem value="amount_desc">Mayor monto</SelectItem>
               <SelectItem value="amount_asc">Menor monto</SelectItem>
+              <SelectItem value="merchant_asc">Comercio A→Z</SelectItem>
+              <SelectItem value="merchant_desc">Comercio Z→A</SelectItem>
+              <SelectItem value="category_asc">Categoría A→Z</SelectItem>
             </SelectContent>
           </Select>
 

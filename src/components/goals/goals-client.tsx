@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import {
   useGoals,
   useAddGoal,
@@ -8,6 +8,9 @@ import {
   useDeleteGoal,
   useUpdateGoal,
 } from "@/hooks/use-goals"
+import { useUserSettings } from "@/hooks/use-user-settings"
+import { useExpensesPeriod } from "@/hooks/use-expenses"
+import { startOfMonth, endOfMonth } from "date-fns"
 import type { Goal, GoalType } from "@/hooks/use-goals"
 import { formatCurrency } from "@/lib/utils"
 import { CURRENCIES } from "@/lib/constants"
@@ -35,6 +38,8 @@ import {
   ChevronUp,
   Loader2,
   CheckCircle2,
+  TrendingUp,
+  PiggyBank,
 } from "lucide-react"
 import { differenceInDays, parseISO, isValid } from "date-fns"
 import { es } from "date-fns/locale"
@@ -240,10 +245,74 @@ function GoalCard({ goal }: { goal: Goal }) {
   )
 }
 
+// ─── Ahorra o Invierte prompt ─────────────────────────────────────────────────
+
+function AhorraOInvierte({ surplus }: { surplus: number }) {
+  if (surplus <= 0) return null
+
+  const tipsSave = [
+    "Coloca el excedente en una cuenta de ahorro de alta rentabilidad.",
+    "Crea un fondo de emergencia equivalente a 3–6 meses de gastos.",
+    "Amortiza deuda con mayor interés primero (método avalancha).",
+  ]
+  const tipsInvest = [
+    "Considera ETFs indexados de bajo coste (S&P 500, MSCI World).",
+    "Diversifica en bonos si tu horizonte es a corto plazo.",
+    "Contribuye al máximo de tu plan de pensiones antes de invertir en bolsa.",
+  ]
+
+  return (
+    <div className="rounded-2xl border bg-gradient-to-br from-primary/5 to-transparent p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <PiggyBank className="h-4 w-4 text-primary" />
+        <p className="text-sm font-semibold">¿Ahorra o invierte tu excedente?</p>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Este mes tienes un excedente estimado de{" "}
+        <span className="font-semibold text-foreground">{formatCurrency(surplus)}</span>.
+        Aquí tienes ideas:
+      </p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border bg-card p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <PiggyBank className="h-3.5 w-3.5 text-blue-500" />
+            <p className="text-xs font-semibold">Ahorra</p>
+          </div>
+          <ul className="space-y-1">
+            {tipsSave.map((t, i) => (
+              <li key={i} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-blue-400 shrink-0" />
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-xl border bg-card p-3 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <TrendingUp className="h-3.5 w-3.5 text-green-500" />
+            <p className="text-xs font-semibold">Invierte</p>
+          </div>
+          <ul className="space-y-1">
+            {tipsInvest.map((t, i) => (
+              <li key={i} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-green-400 shrink-0" />
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function GoalsClient() {
   const { data: goals = [], isLoading } = useGoals()
+  const { data: settings } = useUserSettings()
+  const now = useMemo(() => new Date(), [])
+  const { data: monthExpenses = [] } = useExpensesPeriod(startOfMonth(now), endOfMonth(now))
   const addGoal = useAddGoal()
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(emptyForm())
@@ -251,6 +320,14 @@ export function GoalsClient() {
 
   const active = goals.filter(g => g.isActive)
   const completed = goals.filter(g => !g.isActive)
+
+  // Compute estimated surplus: budget - current month spend
+  const monthTotal = useMemo(() => monthExpenses.reduce((s, e) => s + e.total, 0), [monthExpenses])
+  const surplus = useMemo(() => {
+    const budget = settings?.monthlyBudget
+    if (!budget) return 0
+    return Math.max(budget - monthTotal, 0)
+  }, [settings?.monthlyBudget, monthTotal])
 
   function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
 
@@ -302,6 +379,9 @@ export function GoalsClient() {
           Nueva meta
         </Button>
       </div>
+
+      {/* Ahorra o Invierte */}
+      <AhorraOInvierte surplus={surplus} />
 
       {/* Active goals */}
       {active.length === 0 && completed.length === 0 ? (
