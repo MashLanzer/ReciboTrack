@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useMemo } from "react"
 import { useSearchParams } from "next/navigation"
-import { ScanLine, Plus, BarChart2, ChevronDown, ChevronUp, Zap } from "lucide-react"
+import { ScanLine, Plus, BarChart2, ChevronDown, ChevronUp, Search } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -20,6 +20,7 @@ import { AnniversaryWidget }  from "@/components/dashboard/anniversary-widget"
 import { HighlightsWidget }   from "@/components/dashboard/highlights-widget"
 import { PinnedItemsBar }     from "@/components/dashboard/pinned-items-bar"
 import { SwipeableFeed }      from "@/components/dashboard/swipeable-feed"
+import { MonthlyRecapCard }   from "@/components/dashboard/monthly-recap-card"
 import { useUIStore }         from "@/stores/ui-store"
 import { useAuth }            from "@/hooks/use-auth"
 import { cn }                 from "@/lib/utils"
@@ -90,8 +91,10 @@ function useDashMode(): ["normal" | "quick", (m: "normal" | "quick") => void] {
 
 export default function DashboardPage() {
   const { user } = useAuth()
-  const { setScannerOpen, setQuickAddOpen } = useUIStore()
+  const { setScannerOpen, setQuickAddOpen, setCommandOpen } = useUIStore()
   const [showAnalytics, setShowAnalytics] = useState(false)
+  const [showRecap, setShowRecap] = useState(false)
+  const [showMemories, setShowMemories] = useState(false)
   const [dashMode, setDashMode] = useDashMode()
   const dateLabel = useMemo(() => format(new Date(), "EEEE d 'de' MMMM", { locale: es }), [])
 
@@ -114,9 +117,6 @@ export default function DashboardPage() {
         {/* Account badge */}
         <AccountBadge />
       </div>
-
-      {/* ── Pinned items bar (Feature J) ──────────────────────────────── */}
-      <PinnedItemsBar />
 
       {/* ── Dashboard mode toggle ─────────────────────────────────────── */}
       <div className="flex items-center gap-1 p-1 rounded-xl bg-muted self-start">
@@ -161,8 +161,15 @@ export default function DashboardPage() {
       {/* ── Hero balance ──────────────────────────────────────────────── */}
       <HeroBalanceCard />
 
-      {/* ── Memories widget ───────────────────────────────────────────── */}
-      <MemoriesWidget />
+      {/* ── Monthly recap (collapsible) ───────────────────────────────── */}
+      <button
+        onClick={() => setShowRecap(s => !s)}
+        className="w-full flex items-center justify-between rounded-2xl border border-dashed border-border px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-border/80 hover:bg-accent/30 transition-all"
+      >
+        <span>📊 Resumen del mes</span>
+        {showRecap ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+      {showRecap && <MonthlyRecapCard />}
 
       {/* ── Quick actions ─────────────────────────────────────────────── */}
       <div className="flex gap-3">
@@ -178,11 +185,14 @@ export default function DashboardPage() {
           onClick={() => setQuickAddOpen(true)}
         />
         <QuickBtn
-          icon={Zap}
-          label="Rápido"
-          onClick={() => setQuickAddOpen(true)}
+          icon={Search}
+          label="Buscar"
+          onClick={() => setCommandOpen(true)}
         />
       </div>
+
+      {/* ── Pinned items bar (Feature J) ──────────────────────────────── */}
+      <PinnedItemsBar />
 
       {/* ── KPI bento ─────────────────────────────────────────────────── */}
       <div className="space-y-2">
@@ -205,11 +215,21 @@ export default function DashboardPage() {
       {/* ── Goals widget ──────────────────────────────────────────────── */}
       <GoalsWidget />
 
-      {/* ── Highlights widget ─────────────────────────────────────────── */}
-      <HighlightsWidget />
-
-      {/* ── Anniversary widget ────────────────────────────────────────── */}
-      <AnniversaryWidget />
+      {/* ── 📅 Recuerdos y logros (collapsible) ─────────────────────────── */}
+      <button
+        onClick={() => setShowMemories(s => !s)}
+        className="w-full flex items-center justify-between rounded-2xl border border-dashed border-border px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-border/80 hover:bg-accent/30 transition-all"
+      >
+        <span>📅 Recuerdos y logros</span>
+        {showMemories ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+      {showMemories && (
+        <div className="space-y-3">
+          <MemoriesWidget />
+          <HighlightsWidget />
+          <AnniversaryWidget />
+        </div>
+      )}
 
       {/* ── Activity feed ─────────────────────────────────────────────── */}
       <div className="space-y-2">

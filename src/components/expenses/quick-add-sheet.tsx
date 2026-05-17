@@ -6,6 +6,8 @@ import { useCategories } from "@/hooks/use-categories"
 import { useUIStore } from "@/stores/ui-store"
 import { CategorySuggestion } from "@/components/shared/category-suggestion"
 import { DEFAULT_CATEGORIES, CURRENCIES } from "@/lib/constants"
+
+const PAYMENT_OPTIONS = ["Efectivo", "Débito", "Visa", "Mastercard", "American Express", "Transferencia", "PayPal", "Otro"]
 import { formatCurrency, cn } from "@/lib/utils"
 import { subMonths } from "date-fns"
 import { format } from "date-fns"
@@ -32,6 +34,8 @@ export function QuickAddSheet() {
     currency: "USD",
     date: today,
     notes: "",
+    paymentMethod: "",
+    tags: "",
   })
 
   // ── Known merchants from last 6 months (for datalist autocomplete) ──────────
@@ -48,7 +52,7 @@ export function QuickAddSheet() {
   // Reset and focus when opened
   useEffect(() => {
     if (quickAddOpen) {
-      setForm({ merchant: "", total: "", category: "otros", currency: "USD", date: today, notes: "" })
+      setForm({ merchant: "", total: "", category: "otros", currency: "USD", date: today, notes: "", paymentMethod: "", tags: "" })
       setTimeout(() => merchantRef.current?.focus(), 150)
     }
   }, [quickAddOpen, today])
@@ -80,9 +84,9 @@ export function QuickAddSheet() {
         category: form.category,
         currency: form.currency,
         notes: form.notes.trim(),
-        paymentMethod: null,
+        paymentMethod: form.paymentMethod || null,
         reference: null,
-        tags: [],
+        tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
         items: [],
         receiptImageUrl: null,
       })
@@ -105,9 +109,9 @@ export function QuickAddSheet() {
           category: form.category,
           currency: form.currency,
           notes: form.notes.trim(),
-          paymentMethod: null,
+          paymentMethod: form.paymentMethod || null,
           reference: null,
-          tags: [],
+          tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
           items: [],
           receiptImageUrl: null,
           createdAt: now,
@@ -125,13 +129,13 @@ export function QuickAddSheet() {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
+        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
         onClick={() => setQuickAddOpen(false)}
       />
 
-      {/* Sheet */}
-      <div className="fixed bottom-16 left-0 right-0 z-50 md:hidden animate-in slide-in-from-bottom-4 duration-200">
-        <div className="mx-3 mb-2 rounded-2xl border bg-background shadow-2xl overflow-hidden">
+      {/* Sheet — slides up from bottom on mobile, centered dialog on desktop */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 animate-in slide-in-from-bottom-4 duration-200 md:bottom-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-sm md:animate-none">
+        <div className="mx-3 mb-4 rounded-2xl border bg-background shadow-2xl overflow-hidden md:mx-0 md:mb-0">
           {/* Header */}
           <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b">
             <h2 className="text-sm font-semibold">Gasto rápido</h2>
@@ -226,6 +230,26 @@ export function QuickAddSheet() {
                 placeholder="Notas opcionales"
                 value={form.notes}
                 onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                className="h-9 text-sm flex-1"
+              />
+            </div>
+
+            {/* Payment method + Tags row */}
+            <div className="flex gap-2">
+              <select
+                value={form.paymentMethod}
+                onChange={(e) => setForm((f) => ({ ...f, paymentMethod: e.target.value }))}
+                className="h-9 flex-1 rounded-md border border-input bg-transparent px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="">Método de pago</option>
+                {PAYMENT_OPTIONS.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+              <Input
+                placeholder="Etiquetas (coma)"
+                value={form.tags}
+                onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
                 className="h-9 text-sm flex-1"
               />
             </div>

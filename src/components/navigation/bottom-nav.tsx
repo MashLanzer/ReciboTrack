@@ -18,7 +18,6 @@ import {
   X,
   Search,
   Users,
-  UsersRound,
   ScanLine,
   PenLine,
   TrendingUp,
@@ -315,17 +314,17 @@ export function BottomNav() {
           {/* Utility actions */}
           <div className="px-2 pb-2 grid grid-cols-4 gap-1.5">
             <Link
-              href="/groups"
+              href="/automations"
               onClick={() => setMoreOpen(false)}
               className={cn(
                 "flex flex-col items-center gap-1 py-2.5 rounded-xl transition-colors",
-                pathname === "/groups" || pathname.startsWith("/groups/")
+                pathname === "/automations" || pathname.startsWith("/automations/")
                   ? "text-primary bg-primary/10"
                   : "text-muted-foreground hover:text-foreground hover:bg-accent"
               )}
             >
-              <UsersRound className="h-[18px] w-[18px]" />
-              <span className="text-[10px] font-medium">Grupos</span>
+              <Zap className="h-[18px] w-[18px]" />
+              <span className="text-[10px] font-medium">Automatizar</span>
             </Link>
             <button
               onClick={() => { setMoreOpen(false); setSplitOpen(true) }}

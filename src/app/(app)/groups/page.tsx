@@ -28,6 +28,8 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
+import { GroupChecklists } from "@/components/groups/group-checklists"
+import { GroupFolders } from "@/components/groups/group-folders"
 import { CommentButton } from "@/components/groups/group-comments"
 import { AuditLogButton } from "@/components/groups/expense-audit-log"
 import { GroupEvents } from "@/components/groups/group-events"
@@ -1382,6 +1384,18 @@ function GroupDetail({
           })()}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          <Button size="sm" variant="outline" className="gap-1.5 h-8" onClick={async () => {
+            const url = `${window.location.origin}/join?code=${inviteCode}`
+            try {
+              await navigator.clipboard.writeText(url)
+              toast.success("🔗 Enlace copiado", { description: url })
+            } catch {
+              toast.error("No se pudo copiar el enlace")
+            }
+          }}>
+            <LinkIcon className="h-3.5 w-3.5" />
+            Compartir
+          </Button>
           <Button size="sm" className="gap-1.5 h-8" onClick={() => setAddOpen(true)}>
             <Plus className="h-3.5 w-3.5" />
             Añadir
@@ -1483,6 +1497,9 @@ function GroupDetail({
       {/* ── Gastos tab ── */}
       {tab === "gastos" && (
         <div className="space-y-3">
+          {/* Folders for grouping/filtering */}
+          <GroupFolders groupId={group.id} />
+
           {/* Search + filter bar */}
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -1617,7 +1634,7 @@ function GroupDetail({
                       </p>
                     )}
                   </div>
-                  <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all ml-1 shrink-0">
+                  <div className="flex flex-col gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all ml-1 shrink-0">
                     <CommentButton groupId={group.id} expenseId={e.id} expenseName={e.merchant} />
                     <AuditLogButton groupId={group.id} expenseId={e.id} merchant={e.merchant} />
                     {canEdit && (
@@ -1795,8 +1812,11 @@ function GroupDetail({
 
       {/* ── Lista de deseos tab (Feature H) ── */}
       {tab === "deseos" && (
-        <div className="rounded-2xl border bg-card p-4">
-          <GroupWishlist groupId={group.id} currency="USD" />
+        <div className="space-y-4">
+          <div className="rounded-2xl border bg-card p-4">
+            <GroupWishlist groupId={group.id} currency="USD" />
+          </div>
+          <GroupChecklists groupId={group.id} />
         </div>
       )}
 

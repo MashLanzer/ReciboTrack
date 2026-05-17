@@ -19,6 +19,7 @@ import {
   LayoutDashboard, Receipt, BarChart2, Users, RefreshCw,
   PiggyBank, Tag, ScanLine, Plus, Settings, X,
   ArrowRight, Search, Sun, Moon, TrendingUp, Briefcase,
+  Target, Plane, Zap,
 } from "lucide-react"
 
 // ─── Quick-search hook (last 150 expenses, cached 5 min) ─────────────────────
@@ -49,9 +50,12 @@ const NAV = [
   { label: "Ingresos",         href: "/income",     icon: TrendingUp,       keywords: "ingresos salario nomina balance" },
   { label: "Recurrentes",      href: "/recurring",  icon: RefreshCw,        keywords: "recurrentes suscripciones fijos" },
   { label: "Presupuestos",     href: "/budgets",    icon: PiggyBank,        keywords: "presupuestos limite mensual" },
-  { label: "Categorías",       href: "/categories", icon: Tag,              keywords: "categorias etiquetas" },
-  { label: "Proyectos",        href: "/projects",   icon: Briefcase,        keywords: "proyectos clientes trabajo" },
-  { label: "Perfil y ajustes", href: "/profile",    icon: Settings,         keywords: "perfil ajustes configuracion cuenta" },
+  { label: "Categorías",       href: "/categories",   icon: Tag,       keywords: "categorias etiquetas" },
+  { label: "Proyectos",        href: "/projects",     icon: Briefcase, keywords: "proyectos clientes trabajo" },
+  { label: "Metas",            href: "/goals",        icon: Target,    keywords: "metas objetivos ahorro meta" },
+  { label: "Viajes",           href: "/trips",        icon: Plane,     keywords: "viajes viaje trips vacaciones" },
+  { label: "Automatizaciones", href: "/automations",  icon: Zap,       keywords: "automatizaciones automaciones reglas" },
+  { label: "Perfil y ajustes", href: "/profile",      icon: Settings,  keywords: "perfil ajustes configuracion cuenta" },
 ]
 
 // ─── Main component ───────────────────────────────────────────────────────────
