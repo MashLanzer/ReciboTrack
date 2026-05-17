@@ -14,7 +14,7 @@ import {
   getDocs,
 } from "firebase/firestore"
 import { useEffect, useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation } from "@tanstack/react-query"
 import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
 

@@ -48,7 +48,7 @@ export function useExpenses(filters?: {
     placeholderData: keepPreviousData,  // #23 — keep previous page visible while next loads
     staleTime: 60_000,  // #23 — 1 minute stale time to avoid immediate refetch on back-nav
     queryFn: async () => {
-      if (!uid) return { expenses: [], total: 0 }
+      if (!uid) return { expenses: [], total: 0, allTags: [] as string[] }
 
       const col = expensesCollection(uid)
       let q = query(col, orderBy("date", "desc"))
