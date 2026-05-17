@@ -4,6 +4,7 @@ import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useProjects, useRenameProject, type ProjectSummary } from "@/hooks/use-projects"
 import { useCategories } from "@/hooks/use-categories"
+import { useProjectBudgets, useSetProjectBudget } from "@/hooks/use-project-budgets"
 import { DEFAULT_CATEGORIES } from "@/lib/constants"
 import { formatCurrency, cn } from "@/lib/utils"
 import { format, differenceInDays } from "date-fns"
@@ -11,6 +12,7 @@ import { es } from "date-fns/locale"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -26,9 +28,12 @@ import {
   Pencil,
   Calendar,
   TrendingUp,
+  Wallet,
+  AlertTriangle,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Progress } from "@/components/ui/progress"
 import { useExpensesPeriod } from "@/hooks/use-expenses"
 import { startOfMonth, subMonths, endOfMonth } from "date-fns"
 import type { Expense } from "@/types"
@@ -40,10 +45,14 @@ export default function ProjectsPage() {
   const { isLoading } = useExpensesPeriod(startOfMonth(subMonths(now, 5)), endOfMonth(now))
   const { projects, expenses } = useProjects()
   const { data: categories = [] } = useCategories()
+  const { data: budgets = {} } = useProjectBudgets()
+  const setBudget = useSetProjectBudget()
   const allCats = categories.length > 0 ? categories : DEFAULT_CATEGORIES
 
   const [selected, setSelected] = useState<string | null>(null)
   const [renameTarget, setRenameTarget] = useState<ProjectSummary | null>(null)
+  const [budgetTarget, setBudgetTarget] = useState<ProjectSummary | null>(null)
+  const [budgetInput, setBudgetInput] = useState("")
 
   const selectedProject = projects.find((p) => p.name === selected)
   const projectExpenses = useMemo(
@@ -95,13 +104,20 @@ export default function ProjectsPage() {
             project={selectedProject!}
             expenses={projectExpenses}
             allCats={allCats}
+            budget={budgets[selectedProject?.name ?? ""] ?? null}
+            onSetBudget={() => {
+              setBudgetTarget(selectedProject!)
+              setBudgetInput(String(budgets[selectedProject?.name ?? ""] ?? ""))
+            }}
           />
         ) : (
           <ListView
             projects={projects}
             allCats={allCats}
+            budgets={budgets}
             onSelect={setSelected}
             onRename={setRenameTarget}
+            onSetBudget={(p) => { setBudgetTarget(p); setBudgetInput(String(budgets[p.name] ?? "")) }}
           />
         )}
       </div>
@@ -117,6 +133,59 @@ export default function ProjectsPage() {
           }}
         />
       )}
+
+      {/* ── Budget dialog ─────────────────────────────────────────────── */}
+      {budgetTarget && (
+        <Dialog open onOpenChange={() => setBudgetTarget(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Wallet className="h-4 w-4" />
+                Presupuesto para "{budgetTarget.name}"
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <p className="text-sm text-muted-foreground">
+                Define un límite de gasto para este proyecto. Deja vacío para eliminar.
+              </p>
+              <div>
+                <Label className="text-xs mb-1 block">Presupuesto (0 = sin límite)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={10}
+                  value={budgetInput}
+                  onChange={(e) => setBudgetInput(e.target.value)}
+                  placeholder="Sin límite"
+                  className="tabular-nums"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBudgetTarget(null)}>Cancelar</Button>
+              <Button
+                onClick={async () => {
+                  const v = parseFloat(budgetInput)
+                  try {
+                    await setBudget.mutateAsync({
+                      projectName: budgetTarget.name,
+                      budget: isNaN(v) || v === 0 ? null : v,
+                    })
+                    toast.success("Presupuesto guardado")
+                    setBudgetTarget(null)
+                  } catch {
+                    toast.error("Error al guardar presupuesto")
+                  }
+                }}
+                disabled={setBudget.isPending}
+              >
+                Guardar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   )
 }
@@ -126,13 +195,17 @@ export default function ProjectsPage() {
 function ListView({
   projects,
   allCats,
+  budgets,
   onSelect,
   onRename,
+  onSetBudget,
 }: {
   projects: ProjectSummary[]
   allCats: { id: string; icon: string; name: string }[]
+  budgets: Record<string, number>
   onSelect: (name: string) => void
   onRename: (p: ProjectSummary) => void
+  onSetBudget: (p: ProjectSummary) => void
 }) {
   const maxTotal = projects[0]?.total ?? 1
 
@@ -191,26 +264,64 @@ function ListView({
                 </div>
               </div>
 
-              {/* Right: total + rename */}
+              {/* Right: total + actions */}
               <div className="flex items-center gap-2 shrink-0">
-                <p className="text-lg font-bold tabular-nums">{formatCurrency(p.total)}</p>
-                <button
-                  onClick={(ev) => { ev.stopPropagation(); onRename(p) }}
-                  className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-muted transition-all"
-                  aria-label="Renombrar proyecto"
-                >
-                  <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                </button>
+                <div className="text-right">
+                  <p className="text-lg font-bold tabular-nums">{formatCurrency(p.total)}</p>
+                  {budgets[p.name] && (
+                    <p className={cn(
+                      "text-[10px] tabular-nums",
+                      p.total > budgets[p.name] ? "text-destructive" : "text-muted-foreground"
+                    )}>
+                      {p.total > budgets[p.name] && "⚠ "}
+                      /{formatCurrency(budgets[p.name])}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(ev) => { ev.stopPropagation(); onSetBudget(p) }}
+                    className="p-1 rounded-lg hover:bg-muted transition-all"
+                    aria-label="Presupuesto"
+                  >
+                    <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+                  <button
+                    onClick={(ev) => { ev.stopPropagation(); onRename(p) }}
+                    className="p-1 rounded-lg hover:bg-muted transition-all"
+                    aria-label="Renombrar proyecto"
+                  >
+                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Progress bar */}
+            {/* Progress bar (vs max project) */}
             <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full bg-primary/70 transition-all"
                 style={{ width: `${pct}%` }}
               />
             </div>
+
+            {/* Budget bar */}
+            {budgets[p.name] && (
+              <div className="space-y-0.5">
+                <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all",
+                      p.total > budgets[p.name] ? "bg-destructive" : "bg-green-500/70"
+                    )}
+                    style={{ width: `${Math.min((p.total / budgets[p.name]) * 100, 100)}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Presupuesto: {Math.round((p.total / budgets[p.name]) * 100)}%
+                </p>
+              </div>
+            )}
           </button>
         )
       })}
@@ -275,10 +386,14 @@ function DetailView({
   project,
   expenses,
   allCats,
+  budget,
+  onSetBudget,
 }: {
   project: ProjectSummary
   expenses: Expense[]
   allCats: { id: string; icon: string; name: string }[]
+  budget: number | null
+  onSetBudget: () => void
 }) {
   if (!project) return null
 
@@ -332,6 +447,53 @@ function DetailView({
           </CardContent>
         </Card>
       </div>
+
+      {/* Budget card */}
+      <Card>
+        <CardContent className="p-4 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Wallet className="h-3.5 w-3.5" />
+              <span className="text-xs">Presupuesto</span>
+            </div>
+            <Button size="sm" variant="outline" className="h-6 text-xs gap-1 px-2" onClick={onSetBudget}>
+              <Pencil className="h-2.5 w-2.5" />
+              {budget ? "Cambiar" : "Definir"}
+            </Button>
+          </div>
+          {budget ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className={cn(
+                  "font-semibold tabular-nums",
+                  project.total > budget ? "text-destructive" : ""
+                )}>
+                  {formatCurrency(project.total)} / {formatCurrency(budget)}
+                </span>
+                <span className={cn(
+                  "tabular-nums",
+                  project.total > budget ? "text-destructive font-medium" : "text-muted-foreground"
+                )}>
+                  {Math.round((project.total / budget) * 100)}%
+                  {project.total > budget && " ⚠"}
+                </span>
+              </div>
+              <Progress
+                value={Math.min((project.total / budget) * 100, 100)}
+                className="h-2"
+              />
+              {project.total > budget && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Excedido por {formatCurrency(project.total - budget)}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">Sin presupuesto definido</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Category breakdown */}
       {catTotals.length > 0 && (

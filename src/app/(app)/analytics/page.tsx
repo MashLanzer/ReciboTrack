@@ -96,6 +96,7 @@ function DeltaBadge({ value }: { value: number }) {
 export default function AnalyticsPage() {
   const { data: all6 = [], isLoading } = use6MonthExpenses()
   const { activeAccount } = useUIStore()
+  const { user } = useAuth()
 
   const all = useMemo(() => {
     if (activeAccount === 'business') return all6.filter(e => e.account === 'business')
@@ -347,7 +348,9 @@ export default function AnalyticsPage() {
     if (selected.length === 0) { toast.info("No hay gastos en el mes seleccionado"); return }
     setPdfLoading(true)
     try {
-      await exportMonthlyPDF(selected, categories, selectedMonth, comparedTotal)
+      await exportMonthlyPDF(selected, categories, selectedMonth, comparedTotal, {
+        userName: user?.displayName ?? user?.email ?? undefined,
+      })
       toast.success("Reporte PDF descargado")
     } catch {
       toast.error("Error al generar el PDF")
