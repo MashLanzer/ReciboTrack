@@ -9,6 +9,7 @@ import { AccentColorProvider } from "@/components/shared/accent-color-provider"
 import { OfflineBanner } from "@/components/shared/offline-banner"
 import { AnomalyDetector } from "@/components/shared/anomaly-detector"
 import { CategoryLimitsWatcher } from "@/components/shared/category-limits-watcher"
+import { BudgetAlertWatcher } from "@/components/notifications/budget-alert-watcher"
 import { ReceiptScanner } from "@/components/receipt-scanner/receipt-scanner"
 import { QuickAddSheet } from "@/components/expenses/quick-add-sheet"
 import { AddIncomeDialog } from "@/components/income/add-income-dialog"
@@ -23,6 +24,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Onboarding />
       <AnomalyDetector />
       <CategoryLimitsWatcher />
+      <BudgetAlertWatcher />
       <CommandPalette />
       {/* Global overlays — scanner + quick-add + income available from any page */}
       <ReceiptScanner />
