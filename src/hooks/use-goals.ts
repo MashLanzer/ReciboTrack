@@ -90,3 +90,15 @@ export function useDeleteGoal() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["goals", user?.uid] }),
   })
 }
+
+export function useUpdateGoal() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<Goal> & { id: string }) => {
+      if (!user) throw new Error("No autenticado")
+      await updateDoc(doc(getFirebaseDb(), "users", user.uid, "goals", id), updates)
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["goals", user?.uid] }),
+  })
+}

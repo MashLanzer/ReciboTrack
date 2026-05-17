@@ -4,6 +4,7 @@ import { ExpenseCalendar } from "@/components/expenses/expense-calendar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ViewToggle } from "@/components/expenses/view-toggle"
 import { ShareSummary } from "@/components/expenses/share-summary"
+import { ImportStatementButton } from "@/components/expenses/import-statement-button"
 
 function ExpenseListFallback() {
   return (
@@ -31,6 +32,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
           <p className="text-sm text-muted-foreground mt-1">Historial de todos tus gastos</p>
         </div>
         <div className="flex items-center gap-2">
+          <ImportStatementButton />
           <ShareSummary />
           <ViewToggle current={view} />
         </div>

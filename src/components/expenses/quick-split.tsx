@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { Plus, X, Copy, Share } from "lucide-react"
+import { Plus, X, Copy, Share, Link2 } from "lucide-react"
 
 interface Person {
   name: string
@@ -17,11 +17,20 @@ interface Props {
   open: boolean
   onClose: () => void
   defaultUserName?: string
+  initialAmount?: number
+  initialDescription?: string
 }
 
-export function QuickSplit({ open, onClose, defaultUserName = "Yo" }: Props) {
-  const [total, setTotal] = useState("")
-  const [description, setDescription] = useState("")
+function generatePayUrl(from: string, to: string, amount: number, concept: string, currency: string): string {
+  const data = { from, to, amount, concept, currency }
+  const token = btoa(JSON.stringify(data))
+  const base = typeof window !== "undefined" ? window.location.origin : ""
+  return `${base}/pay/${token}`
+}
+
+export function QuickSplit({ open, onClose, defaultUserName = "Yo", initialAmount, initialDescription }: Props) {
+  const [total, setTotal] = useState(initialAmount ? String(initialAmount) : "")
+  const [description, setDescription] = useState(initialDescription ?? "")
   const [people, setPeople] = useState<Person[]>([
     { name: defaultUserName, customAmount: "" },
     { name: "", customAmount: "" },
@@ -99,8 +108,8 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo" }: Props) {
   }
 
   function handleClose() {
-    setTotal("")
-    setDescription("")
+    setTotal(initialAmount ? String(initialAmount) : "")
+    setDescription(initialDescription ?? "")
     setPeople([{ name: defaultUserName, customAmount: "" }, { name: "", customAmount: "" }])
     setMode("equal")
     onClose()
@@ -240,6 +249,61 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo" }: Props) {
               <Share className="h-4 w-4" />
               Compartir resumen
             </Button>
+          )}
+
+          {/* Payment links per debtor */}
+          {activePeople.length >= 2 && totalNum > 0 && payer && (
+            <div className="border rounded-xl p-3 space-y-2 bg-muted/20">
+              <p className="text-xs font-medium flex items-center gap-1.5">
+                <Link2 className="h-3.5 w-3.5" />
+                Enlace de cobro por persona
+              </p>
+              {debtors.filter(d => d.name.trim()).map((d, i) => {
+                const amount = mode === "equal"
+                  ? equalShare
+                  : Math.round((parseFloat(people.find(p => p.name === d.name)?.customAmount ?? "0") || 0) * 100) / 100
+                const url = generatePayUrl(d.name, payer.name, amount, description, "USD")
+
+                async function copyPayUrl() {
+                  await navigator.clipboard.writeText(url)
+                  toast.success(`Enlace de ${d.name} copiado`)
+                }
+
+                async function sharePayUrl() {
+                  if (navigator.share) {
+                    await navigator.share({ title: `Pago de ${description || "gasto"}`, text: `${d.name} te debe ${amount.toFixed(2)}`, url })
+                  } else {
+                    await navigator.clipboard.writeText(url)
+                    toast.success("Enlace copiado")
+                  }
+                }
+
+                return (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate">{d.name}</p>
+                      <p className="text-[10px] text-muted-foreground tabular-nums">{amount.toFixed(2)}</p>
+                    </div>
+                    <button
+                      onClick={copyPayUrl}
+                      className="text-muted-foreground hover:text-foreground transition-colors shrink-0 flex items-center gap-1 text-[10px]"
+                      title="Copiar enlace"
+                    >
+                      <Copy className="h-3 w-3" />
+                      Copiar
+                    </button>
+                    <button
+                      onClick={sharePayUrl}
+                      className="text-muted-foreground hover:text-foreground transition-colors shrink-0 flex items-center gap-1 text-[10px]"
+                      title="Compartir"
+                    >
+                      <Share className="h-3 w-3" />
+                      Compartir
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
           )}
         </div>
       </DialogContent>

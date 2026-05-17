@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react"
 import { useUpdateExpense, useExpensesPeriod } from "@/hooks/use-expenses"
+import { QuickSplit } from "./quick-split"
 import { useCategories } from "@/hooks/use-categories"
 import { useProjects } from "@/hooks/use-projects"
 import { PAYMENT_METHODS, CURRENCIES } from "@/lib/constants"
@@ -13,7 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { Loader2, Plus, X, ChevronDown, ChevronUp, ShoppingCart, AlertTriangle } from "lucide-react"
+import { Loader2, Plus, X, ChevronDown, ChevronUp, ShoppingCart, AlertTriangle, Split } from "lucide-react"
 import { format, subDays, addDays, isValid, parseISO } from "date-fns"
 import { formatCurrency } from "@/lib/utils"
 import { CategorySuggestion } from "@/components/shared/category-suggestion"
@@ -27,6 +28,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
   const { data: categories = [] } = useCategories()
   const { projectNames, expenses: allExpenses } = useProjects()
   const updateExpense = useUpdateExpense()
+  const [splitOpen, setSplitOpen] = useState(false)
 
   const [form, setForm] = useState({
     merchant: "", date: "", total: "", subtotal: "", tax: "",
@@ -375,6 +377,15 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
 
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => setSplitOpen(true)}
+            >
+              <Split className="h-4 w-4" />
+              Dividir
+            </Button>
             <Button type="submit" disabled={updateExpense.isPending}>
               {updateExpense.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               Guardar
@@ -382,6 +393,12 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
           </DialogFooter>
         </form>
       </DialogContent>
+      <QuickSplit
+        open={splitOpen}
+        onClose={() => setSplitOpen(false)}
+        initialAmount={parseFloat(form.total) || undefined}
+        initialDescription={form.merchant || undefined}
+      />
     </Dialog>
   )
 }

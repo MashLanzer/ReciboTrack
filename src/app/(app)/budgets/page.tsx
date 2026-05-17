@@ -1,5 +1,6 @@
+import Link from "next/link"
+import { ArrowRight } from "lucide-react"
 import { BudgetOverview } from "@/components/dashboard/budget-overview"
-import { TravelBudgets } from "@/components/dashboard/travel-budgets"
 
 export default function BudgetsPage() {
   return (
@@ -10,7 +11,18 @@ export default function BudgetsPage() {
       </div>
       <BudgetOverview />
       <div className="border-t pt-6">
-        <TravelBudgets />
+        <Link href="/trips">
+          <div className="flex items-center justify-between rounded-2xl border p-4 hover:bg-accent/40 transition-colors cursor-pointer">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">✈️</span>
+              <div>
+                <p className="font-semibold">Viajes y eventos</p>
+                <p className="text-sm text-muted-foreground">Presupuestos por viaje</p>
+              </div>
+            </div>
+            <ArrowRight className="h-5 w-5 text-muted-foreground" />
+          </div>
+        </Link>
       </div>
     </div>
   )

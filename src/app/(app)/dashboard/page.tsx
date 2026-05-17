@@ -14,6 +14,7 @@ import { ActivityFeed }       from "@/components/dashboard/activity-feed"
 import { DashboardStats }     from "@/components/dashboard/dashboard-stats"
 import { MultiCurrencyBanner } from "@/components/dashboard/multicurrency-banner"
 import { RecurringBanner }    from "@/components/expenses/recurring-banner"
+import { GoalsWidget }        from "@/components/dashboard/goals-widget"
 import { useUIStore }         from "@/stores/ui-store"
 import { useAuth }            from "@/hooks/use-auth"
 import { cn }                 from "@/lib/utils"
@@ -137,6 +138,9 @@ export default function DashboardPage() {
         <SectionLabel>Distribución del mes</SectionLabel>
         <TopCategoriesCard />
       </div>
+
+      {/* ── Goals widget ──────────────────────────────────────────────── */}
+      <GoalsWidget />
 
       {/* ── Activity feed ─────────────────────────────────────────────── */}
       <div className="space-y-2">
