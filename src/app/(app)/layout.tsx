@@ -17,6 +17,7 @@ import { GlobalExpenseEditDialog } from "@/components/expenses/global-expense-ed
 import { RoundUpWatcher } from "@/components/expenses/round-up-watcher"
 import { AutomationWatcher } from "@/components/automations/automation-watcher"
 import { GeolocationWatcher } from "@/components/notifications/geolocation-watcher"
+import { PullToRefresh } from "@/components/shared/pull-to-refresh"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -40,6 +41,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex flex-col min-h-screen">
         <TopNav />
         <UpdateBanner />
+        <PullToRefresh />
         <main className="flex-1 pb-20 md:pb-0">
           {children}
         </main>
