@@ -238,15 +238,19 @@ export function KPIBento() {
 
   return (
     <div className="space-y-3">
-      {/* Row 1: Hoy + Racha */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Row 1: Hoy + Racha — stagger 0ms */}
+      <div className="grid grid-cols-2 gap-3 animate-[fadeSlideUp_0.35s_ease-out_0ms_both]">
         <TodayCell expenses30={expenses30} />
         <StreakCell expenses30={expenses30} />
       </div>
-      {/* Row 2: Semana */}
-      <WeekCompareCell expenses30={expenses30} />
-      {/* Row 3: Próximo recurrente (conditional) */}
-      <NextRecurringCell />
+      {/* Row 2: Semana — stagger 80ms */}
+      <div className="animate-[fadeSlideUp_0.35s_ease-out_80ms_both]">
+        <WeekCompareCell expenses30={expenses30} />
+      </div>
+      {/* Row 3: Próximo recurrente — stagger 160ms */}
+      <div className="animate-[fadeSlideUp_0.35s_ease-out_160ms_both]">
+        <NextRecurringCell />
+      </div>
     </div>
   )
 }
