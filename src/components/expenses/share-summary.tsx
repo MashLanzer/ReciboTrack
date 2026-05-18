@@ -277,12 +277,13 @@ export function ShareSummary({ className }: { className?: string }) {
     <>
       <Button
         variant="outline"
-        size="sm"
+        size="icon"
+        className={cn("h-9 w-9 shrink-0", className)}
         onClick={() => setOpen(true)}
-        className={cn("gap-2", className)}
+        title="Compartir resumen"
+        aria-label="Compartir resumen"
       >
         <Share2 className="h-4 w-4" />
-        Compartir resumen
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>

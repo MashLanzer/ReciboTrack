@@ -12,12 +12,13 @@ export function ImportStatementButton() {
     <>
       <Button
         variant="outline"
-        size="sm"
-        className="gap-1.5"
+        size="icon"
+        className="h-9 w-9 shrink-0"
         onClick={() => setOpen(true)}
+        title="Importar CSV"
+        aria-label="Importar CSV"
       >
         <Upload className="h-4 w-4" />
-        Importar CSV
       </Button>
       <ImportStatementDialog open={open} onClose={() => setOpen(false)} />
     </>
