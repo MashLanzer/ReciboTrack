@@ -72,6 +72,17 @@ export function ExpenseList() {
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const { activeAccount } = useUIStore()
 
+  // ── Swipe hint — shown once per session on the first row ────────────────
+  const [showSwipeHint, setShowSwipeHint] = useState(false)
+  useEffect(() => {
+    try {
+      if (!sessionStorage.getItem("rbt_swipe_hint_seen")) {
+        setShowSwipeHint(true)
+        sessionStorage.setItem("rbt_swipe_hint_seen", "1")
+      }
+    } catch { /* ignore */ }
+  }, [])
+
   // ── Compact mode (Feature 9) ─────────────────────────────────────────────
   const [compactMode, setCompactMode] = useState(false)
   useEffect(() => {
@@ -664,13 +675,13 @@ export function ExpenseList() {
             </div>
           )}
 
-          {Object.entries(grouped).map(([groupKey, items]) => {
+          {Object.entries(grouped).map(([groupKey, items], groupIdx) => {
             const groupTotal = items.reduce((acc, e) => acc + e.total, 0)
             // For category grouping, find the category to show its icon in the header
             const groupCat = groupBy === "cat" ? categories.find((c) => c.id === groupKey) : null
             return (
               <div key={groupKey}>
-                <div className="sticky top-14 md:top-14 z-10 flex items-center justify-between bg-background/95 backdrop-blur py-2 mb-2 border-b">
+                <div className="flex items-center justify-between py-2 mb-2 border-b">
                   <div className="flex items-center gap-2">
                     {groupCat && (
                       <span className="text-sm">{groupCat.icon}</span>
@@ -685,14 +696,16 @@ export function ExpenseList() {
                   <p className="text-xs tabular-nums font-semibold">{formatCurrency(groupTotal)}</p>
                 </div>
                 <div className="space-y-2">
-                  {items.map((expense) => {
+                  {items.map((expense, itemIdx) => {
                     const cat = categories.find((c) => c.id === expense.category)
+                    const isFirstRow = groupIdx === 0 && itemIdx === 0
                     return (
                       <SwipeableRow
                         key={expense.id}
                         onEdit={() => setEditExpense(expense)}
                         onDelete={() => handleDelete(expense.id)}
                         disabled={selectMode}
+                        showHint={showSwipeHint && isFirstRow && !selectMode}
                       >
                       <div
                         className={`flex items-center gap-3 ${compactMode ? "py-2.5" : "py-3"} px-1 rounded-lg transition-colors group cursor-pointer ${

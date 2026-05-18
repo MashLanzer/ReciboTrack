@@ -12,6 +12,8 @@ interface SwipeableRowProps {
   disabled?: boolean
   /** Píxeles mínimos para activar el swipe */
   threshold?: number
+  /** Play a one-shot swipe hint animation to show the row is swipeable */
+  showHint?: boolean
 }
 
 // Width of the delete-only zone (right side, red)
@@ -20,7 +22,7 @@ const DELETE_SNAP = 80
 // Width of the edit+delete zone when both actions are present
 const EDIT_DELETE_SNAP = 160
 
-export function SwipeableRow({ children, onEdit, onDelete, disabled = false, threshold = 60 }: SwipeableRowProps) {
+export function SwipeableRow({ children, onEdit, onDelete, disabled = false, threshold = 60, showHint = false }: SwipeableRowProps) {
   const startXRef = useRef<number | null>(null)
   const isDraggingRef = useRef(false)
   const [offset, setOffset] = useState(0)
@@ -130,6 +132,8 @@ export function SwipeableRow({ children, onEdit, onDelete, disabled = false, thr
         className={cn(
           "relative bg-background rounded-xl",
           revealed && "cursor-pointer select-none",
+          // One-shot hint animation only when not dragging and not revealed
+          showHint && !disabled && !revealed && offset === 0 && "swipe-hint-anim",
         )}
       >
         {children}
