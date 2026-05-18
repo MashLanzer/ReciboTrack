@@ -20,6 +20,7 @@ import { AnniversaryWidget }  from "@/components/dashboard/anniversary-widget"
 import { HighlightsWidget }   from "@/components/dashboard/highlights-widget"
 import { PinnedItemsBar }     from "@/components/dashboard/pinned-items-bar"
 import { SwipeableFeed }      from "@/components/dashboard/swipeable-feed"
+import { QuickStatsBlock, QuickRecentBlock } from "@/components/dashboard/quick-mode-extras"
 import { MonthlyRecapCard }   from "@/components/dashboard/monthly-recap-card"
 import { useUIStore }         from "@/stores/ui-store"
 import { useAuth }            from "@/hooks/use-auth"
@@ -144,11 +145,13 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* ── Quick mode: swipeable feed ────────────────────────────────── */}
+      {/* ── Quick mode: swipeable feed + extras ──────────────────────── */}
       {dashMode === "quick" && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           <SectionLabel>Vista rapida</SectionLabel>
           <SwipeableFeed />
+          <QuickStatsBlock />
+          <QuickRecentBlock />
         </div>
       )}
 
