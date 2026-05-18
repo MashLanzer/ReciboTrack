@@ -57,9 +57,12 @@ export function HeroBalanceCard() {
   const { data: expenses = [], isLoading: expLoading } = useExpensesForMonth(y, m)
   const deleteIncome = useDeleteIncome()
 
-  // Recurring carry-forward
+  // Previous month data (carry-forward + trend delta)
   const prevDate = subMonths(new Date(y, m - 1, 1), 1)
-  const { data: prevIncomeList = [] } = useIncome(prevDate.getFullYear(), prevDate.getMonth() + 1)
+  const prevY = prevDate.getFullYear()
+  const prevM = prevDate.getMonth() + 1
+  const { data: prevIncomeList = [] } = useIncome(prevY, prevM)
+  const { data: prevExpensesRaw = [] } = useExpensesForMonth(prevY, prevM)
   const addIncome = useAddIncome()
   const [carryLoading, setCarryLoading] = useState(false)
 
@@ -93,6 +96,24 @@ export function HeroBalanceCard() {
   const balance       = totalIncome - totalExpenses
   const spentPct      = totalIncome > 0 ? Math.min((totalExpenses / totalIncome) * 100, 100) : 0
   const isPositive    = balance >= 0
+
+  // ── Trend delta vs previous month ─────────────────────────────────────────
+  const prevFilteredExpenses = useMemo(() =>
+    prevExpensesRaw.filter(e =>
+      activeAccount === "business" ? e.account === "business" : !e.account || e.account === "personal"
+    ), [prevExpensesRaw, activeAccount]
+  )
+  const prevTotalExpenses = prevFilteredExpenses.reduce((s, e) => s + (e.total || 0), 0)
+  const prevTotalIncome   = prevIncomeList.reduce((s, i) => s + i.amount, 0)
+  const prevBalance       = prevTotalIncome - prevTotalExpenses
+  // Only show delta when prev month has any data
+  const hasPrevData       = prevTotalIncome > 0 || prevTotalExpenses > 0
+  const expenseDelta      = totalExpenses - prevTotalExpenses          // + = spent more
+  const expenseDeltaPct   = hasPrevData && prevTotalExpenses > 0
+    ? (expenseDelta / prevTotalExpenses) * 100
+    : null
+  const balanceDelta      = balance - prevBalance                      // + = better month
+  const prevMonthLabel    = format(prevDate, "MMMM", { locale: es })
 
   const monthLabel = format(new Date(y, m - 1), "MMMM yyyy", { locale: es })
 
@@ -166,6 +187,49 @@ export function HeroBalanceCard() {
                 ? `Ahorrando ${formatCurrency(balance)} este mes ✓`
                 : "Gastas más de lo que ingresas ⚠"}
             </p>
+          )}
+
+          {/* ── Trend delta badge ──────────────────────────────────── */}
+          {hasPrevData && expenseDeltaPct !== null && (
+            <div className="flex items-center justify-center pt-0.5 animate-[fadeSlideUp_0.4s_ease-out_0.1s_both]">
+              <span className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border",
+                expenseDelta <= 0
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                  : "bg-destructive/10 text-destructive border-destructive/20"
+              )}>
+                {/* Arrow icon inline to avoid import */}
+                <svg
+                  width="10" height="10" viewBox="0 0 10 10" fill="none"
+                  className={expenseDelta <= 0 ? "" : "rotate-180"}
+                  aria-hidden
+                >
+                  <path d="M5 8V2M2 5l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {Math.abs(expenseDeltaPct).toFixed(1)}%{" "}
+                {expenseDelta <= 0 ? "menos" : "más"} que en {prevMonthLabel}
+              </span>
+            </div>
+          )}
+          {/* If prev month exists but no expense data, show balance delta instead */}
+          {hasPrevData && expenseDeltaPct === null && prevTotalIncome > 0 && (
+            <div className="flex items-center justify-center pt-0.5 animate-[fadeSlideUp_0.4s_ease-out_0.1s_both]">
+              <span className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border",
+                balanceDelta >= 0
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                  : "bg-destructive/10 text-destructive border-destructive/20"
+              )}>
+                <svg
+                  width="10" height="10" viewBox="0 0 10 10" fill="none"
+                  className={balanceDelta >= 0 ? "" : "rotate-180"}
+                  aria-hidden
+                >
+                  <path d="M5 8V2M2 5l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {balanceDelta >= 0 ? "+" : ""}{formatCurrency(Math.abs(balanceDelta))} vs {prevMonthLabel}
+              </span>
+            </div>
           )}
         </div>
 

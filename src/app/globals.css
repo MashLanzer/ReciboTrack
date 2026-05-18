@@ -116,6 +116,12 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Generic fade + slide up (reusable micro-animation) ─────────────────── */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 main > * {
   animation: page-in 0.2s ease-out both;
 }
