@@ -90,6 +90,7 @@ export function useSubscriptionDetector() {
     for (const e of expenses) {
       const key = normalize(e.merchant)
       if (!key) continue
+      if (!e.date || typeof e.date.toDate !== "function") continue
       const date = startOfDay(e.date.toDate())
       if (!groups.has(key)) {
         groups.set(key, { dates: [], amounts: [], category: e.category, currency: e.currency })
