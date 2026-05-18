@@ -23,6 +23,7 @@ import {
   TrendingUp,
   Plus,
   Zap,
+  ArrowLeftRight,
 } from "lucide-react"
 import { AccountSwitcher } from "@/components/shared/account-switcher"
 import { useUIStore } from "@/stores/ui-store"
@@ -314,23 +315,23 @@ export function BottomNav() {
           {/* Utility actions */}
           <div className="px-2 pb-2 grid grid-cols-4 gap-1.5">
             <Link
-              href="/automations"
+              href="/groups"
               onClick={() => setMoreOpen(false)}
               className={cn(
                 "flex flex-col items-center gap-1 py-2.5 rounded-xl transition-colors",
-                pathname === "/automations" || pathname.startsWith("/automations/")
+                pathname === "/groups" || pathname.startsWith("/groups/")
                   ? "text-primary bg-primary/10"
                   : "text-muted-foreground hover:text-foreground hover:bg-accent"
               )}
             >
-              <Zap className="h-[18px] w-[18px]" />
-              <span className="text-[10px] font-medium">Automatizar</span>
+              <Users className="h-[18px] w-[18px]" />
+              <span className="text-[10px] font-medium">Grupos</span>
             </Link>
             <button
               onClick={() => { setMoreOpen(false); setSplitOpen(true) }}
               className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
-              <Users className="h-[18px] w-[18px]" />
+              <ArrowLeftRight className="h-[18px] w-[18px]" />
               <span className="text-[10px] font-medium">Dividir</span>
             </button>
             <button
