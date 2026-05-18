@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "firebase/auth"
@@ -43,6 +43,25 @@ export function BottomNav() {
   const [actionOpen, setActionOpen] = useState(false)
   const [splitOpen, setSplitOpen] = useState(false)
   const [loadingId, setLoadingId] = useState<string | null>(null)
+
+  // ── Animation tracking: detect which tab just became active ───────────────
+  const [animatingHref, setAnimatingHref] = useState<string | null>(null)
+  const prevPathnameRef = useRef<string>(pathname)
+
+  useEffect(() => {
+    if (prevPathnameRef.current === pathname) return
+    prevPathnameRef.current = pathname
+
+    // Find which primary nav item just became active
+    const nowActive = NAV_ITEMS.find(
+      ({ href }) => pathname === href || pathname.startsWith(href + "/")
+    )
+    if (nowActive) {
+      setAnimatingHref(nowActive.href)
+      const t = setTimeout(() => setAnimatingHref(null), 450)
+      return () => clearTimeout(t)
+    }
+  }, [pathname])
 
   const { data: quickExpenses = [] } = useQuickExpenses()
   const deleteQuick = useDeleteQuickExpense()
@@ -326,17 +345,32 @@ export function BottomNav() {
           <div className="flex flex-1 items-center justify-around">
             {NAV_ITEMS.slice(0, 2).map(({ href, label, icon: Icon }) => {
               const active = pathname === href || pathname.startsWith(href + "/")
+              const justActivated = animatingHref === href
               return (
                 <Link
                   key={href}
                   href={href}
                   className={cn(
-                    "flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors min-w-[56px]",
+                    "relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors min-w-[56px]",
                     active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Icon className={cn("h-5 w-5", active && "stroke-[2.5]")} />
-                  <span className="text-[10px] font-medium">{label}</span>
+                  <Icon className={cn(
+                    "h-5 w-5 transition-none",
+                    active && "stroke-[2.5]",
+                    justActivated && "nav-icon-pop"
+                  )} />
+                  <span className={cn(
+                    "text-[10px] font-medium",
+                    justActivated && "nav-label-in"
+                  )}>{label}</span>
+                  {/* Active indicator dot */}
+                  {active && (
+                    <span className={cn(
+                      "absolute bottom-0.5 h-[3px] w-4 rounded-full bg-foreground origin-center",
+                      justActivated && "nav-dot-grow"
+                    )} />
+                  )}
                 </Link>
               )
             })}
@@ -348,12 +382,15 @@ export function BottomNav() {
               onClick={() => { setActionOpen((o) => !o); setMoreOpen(false) }}
               aria-label="Añadir"
               className={cn(
-                "flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200",
+                "flex h-14 w-14 items-center justify-center rounded-full shadow-lg",
                 "bg-primary text-primary-foreground",
-                actionOpen && "rotate-45 scale-90"
+                "transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+                actionOpen
+                  ? "rotate-45 scale-90 shadow-md"
+                  : "rotate-0 scale-100 active:scale-90"
               )}
             >
-              <Plus className="h-6 w-6" />
+              <Plus className="h-6 w-6 transition-transform duration-300" />
             </button>
           </div>
 
@@ -361,17 +398,31 @@ export function BottomNav() {
           <div className="flex flex-1 items-center justify-around">
             {NAV_ITEMS.slice(2, 3).map(({ href, label, icon: Icon }) => {
               const active = pathname === href || pathname.startsWith(href + "/")
+              const justActivated = animatingHref === href
               return (
                 <Link
                   key={href}
                   href={href}
                   className={cn(
-                    "flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors min-w-[56px]",
+                    "relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors min-w-[56px]",
                     active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Icon className={cn("h-5 w-5", active && "stroke-[2.5]")} />
-                  <span className="text-[10px] font-medium">{label}</span>
+                  <Icon className={cn(
+                    "h-5 w-5 transition-none",
+                    active && "stroke-[2.5]",
+                    justActivated && "nav-icon-pop"
+                  )} />
+                  <span className={cn(
+                    "text-[10px] font-medium",
+                    justActivated && "nav-label-in"
+                  )}>{label}</span>
+                  {active && (
+                    <span className={cn(
+                      "absolute bottom-0.5 h-[3px] w-4 rounded-full bg-foreground origin-center",
+                      justActivated && "nav-dot-grow"
+                    )} />
+                  )}
                 </Link>
               )
             })}
@@ -380,7 +431,7 @@ export function BottomNav() {
             <button
               onClick={() => { setMoreOpen((o) => !o); setActionOpen(false) }}
               className={cn(
-                "flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors min-w-[56px] relative",
+                "relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors min-w-[56px]",
                 moreOpen || moreActive
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -389,8 +440,16 @@ export function BottomNav() {
               {moreActive && !moreOpen && (
                 <span className="absolute top-1.5 right-4 h-1.5 w-1.5 rounded-full bg-primary" />
               )}
-              <MoreHorizontal className={cn("h-5 w-5", (moreOpen || moreActive) && "stroke-[2.5]")} />
+              <MoreHorizontal className={cn(
+                "h-5 w-5 transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+                (moreOpen || moreActive) && "stroke-[2.5]",
+                moreOpen && "rotate-90"
+              )} />
               <span className="text-[10px] font-medium">Más</span>
+              {/* Active dot for Más when a "more" route is active */}
+              {moreActive && !moreOpen && (
+                <span className="absolute bottom-0.5 h-[3px] w-4 rounded-full bg-foreground origin-center" />
+              )}
             </button>
           </div>
         </div>
