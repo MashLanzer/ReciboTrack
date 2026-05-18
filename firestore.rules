@@ -218,6 +218,12 @@ service cloud.firestore {
         }
       }
 
+      // ── Carpetas del grupo (/groups/{groupId}/groupFolders/{folderId}) ────────
+      match /groupFolders/{folderId} {
+        allow read, list: if isAuth() && isMember(get(/databases/$(database)/documents/groups/$(groupId)).data);
+        allow create, update, delete: if isAuth() && isMember(get(/databases/$(database)/documents/groups/$(groupId)).data);
+      }
+
       // ── Subcolecciones adicionales del grupo (bets, checklists, …) ────────────
       match /{subcollection=**} {
         allow read, write: if isAuth() && isMember(get(/databases/$(database)/documents/groups/$(groupId)).data);

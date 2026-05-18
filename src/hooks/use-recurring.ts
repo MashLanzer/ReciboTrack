@@ -9,7 +9,6 @@ import {
   deleteDoc,
   doc,
   Timestamp,
-  where,
   getDocs,
 } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
@@ -42,12 +41,16 @@ export function useRecurring() {
   return useQuery({
     queryKey: ["recurring", user?.uid],
     enabled: !!user,
+    staleTime: 1000 * 60 * 2,
     queryFn: async () => {
       if (!user) return []
       const col = recurringCollection(user.uid)
-      const q = query(col, where("isActive", "==", true), orderBy("nextDueDate", "asc"))
+      // Single-field orderBy only — avoids composite index requirement
+      const q = query(col, orderBy("nextDueDate", "asc"))
       const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as RecurringTemplate)
+      return snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }) as RecurringTemplate)
+        .filter((t) => t.isActive !== false) // client-side active filter
     },
   })
 }
@@ -58,18 +61,17 @@ export function useDueRecurring() {
   return useQuery({
     queryKey: ["recurring-due", user?.uid],
     enabled: !!user,
+    staleTime: 1000 * 60 * 2,
     queryFn: async () => {
       if (!user) return []
       const col = recurringCollection(user.uid)
       const now = Timestamp.now()
-      const q = query(
-        col,
-        where("isActive", "==", true),
-        where("nextDueDate", "<=", now),
-        orderBy("nextDueDate", "asc")
-      )
+      // Single orderBy + client-side where — avoids composite index requirement
+      const q = query(col, orderBy("nextDueDate", "asc"))
       const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as RecurringTemplate)
+      return snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }) as RecurringTemplate)
+        .filter((t) => t.isActive !== false && t.nextDueDate.toMillis() <= now.toMillis())
     },
   })
 }

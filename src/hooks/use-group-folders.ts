@@ -26,7 +26,9 @@ export interface GroupFolder {
 }
 
 function foldersCol(groupId: string) {
-  return collection(getFirebaseDb(), "groups", groupId, "folders")
+  // NOTE: "folders" conflicts with Firebase v12 internal __list__ path.
+  // Using "groupFolders" as the subcollection name avoids this.
+  return collection(getFirebaseDb(), "groups", groupId, "groupFolders")
 }
 
 export function useGroupFolders(groupId: string | null) {

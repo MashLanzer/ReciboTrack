@@ -1681,9 +1681,9 @@ function GroupDetail({
                     </div>
                   </div>
 
-                  {/* Amount + menu */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <div className="text-right">
+                  {/* Amount + actions */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <div className="text-right mr-1">
                       <p className="tabular-nums text-sm font-bold">{formatCurrency(e.total, e.currency)}</p>
                       {e.splitType !== "full" && e.splitWith.length > 1 && (
                         <p className="text-[10px] text-muted-foreground tabular-nums">
@@ -1694,18 +1694,23 @@ function GroupDetail({
                       )}
                     </div>
 
-                    {/* Single ⋮ dropdown for all actions */}
+                    {/* Comment button — always visible on card */}
+                    <button
+                      onClick={() => setCommentExpense(e)}
+                      className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      title="Comentarios"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                    </button>
+
+                    {/* ⋮ dropdown: historial + editar + eliminar */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0">
+                        <button className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                           <MoreVertical className="h-4 w-4" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuItem onClick={() => setCommentExpense(e)}>
-                          <MessageCircle className="h-4 w-4" />
-                          Comentarios
-                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setAuditExpense(e)}>
                           <History className="h-4 w-4" />
                           Historial
