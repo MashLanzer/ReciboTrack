@@ -1388,6 +1388,27 @@ function GroupDetail({
 
   const myBalance = computeBalances(expenses, settlements, group.members)[currentUid] ?? 0
 
+  // ── Feature 10: Monthly totals strip ──────────────────────────────────────
+  const monthlyStats = useMemo(() => {
+    const currentMonthKey = format(new Date(), "yyyy-MM")
+    const thisMonthExpenses = expenses.filter((e) => {
+      const monthKey = format(e.date.toDate(), "yyyy-MM")
+      return monthKey === currentMonthKey
+    })
+    const totalThisMonth = thisMonthExpenses.reduce((sum, e) => sum + e.total, 0)
+    const countThisMonth = thisMonthExpenses.length
+    const myShareThisMonth = thisMonthExpenses
+      .filter((e) => e.splitWith?.includes(currentUid))
+      .reduce((sum, e) => {
+        if (e.splitType === "custom" && e.customShares?.[currentUid] != null) {
+          return sum + e.customShares[currentUid]
+        }
+        const splitCount = (e.splitWith?.length ?? 1) || 1
+        return sum + e.total / splitCount
+      }, 0)
+    return { totalThisMonth, countThisMonth, myShareThisMonth }
+  }, [expenses, currentUid])
+
   // Since date from first expense
   const sinceDate = useMemo(() => {
     if (expenses.length === 0) return null
@@ -1547,6 +1568,22 @@ function GroupDetail({
         <div className="space-y-3">
           {/* Notes efímeras del grupo */}
           <GroupNotes groupId={group.id} members={group.members} />
+
+          {/* ── Feature 10: Monthly summary strip ── */}
+          <div className="flex gap-3">
+            <div className="flex-1 rounded-xl bg-muted/50 px-3 py-2 text-center">
+              <p className="text-sm font-semibold tabular-nums">{formatCurrency(monthlyStats.totalThisMonth)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Total este mes</p>
+            </div>
+            <div className="flex-1 rounded-xl bg-muted/50 px-3 py-2 text-center">
+              <p className="text-sm font-semibold tabular-nums">{monthlyStats.countThisMonth}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Gastos este mes</p>
+            </div>
+            <div className="flex-1 rounded-xl bg-muted/50 px-3 py-2 text-center">
+              <p className="text-sm font-semibold tabular-nums">{formatCurrency(monthlyStats.myShareThisMonth)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Mi parte</p>
+            </div>
+          </div>
 
           {/* Search + filter bar */}
           <div className="flex gap-2">

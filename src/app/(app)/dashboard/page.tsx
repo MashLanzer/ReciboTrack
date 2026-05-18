@@ -22,6 +22,7 @@ import { PinnedItemsBar }     from "@/components/dashboard/pinned-items-bar"
 import { SwipeableFeed }      from "@/components/dashboard/swipeable-feed"
 import { QuickStatsBlock, QuickRecentBlock } from "@/components/dashboard/quick-mode-extras"
 import { MonthlyRecapCard }   from "@/components/dashboard/monthly-recap-card"
+import { TodayWidget }        from "@/components/dashboard/today-widget"
 import { useUIStore }         from "@/stores/ui-store"
 import { useAuth }            from "@/hooks/use-auth"
 import { cn }                 from "@/lib/utils"
@@ -160,6 +161,9 @@ export default function DashboardPage() {
       {/* ── Alerts ────────────────────────────────────────────────────── */}
       <RecurringBanner />
       <MultiCurrencyBanner />
+
+      {/* ── Today widget ──────────────────────────────────────────────── */}
+      <TodayWidget />
 
       {/* ── Hero balance ──────────────────────────────────────────────── */}
       <HeroBalanceCard />

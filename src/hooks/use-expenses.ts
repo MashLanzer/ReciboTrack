@@ -20,6 +20,9 @@ import { useAuth } from "./use-auth"
 import type { Expense, ExpenseInput } from "@/types"
 import { EXPENSES_PER_PAGE } from "@/lib/constants"
 import { fireWebhook, buildExpensePayload } from "@/lib/webhook"
+import { toast } from "sonner"
+import { format } from "date-fns"
+import type { CategoryBudget } from "./use-category-budgets"
 
 function expensesCollection(uid: string) {
   return collection(getFirebaseDb(), "users", uid, "expenses")
@@ -289,7 +292,7 @@ export function useAddExpense() {
 
       return { tempId }
     },
-    onSuccess: (id, input, ctx) => {
+    onSuccess: async (id, input, ctx) => {
       // Remove the optimistic entry and refetch real data
       queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
       queryClient.invalidateQueries({ queryKey: ["expenses-month", user?.uid] })
@@ -305,6 +308,120 @@ export function useAddExpense() {
           }))
         }
       } catch { /* ignore */ }
+
+      // ── Feature 2: Budget alert ─────────────────────────────────────────
+      // Only for personal expenses (not group expenses)
+      if (!user || (input as { groupId?: string }).groupId) return
+      try {
+        const currentMonth = format(new Date(), "yyyy-MM")
+        const budgetsCol = collection(getFirebaseDb(), "users", user.uid, "categoryBudgets")
+        const budgetsSnap = await getDocs(query(budgetsCol, where("month", "==", currentMonth)))
+        const budgets = budgetsSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as CategoryBudget)
+        const matchingBudget = budgets.find((b) => b.categoryId === input.category)
+        if (!matchingBudget) return
+
+        // Use the React Query cache for all expenses — filter client-side
+        const allCached = queryClient.getQueriesData<{ expenses: Expense[]; total: number; allTags: string[] }>({
+          queryKey: ["expenses", user.uid],
+        })
+        // Gather all cached expenses across all query keys
+        const cachedExpenses: Expense[] = []
+        for (const [, data] of allCached) {
+          if (data?.expenses) cachedExpenses.push(...data.expenses)
+        }
+
+        // Deduplicate by id
+        const seenIds = new Set<string>()
+        const uniqueExpenses = cachedExpenses.filter((e) => {
+          if (seenIds.has(e.id)) return false
+          seenIds.add(e.id)
+          return true
+        })
+
+        // Filter: same category, current month
+        const startOfCurrentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+        const catExpenses = uniqueExpenses.filter((e) => {
+          if (e.category !== input.category) return false
+          const d = e.date instanceof Timestamp ? e.date.toDate() : new Date(e.date as unknown as string)
+          return d >= startOfCurrentMonth
+        })
+
+        const totalSpent = catExpenses.reduce((sum, e) => sum + e.total, 0)
+        const budget = matchingBudget.amount
+        const pct = Math.round((totalSpent / budget) * 100)
+
+        const formatAmt = (n: number) =>
+          new Intl.NumberFormat("es", { style: "currency", currency: matchingBudget.currency || "USD", maximumFractionDigits: 0 }).format(n)
+
+        if (totalSpent >= budget) {
+          toast.error("Presupuesto superado", {
+            description: `Categoría: ${input.category} · ${formatAmt(totalSpent)} de ${formatAmt(budget)} gastado (${pct}%)`,
+          })
+        } else if (totalSpent >= budget * 0.8) {
+          toast.warning(`Presupuesto al ${pct}%`, {
+            description: `Categoría: ${input.category} · ${formatAmt(totalSpent)} de ${formatAmt(budget)} gastado`,
+          })
+        }
+      } catch { /* ignore — budget check is best-effort */ }
+
+      // ── Feature 4: "¿Es esto recurrente?" hint ──────────────────────────────
+      // Show a toast when the merchant looks like a regular subscription pattern
+      // but is NOT yet tracked in recurring templates.
+      try {
+        const normalize = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ")
+        const merchantKey = normalize(input.merchant)
+
+        // Check if already tracked
+        const recurringCached = queryClient.getQueryData<{ merchant: string }[]>(["recurring", user.uid])
+        const isAlreadyTracked = (recurringCached ?? []).some(
+          (t) => normalize(t.merchant) === merchantKey
+        )
+        if (isAlreadyTracked) return
+
+        // Use the detector cache (expenses from last 300 ordered by date desc)
+        const detectorData = queryClient.getQueryData<Expense[]>(["expenses-detector", user.uid])
+        if (!detectorData || detectorData.length < 3) return
+
+        const merchantExpenses = detectorData.filter(
+          (e) =>
+            normalize(e.merchant) === merchantKey &&
+            e.date &&
+            typeof (e.date as { toDate?: () => Date }).toDate === "function"
+        )
+
+        if (merchantExpenses.length < 2) return
+
+        const dates = merchantExpenses
+          .map((e) => (e.date as { toDate: () => Date }).toDate())
+          .sort((a, b) => a.getTime() - b.getTime())
+
+        const gaps: number[] = []
+        for (let i = 1; i < dates.length; i++) {
+          gaps.push(Math.round((dates[i].getTime() - dates[i - 1].getTime()) / 86_400_000))
+        }
+        const sorted = [...gaps].sort((a, b) => a - b)
+        const med = sorted[Math.floor(sorted.length / 2)]
+
+        let freq = ""
+        if (med >= 6 && med <= 8) freq = "semanal"
+        else if (med >= 13 && med <= 16) freq = "quincenal"
+        else if (med >= 26 && med <= 35) freq = "mensual"
+        else if (med >= 340 && med <= 390) freq = "anual"
+
+        if (!freq) return
+
+        const consistent = gaps.every((g) => med > 0 && Math.abs(g - med) / med <= 0.30)
+        if (!consistent && merchantExpenses.length < 4) return
+
+        toast.info(`¿"${input.merchant}" es ${freq}?`, {
+          description: "Parece que lo añades regularmente. Rastréalo como gasto recurrente.",
+          action: {
+            label: "Rastrear",
+            onClick: () => { window.location.href = "/recurring" },
+          },
+          duration: 8_000,
+        })
+      } catch { /* ignore — hint is best-effort */ }
     },
     onError: (_err, _input, ctx) => {
       // Roll back the optimistic insert

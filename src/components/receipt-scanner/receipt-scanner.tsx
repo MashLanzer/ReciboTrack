@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { Upload, Loader2, CheckCircle2, X, ScanLine, Plus, RefreshCw, ImageIcon, FileText, Bookmark, BookmarkCheck, Trash2, ChevronDown, ChevronUp } from "lucide-react"
+import { Upload, Loader2, CheckCircle2, X, ScanLine, Plus, RefreshCw, ImageIcon, FileText, Bookmark, BookmarkCheck, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from "lucide-react"
 import { useCategories } from "@/hooks/use-categories"
 import { useAddRecurring } from "@/hooks/use-recurring"
 import { useDeleteExpense } from "@/hooks/use-expenses"
@@ -72,6 +72,9 @@ export function ReceiptScanner() {
   const incrementTemplateUse = useIncrementTemplateUse()
 
   const [step, setStep] = useState<Step>("upload")
+  // Sub-step within the "confirm" wizard (1 = what, 2 = how much, 3 = review)
+  const [confirmStep, setConfirmStep] = useState<1 | 2 | 3>(1)
+  const [prevConfirmStep, setPrevConfirmStep] = useState<1 | 2 | 3>(1)
   const [dragOver, setDragOver] = useState(false)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [allItems, setAllItems] = useState<ReceiptItem[]>([])
@@ -115,6 +118,8 @@ export function ReceiptScanner() {
 
   function resetState() {
     setStep("upload")
+    setConfirmStep(1)
+    setPrevConfirmStep(1)
     setImageUrl(null)
     setAllItems([])
     setItemCategories({})
@@ -141,6 +146,12 @@ export function ReceiptScanner() {
       else next.add(id)
       return next
     })
+  }
+
+  /** Navigate between confirm wizard sub-steps with direction tracking */
+  function goToConfirmStep(next: 1 | 2 | 3) {
+    setPrevConfirmStep(confirmStep)
+    setConfirmStep(next)
   }
 
   /** #22 — Date range validation */
@@ -274,6 +285,11 @@ export function ReceiptScanner() {
       const data = await runGeminiOcr(fileToProcess as File)
 
       populateForm(data, isAdditional)
+      // Start wizard from step 1 on a fresh scan; keep current step on additional scans
+      if (!isAdditional) {
+        setConfirmStep(1)
+        setPrevConfirmStep(1)
+      }
       setStep("confirm")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error procesando el recibo")
@@ -383,6 +399,8 @@ export function ReceiptScanner() {
     }))
     setActiveTemplateId(tpl.id)
     incrementTemplateUse.mutate(tpl.id)
+    setConfirmStep(1)
+    setPrevConfirmStep(1)
     setStep("confirm")
   }
 
@@ -671,362 +689,469 @@ export function ReceiptScanner() {
           </div>
         )}
 
-        {/* CONFIRM */}
-        {step === "confirm" && (
-          <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
+        {/* CONFIRM — 3-step wizard */}
+        {step === "confirm" && (() => {
+          // Determine slide direction for CSS animation
+          const slideIn  = confirmStep > prevConfirmStep ? "slide-in-from-right" : "slide-in-from-left"
+          const animKey  = confirmStep  // changing key re-mounts for animation
 
-            {/* Receipt preview */}
-            <div className="space-y-1.5">
-              {imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={imageUrl} alt="Recibo" className="w-full max-h-28 object-contain rounded-lg bg-muted" />
-              ) : (
-                <div className="w-full h-16 rounded-lg bg-muted flex items-center justify-center gap-2 text-muted-foreground text-sm">
-                  <FileText className="h-5 w-5" />
-                  PDF cargado
-                </div>
-              )}
+          const cat = categories.find((c) => c.id === form.category)
 
-              {/* #21 — OCR engine badge + confidence */}
-              {ocrEngine && (() => {
-                const populated = [form.merchant, form.date, form.total, form.category, form.currency].filter(Boolean).length
-                const total5 = 5
-                const pct = populated / total5
-                const totalNum = parseFloat(form.total) || 0
-                const isHighConf = ocrEngine === "gemini" && pct === 1 && totalNum > 0
-                const isMedConf  = ocrEngine === "gemini" && pct < 1
-                const confidence = isHighConf
-                  ? { icon: "🟢", label: "Alta confianza", color: "text-green-700 dark:text-green-400" }
-                  : isMedConf
-                  ? { icon: "🟡", label: "Confianza media — revisa los campos", color: "text-amber-600 dark:text-amber-400" }
-                  : { icon: "🔴", label: "Baja confianza — verifica los datos", color: "text-destructive" }
-                return (
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted font-mono border",
-                      ocrEngine === "gemini"
-                        ? "border-green-500/20 text-green-700 dark:text-green-400"
-                        : "border-amber-500/20 text-amber-700 dark:text-amber-400"
-                    )}>
-                      {ocrEngine === "gemini" ? "✨ Gemini 2.0 Flash" : "🔤 Tesseract OCR"}
-                    </span>
-                    <span>procesó este recibo</span>
-                    <span className={cn("font-medium", confidence.color)}>
-                      {confidence.icon} {confidence.label}
-                    </span>
-                  </div>
-                )
-              })()}
-            </div>
-
-            {/* ── Sección 1: 📋 Básico (always open) ──────────────────────── */}
-            <div className="rounded-lg border overflow-hidden">
-              <button
-                type="button"
-                onClick={() => toggleSection("basic")}
-                className="w-full flex items-center justify-between py-2 px-3 cursor-pointer text-xs font-mono uppercase tracking-widest text-muted-foreground border-b bg-muted/30 hover:bg-muted/50 transition-colors"
-              >
-                <span>📋 Básico</span>
-                {openSections.has("basic") ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              </button>
-              {openSections.has("basic") && (
-                <div className="p-3 grid grid-cols-2 gap-3 transition-all">
-                  <div className="col-span-2 space-y-1.5">
-                    <Label>Comercio</Label>
-                    <Input value={form.merchant} onChange={(e) => setForm({ ...form, merchant: e.target.value })} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Fecha</Label>
-                    {/* #22 — Date range validation */}
-                    <Input
-                      type="date"
-                      value={form.date}
-                      min="2000-01-01"
-                      max="2030-12-31"
-                      onChange={(e) => setForm({ ...form, date: e.target.value })}
+          return (
+            <div className="space-y-3">
+              {/* ── Progress indicator ── */}
+              <div className="flex items-center justify-between px-0.5">
+                <span className="text-xs text-muted-foreground font-mono">
+                  {confirmStep} / 3
+                </span>
+                <div className="flex gap-1.5">
+                  {([1, 2, 3] as const).map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => goToConfirmStep(n)}
+                      className={cn(
+                        "h-2 rounded-full transition-all duration-300",
+                        n === confirmStep
+                          ? "w-6 bg-primary"
+                          : n < confirmStep
+                          ? "w-2 bg-primary/50"
+                          : "w-2 bg-muted-foreground/25"
+                      )}
                     />
-                    {form.date && !isValidDate(form.date) && (
-                      <p className="text-[10px] text-destructive">Fecha inválida — debe estar entre 2000 y 2030</p>
-                    )}
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Total</Label>
-                    <Input type="number" step="0.01" value={form.total}
-                      onChange={(e) => setForm({ ...form, total: e.target.value })} className="tabular-nums" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Categoría</Label>
-                    <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {categories.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.id}>{cat.icon} {cat.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <CategorySuggestion
-                      merchant={form.merchant}
-                      currentCategory={form.category}
-                      onAccept={(cat) => setForm((f) => ({ ...f, category: cat }))}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Moneda</Label>
-                    <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  ))}
                 </div>
-              )}
-            </div>
+                <span className="text-xs font-medium text-muted-foreground">
+                  {confirmStep === 1 ? "¿Qué compraste?" : confirmStep === 2 ? "¿Cuánto gastaste?" : "Revisar y guardar"}
+                </span>
+              </div>
 
-            {/* ── Sección 2: 🧾 Desglose (collapsed by default) ───────────── */}
-            <div className="rounded-lg border overflow-hidden">
-              <button
-                type="button"
-                onClick={() => toggleSection("breakdown")}
-                className="w-full flex items-center justify-between py-2 px-3 cursor-pointer text-xs font-mono uppercase tracking-widest text-muted-foreground bg-muted/30 hover:bg-muted/50 transition-colors"
-              >
-                <span>🧾 Desglose</span>
-                {openSections.has("breakdown") ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              </button>
-              {openSections.has("breakdown") && (
-                <div className="p-3 grid grid-cols-2 gap-3 border-t transition-all">
-                  <div className="space-y-1.5">
-                    <Label>Subtotal</Label>
-                    <Input type="number" step="0.01" value={form.subtotal}
-                      onChange={(e) => setForm({ ...form, subtotal: e.target.value })} className="tabular-nums" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>IVA / Impuesto</Label>
-                    <Input type="number" step="0.01" value={form.tax}
-                      onChange={(e) => setForm({ ...form, tax: e.target.value })} className="tabular-nums" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Método de pago</Label>
-                    <Select value={form.paymentMethod || "__none__"}
-                      onValueChange={(v) => setForm({ ...form, paymentMethod: v === "__none__" ? "" : v })}>
-                      <SelectTrigger><SelectValue placeholder="Sin especificar" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Sin especificar</SelectItem>
-                        {PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Referencia</Label>
-                    <Input value={form.reference}
-                      onChange={(e) => setForm({ ...form, reference: e.target.value })} placeholder="Nº transacción" />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* ── Sección 3: 📦 Artículos (collapsed, only if items.length > 0) */}
-            {allItems.length > 0 && (
-              <div className="rounded-lg border overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => toggleSection("items")}
-                  className="w-full flex items-center justify-between py-2 px-3 cursor-pointer text-xs font-mono uppercase tracking-widest text-muted-foreground bg-muted/30 hover:bg-muted/50 transition-colors"
+              {/* ── Animated step content ── */}
+              <div className="overflow-hidden">
+                <div
+                  key={animKey}
+                  className={cn(
+                    "space-y-3 max-h-[55vh] overflow-y-auto pr-1",
+                    "animate-in duration-200 fade-in",
+                    slideIn
+                  )}
                 >
-                  <span>📦 Artículos ({allItems.length})</span>
-                  {openSections.has("items") ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                </button>
-                {openSections.has("items") && (
-                  <div className="border-t p-3 space-y-2.5 transition-all">
-                    {allItems.length > 1 && (
-                      <p className="text-[10px] text-muted-foreground">
-                        Asigna categorías individuales y guarda cada ítem como gasto separado
-                      </p>
-                    )}
-                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                      {allItems.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-2 text-xs">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{item.name}</p>
-                            <p className="text-muted-foreground tabular-nums">
-                              {item.quantity > 1 ? `${item.quantity}× ` : ""}{form.currency} {(item.price * item.quantity).toFixed(2)}
-                            </p>
+                  {/* ════════════════════════════════════════
+                      STEP 1 — ¿Qué compraste?
+                      Merchant · Date · Category · Notes (optional)
+                  ════════════════════════════════════════ */}
+                  {confirmStep === 1 && (
+                    <div className="space-y-4">
+                      {/* Merchant — large, autofocused */}
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-semibold">Comercio</Label>
+                        <Input
+                          value={form.merchant}
+                          onChange={(e) => setForm({ ...form, merchant: e.target.value })}
+                          placeholder="¿Dónde compraste?"
+                          className="h-11 text-base"
+                          autoFocus
+                        />
+                      </div>
+
+                      {/* Date */}
+                      <div className="space-y-1.5">
+                        <Label>Fecha</Label>
+                        <Input
+                          type="date"
+                          value={form.date}
+                          min="2000-01-01"
+                          max="2030-12-31"
+                          onChange={(e) => setForm({ ...form, date: e.target.value })}
+                        />
+                        {form.date && !isValidDate(form.date) && (
+                          <p className="text-[10px] text-destructive">Fecha inválida — debe estar entre 2000 y 2030</p>
+                        )}
+                      </div>
+
+                      {/* Category */}
+                      <div className="space-y-1.5">
+                        <Label>Categoría</Label>
+                        <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                          <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {categories.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <CategorySuggestion
+                          merchant={form.merchant}
+                          currentCategory={form.category}
+                          onAccept={(c) => setForm((f) => ({ ...f, category: c }))}
+                        />
+                      </div>
+
+                      {/* Notes — collapsible */}
+                      <div className="rounded-lg border overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => toggleSection("notes1")}
+                          className="w-full flex items-center justify-between py-2 px-3 text-xs font-mono uppercase tracking-widest text-muted-foreground bg-muted/30 hover:bg-muted/50 transition-colors"
+                        >
+                          <span>Notas (opcional)</span>
+                          {openSections.has("notes1") ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        </button>
+                        {openSections.has("notes1") && (
+                          <div className="p-3 border-t">
+                            <Input
+                              value={form.notes}
+                              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                              placeholder="Notas opcionales..."
+                            />
                           </div>
-                          <Select
-                            value={itemCategories[idx] ?? form.category}
-                            onValueChange={v => setItemCategories(prev => ({ ...prev, [idx]: v }))}
-                          >
-                            <SelectTrigger className="h-7 text-xs w-28 shrink-0">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {categories.map(c => (
-                                <SelectItem key={c.id} value={c.id} className="text-xs">{c.icon} {c.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      ))}
+                        )}
+                      </div>
                     </div>
-                    {allItems.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-full gap-1.5 text-xs"
-                        onClick={handleSplitByItems}
-                        disabled={splitSaving}
-                      >
-                        {splitSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                        Guardar {allItems.length} gastos separados
-                      </Button>
-                    )}
+                  )}
+
+                  {/* ════════════════════════════════════════
+                      STEP 2 — ¿Cuánto gastaste?
+                      Total · Currency · Subtotal+Tax (collapsible) · Payment
+                  ════════════════════════════════════════ */}
+                  {confirmStep === 2 && (
+                    <div className="space-y-4">
+                      {/* Total — large, prominent */}
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-semibold">Total</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-mono text-sm">
+                            {form.currency}
+                          </span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={form.total}
+                            onChange={(e) => setForm({ ...form, total: e.target.value })}
+                            className="pl-14 h-14 text-2xl font-semibold tabular-nums"
+                            autoFocus
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Currency */}
+                      <div className="space-y-1.5">
+                        <Label>Moneda</Label>
+                        <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
+                          <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Payment method */}
+                      <div className="space-y-1.5">
+                        <Label>Método de pago</Label>
+                        <Select
+                          value={form.paymentMethod || "__none__"}
+                          onValueChange={(v) => setForm({ ...form, paymentMethod: v === "__none__" ? "" : v })}
+                        >
+                          <SelectTrigger className="h-10"><SelectValue placeholder="Sin especificar" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Sin especificar</SelectItem>
+                            {PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Desglose — collapsible */}
+                      <div className="rounded-lg border overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => toggleSection("breakdown")}
+                          className="w-full flex items-center justify-between py-2 px-3 text-xs font-mono uppercase tracking-widest text-muted-foreground bg-muted/30 hover:bg-muted/50 transition-colors"
+                        >
+                          <span>🧾 Desglose (subtotal + impuesto)</span>
+                          {openSections.has("breakdown") ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        </button>
+                        {openSections.has("breakdown") && (
+                          <div className="p-3 grid grid-cols-2 gap-3 border-t">
+                            <div className="space-y-1.5">
+                              <Label>Subtotal</Label>
+                              <Input type="number" step="0.01" value={form.subtotal}
+                                onChange={(e) => setForm({ ...form, subtotal: e.target.value })} className="tabular-nums" />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label>IVA / Impuesto</Label>
+                              <Input type="number" step="0.01" value={form.tax}
+                                onChange={(e) => setForm({ ...form, tax: e.target.value })} className="tabular-nums" />
+                            </div>
+                            <div className="col-span-2 space-y-1.5">
+                              <Label>Referencia</Label>
+                              <Input value={form.reference}
+                                onChange={(e) => setForm({ ...form, reference: e.target.value })} placeholder="Nº transacción" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ════════════════════════════════════════
+                      STEP 3 — Revisar y guardar
+                      Summary card · Tags · Receipt image · Save button
+                  ════════════════════════════════════════ */}
+                  {confirmStep === 3 && (
+                    <div className="space-y-4">
+                      {/* OCR engine badge + confidence */}
+                      {ocrEngine && (() => {
+                        const populated = [form.merchant, form.date, form.total, form.category, form.currency].filter(Boolean).length
+                        const pct = populated / 5
+                        const totalNum = parseFloat(form.total) || 0
+                        const isHighConf = ocrEngine === "gemini" && pct === 1 && totalNum > 0
+                        const isMedConf  = ocrEngine === "gemini" && pct < 1
+                        const confidence = isHighConf
+                          ? { icon: "🟢", label: "Alta confianza", color: "text-green-700 dark:text-green-400" }
+                          : isMedConf
+                          ? { icon: "🟡", label: "Confianza media — revisa los campos", color: "text-amber-600 dark:text-amber-400" }
+                          : { icon: "🔴", label: "Baja confianza — verifica los datos", color: "text-destructive" }
+                        return (
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span className={cn(
+                              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted font-mono border",
+                              ocrEngine === "gemini"
+                                ? "border-green-500/20 text-green-700 dark:text-green-400"
+                                : "border-amber-500/20 text-amber-700 dark:text-amber-400"
+                            )}>
+                              {ocrEngine === "gemini" ? "✨ Gemini 2.0 Flash" : "🔤 Tesseract OCR"}
+                            </span>
+                            <span className={cn("font-medium", confidence.color)}>
+                              {confidence.icon} {confidence.label}
+                            </span>
+                          </div>
+                        )
+                      })()}
+
+                      {/* Summary card */}
+                      <div className="rounded-xl border bg-card p-4 space-y-3">
+                        <div className="flex items-start gap-3">
+                          <div
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xl"
+                            style={{ backgroundColor: `${cat?.color ?? "#6b7280"}20` }}
+                          >
+                            {cat?.icon ?? "📦"}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-base truncate">{form.merchant || "Sin nombre"}</p>
+                            <p className="text-xs text-muted-foreground">{cat?.name ?? form.category} · {form.date || "Sin fecha"}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xl font-bold tabular-nums">
+                              {form.total ? `${form.currency} ${parseFloat(form.total).toFixed(2)}` : "—"}
+                            </p>
+                            {form.paymentMethod && (
+                              <p className="text-[11px] text-muted-foreground">{form.paymentMethod}</p>
+                            )}
+                          </div>
+                        </div>
+                        {form.notes && (
+                          <p className="text-xs text-muted-foreground border-t pt-2">{form.notes}</p>
+                        )}
+                        {(parseFloat(form.subtotal) > 0 || parseFloat(form.tax) > 0) && (
+                          <div className="flex gap-4 text-xs text-muted-foreground border-t pt-2">
+                            {parseFloat(form.subtotal) > 0 && (
+                              <span>Subtotal: {form.currency} {parseFloat(form.subtotal).toFixed(2)}</span>
+                            )}
+                            {parseFloat(form.tax) > 0 && (
+                              <span>Impuesto: {form.currency} {parseFloat(form.tax).toFixed(2)}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Receipt image preview */}
+                      {imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={imageUrl} alt="Recibo" className="w-full max-h-40 object-contain rounded-lg bg-muted" />
+                      ) : scanCount > 0 ? (
+                        <div className="w-full h-14 rounded-lg bg-muted flex items-center justify-center gap-2 text-muted-foreground text-sm">
+                          <FileText className="h-5 w-5" />
+                          PDF cargado
+                        </div>
+                      ) : null}
+
+                      {/* Tags */}
+                      <div className="space-y-1.5">
+                        <Label>Etiquetas</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={tagInput}
+                            onChange={(e) => setTagInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag() } }}
+                            placeholder="trabajo, viaje, deducible..."
+                            className="flex-1"
+                          />
+                          <Button type="button" variant="outline" size="icon" onClick={addTag}>
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {form.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {form.tags.map((tag) => (
+                              <Badge key={tag} variant="secondary" className="gap-1 cursor-pointer"
+                                onClick={() => removeTag(tag)}>
+                                {tag} <X className="h-3 w-3" />
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Recurring toggle */}
+                      <div className="rounded-lg border overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => toggleSection("recurring3")}
+                          className="w-full flex items-center justify-between py-2 px-3 text-xs font-mono uppercase tracking-widest text-muted-foreground bg-muted/30 hover:bg-muted/50 transition-colors"
+                        >
+                          <span>⚙️ Opciones avanzadas</span>
+                          {openSections.has("recurring3") ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        </button>
+                        {openSections.has("recurring3") && (
+                          <div className="border-t p-3 space-y-3">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={form.isRecurring}
+                                onChange={(e) => setForm({ ...form, isRecurring: e.target.checked })}
+                                className="rounded"
+                              />
+                              <span className="text-sm font-medium">Marcar como gasto recurrente</span>
+                            </label>
+                            {form.isRecurring && (
+                              <Select
+                                value={form.recurringFrequency}
+                                onValueChange={(v) => setForm({ ...form, recurringFrequency: v as RecurringFrequency })}
+                              >
+                                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {(Object.entries(RECURRING_LABELS) as [RecurringFrequency, string][]).map(([v, l]) => (
+                                    <SelectItem key={v} value={v}>{l}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                            {/* Items split (if applicable) */}
+                            {allItems.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="w-full gap-1.5 text-xs"
+                                onClick={handleSplitByItems}
+                                disabled={splitSaving}
+                              >
+                                {splitSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                                Guardar {allItems.length} gastos separados
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Save as template */}
+                      <div className="flex gap-2">
+                        {activeTemplateId ? (
+                          <Button variant="outline" size="sm" className="gap-1.5 text-primary border-primary/40 flex-1" disabled>
+                            <BookmarkCheck className="h-3.5 w-3.5" />
+                            Plantilla activa
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" className="gap-1.5 flex-1"
+                            onClick={() => { setTemplateName(form.merchant); setTemplateDialog(true) }}>
+                            <Bookmark className="h-3.5 w-3.5" />
+                            Guardar plantilla
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Save-template mini dialog */}
+                      {templateDialog && (
+                        <div className="rounded-lg border bg-card p-3 space-y-2 shadow-sm">
+                          <p className="text-xs font-medium">Nombre de la plantilla</p>
+                          <div className="flex gap-2">
+                            <Input
+                              value={templateName}
+                              onChange={(e) => setTemplateName(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSaveTemplate() } }}
+                              placeholder="Ej: Café del trabajo"
+                              className="h-8 text-sm flex-1"
+                              autoFocus
+                            />
+                            <Button size="sm" className="h-8 px-3" onClick={handleSaveTemplate}
+                              disabled={addTemplate.isPending || !templateName.trim()}>
+                              {addTemplate.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Guardar"}
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-8 px-2"
+                              onClick={() => { setTemplateDialog(false); setTemplateName("") }}>
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            Guarda comercio, categoría, monto y método de pago para acceso rápido
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Navigation: Back / Next / Save ── */}
+              <div className="flex items-center gap-2 pt-1">
+                {/* Left side: Back or rescan options */}
+                {confirmStep === 1 ? (
+                  <div className="flex gap-1.5">
+                    <Button variant="outline" size="sm" className="gap-1 h-9 px-2.5"
+                      onClick={() => { setStep("upload"); setConfirmStep(1); setPrevConfirmStep(1) }}>
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      <span className="hidden xs:inline">Reintentar</span>
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1 h-9 px-2.5"
+                      onClick={() => galleryInputRef.current?.click()}>
+                      <ImageIcon className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1 h-9 px-2.5"
+                      onClick={() => setStep("camera")}>
+                      <ScanLine className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
+                ) : (
+                  <Button variant="outline" size="sm" className="gap-1.5 h-9"
+                    onClick={() => goToConfirmStep((confirmStep - 1) as 1 | 2 | 3)}>
+                    <ChevronLeft className="h-4 w-4" />
+                    Atrás
+                  </Button>
+                )}
+
+                <div className="flex-1" />
+
+                {/* Right side: Next or Save */}
+                {confirmStep < 3 ? (
+                  <Button
+                    size="sm"
+                    className="gap-1.5 h-9 px-4"
+                    onClick={() => goToConfirmStep((confirmStep + 1) as 2 | 3)}
+                  >
+                    Siguiente
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button className="gap-1.5 h-9 px-5" onClick={handleConfirm} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                    Guardar gasto
+                  </Button>
                 )}
               </div>
-            )}
-
-            {/* ── Sección 4: ⚙️ Opciones (collapsed) ──────────────────────── */}
-            <div className="rounded-lg border overflow-hidden">
-              <button
-                type="button"
-                onClick={() => toggleSection("options")}
-                className="w-full flex items-center justify-between py-2 px-3 cursor-pointer text-xs font-mono uppercase tracking-widest text-muted-foreground bg-muted/30 hover:bg-muted/50 transition-colors"
-              >
-                <span>⚙️ Opciones</span>
-                {openSections.has("options") ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              </button>
-              {openSections.has("options") && (
-                <div className="border-t p-3 space-y-3 transition-all">
-                  {/* Recurring toggle */}
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={form.isRecurring}
-                        onChange={(e) => setForm({ ...form, isRecurring: e.target.checked })}
-                        className="rounded"
-                      />
-                      <span className="text-sm font-medium">Marcar como gasto recurrente</span>
-                    </label>
-                    {form.isRecurring && (
-                      <Select
-                        value={form.recurringFrequency}
-                        onValueChange={(v) => setForm({ ...form, recurringFrequency: v as RecurringFrequency })}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(Object.entries(RECURRING_LABELS) as [RecurringFrequency, string][]).map(([v, l]) => (
-                            <SelectItem key={v} value={v}>{l}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-                  {/* Notes */}
-                  <div className="space-y-1.5">
-                    <Label>Notas</Label>
-                    <Input value={form.notes}
-                      onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Notas opcionales..." />
-                  </div>
-                  {/* Tags */}
-                  <div className="space-y-1.5">
-                    <Label>Etiquetas</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={tagInput}
-                        onChange={(e) => setTagInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag() } }}
-                        placeholder="trabajo, viaje, deducible..."
-                        className="flex-1"
-                      />
-                      <Button type="button" variant="outline" size="icon" onClick={addTag}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {form.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        {form.tags.map((tag) => (
-                          <Badge key={tag} variant="secondary" className="gap-1 cursor-pointer"
-                            onClick={() => removeTag(tag)}>
-                            {tag} <X className="h-3 w-3" />
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
-
-            {/* Acciones */}
-            <div className="flex gap-2 pt-1 flex-wrap">
-              <Button variant="outline" size="sm" className="gap-1.5"
-                onClick={() => { if (step === "confirm") setStep("upload") }}>
-                <RefreshCw className="h-3.5 w-3.5" />
-                Reintentar
-              </Button>
-              <Button variant="outline" size="sm" className="gap-1.5"
-                onClick={() => galleryInputRef.current?.click()}>
-                <ImageIcon className="h-3.5 w-3.5" />
-                Galería
-              </Button>
-              <Button variant="outline" size="sm" className="gap-1.5"
-                onClick={() => setStep("camera")}>
-                <ScanLine className="h-3.5 w-3.5" />
-                Cámara
-              </Button>
-              {/* Save as template */}
-              {activeTemplateId ? (
-                <Button variant="outline" size="sm" className="gap-1.5 text-primary border-primary/40"
-                  disabled>
-                  <BookmarkCheck className="h-3.5 w-3.5" />
-                  Plantilla activa
-                </Button>
-              ) : (
-                <Button variant="outline" size="sm" className="gap-1.5"
-                  onClick={() => { setTemplateName(form.merchant); setTemplateDialog(true) }}>
-                  <Bookmark className="h-3.5 w-3.5" />
-                  Guardar plantilla
-                </Button>
-              )}
-              <Button className="flex-1 min-w-[80px]" onClick={handleConfirm} disabled={isSaving}>
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                Guardar
-              </Button>
-            </div>
-
-            {/* Save-template mini dialog */}
-            {templateDialog && (
-              <div className="rounded-lg border bg-card p-3 space-y-2 shadow-sm">
-                <p className="text-xs font-medium">Nombre de la plantilla</p>
-                <div className="flex gap-2">
-                  <Input
-                    value={templateName}
-                    onChange={(e) => setTemplateName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSaveTemplate() } }}
-                    placeholder="Ej: Café del trabajo"
-                    className="h-8 text-sm flex-1"
-                    autoFocus
-                  />
-                  <Button size="sm" className="h-8 px-3" onClick={handleSaveTemplate}
-                    disabled={addTemplate.isPending || !templateName.trim()}>
-                    {addTemplate.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Guardar"}
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-8 px-2"
-                    onClick={() => { setTemplateDialog(false); setTemplateName("") }}>
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  Guarda comercio, categoría, monto y método de pago para acceso rápido
-                </p>
-              </div>
-            )}
-          </div>
-        )}
+          )
+        })()}
       </DialogContent>
     </Dialog>
 

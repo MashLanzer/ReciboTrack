@@ -20,12 +20,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
-import { Search, MoreHorizontal, Trash2, Edit, Copy, Image, ChevronLeft, ChevronRight, Filter, Tag, X, Upload, Sheet, Loader2, CalendarRange, Calendar, CheckSquare, Square, CheckCheck, LayoutList, Layers, Receipt, SlidersHorizontal, ChevronDown } from "lucide-react"
+import { Search, MoreHorizontal, Trash2, Edit, Copy, Image, ChevronLeft, ChevronRight, Filter, Tag, X, Upload, Sheet, Loader2, CalendarRange, Calendar, CheckSquare, Square, CheckCheck, LayoutList, AlignJustify, Layers, Receipt, SlidersHorizontal, ChevronDown } from "lucide-react"
 import { startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subDays, format as fmtDate, parseISO, isValid } from "date-fns"
 import { ExpenseEditDialog } from "./expense-edit-dialog"
 import { ExpenseDetailDialog } from "./expense-detail-dialog"
 import { CsvImport } from "./csv-import"
 import { exportToCSV, exportToPDF } from "./export-utils"
+import { ExportDateRangeDialog } from "./export-date-range-dialog"
 import { exportToGoogleSheets, SheetsRedirectPending } from "@/lib/google-sheets"
 import { SwipeableRow } from "@/components/shared/swipeable-row"
 import { useUIStore } from "@/stores/ui-store"
@@ -68,7 +69,24 @@ export function ExpenseList() {
   const [bulkCatOpen, setBulkCatOpen] = useState(false)
   const [bulkCatValue, setBulkCatValue] = useState("")
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const { activeAccount } = useUIStore()
+
+  // ── Compact mode (Feature 9) ─────────────────────────────────────────────
+  const [compactMode, setCompactMode] = useState(false)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("rbt_expense_compact")
+      if (saved === "true") setCompactMode(true)
+    } catch { /* ignore */ }
+  }, [])
+  function toggleCompact() {
+    setCompactMode((prev) => {
+      const next = !prev
+      try { localStorage.setItem("rbt_expense_compact", String(next)) } catch { /* ignore */ }
+      return next
+    })
+  }
 
   // ── Undo-delete tracking ────────────────────────────────────────────────────
   // IDs hidden optimistically while deletion is pending (within undo window)
@@ -352,6 +370,17 @@ export function ExpenseList() {
           )}
         </Button>
 
+        {/* Compact mode toggle (Feature 9) */}
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          onClick={toggleCompact}
+          title={compactMode ? "Vista normal" : "Vista compacta"}
+        >
+          {compactMode ? <LayoutList className="h-4 w-4" /> : <AlignJustify className="h-4 w-4" />}
+        </Button>
+
         {/* Export + actions overflow */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -369,24 +398,9 @@ export function ExpenseList() {
               <Upload className="h-4 w-4" />
               Importar CSV
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={async () => {
-              const tid = toast.loading("Generando CSV...")
-              await new Promise(r => setTimeout(r, 30))
-              exportToCSV(expenses, { start: startDate, end: endDate })
-              toast.dismiss(tid)
-              toast.success("CSV descargado")
-            }} className="gap-2">
+            <DropdownMenuItem onClick={() => setExportDialogOpen(true)} className="gap-2">
               <Sheet className="h-4 w-4" />
-              Exportar CSV
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={async () => {
-              const tid = toast.loading("Generando PDF...")
-              await exportToPDF(expenses, categories, { start: startDate, end: endDate })
-              toast.dismiss(tid)
-              toast.success("PDF descargado")
-            }} className="gap-2">
-              <Image className="h-4 w-4" />
-              Exportar PDF
+              Exportar...
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleGoogleSheets} disabled={sheetsLoading} className="gap-2">
               {sheetsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sheet className="h-4 w-4" />}
@@ -676,11 +690,12 @@ export function ExpenseList() {
                         disabled={selectMode}
                       >
                       <div
-                        className={`flex items-center gap-3 py-3 px-1 rounded-lg transition-colors group cursor-pointer ${
+                        className={`flex items-center gap-3 ${compactMode ? "py-2.5" : "py-3"} px-1 rounded-lg transition-colors group cursor-pointer ${
                           selectMode && selectedIds.has(expense.id)
                             ? "bg-primary/8 hover:bg-primary/12"
                             : "hover:bg-accent/30"
                         }`}
+                        style={compactMode ? { minHeight: 44 } : undefined}
                         onClick={() => selectMode ? toggleSelect(expense.id) : setDetailExpense(expense)}
                       >
                         {/* Checkbox (select mode only) */}
@@ -693,43 +708,54 @@ export function ExpenseList() {
                         )}
 
                         <div
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-base"
+                          className={`flex ${compactMode ? "h-7 w-7 text-sm" : "h-9 w-9 text-base"} shrink-0 items-center justify-center rounded-lg`}
                           style={{ backgroundColor: `${cat?.color ?? "#6b7280"}20` }}
                         >
                           {cat?.icon ?? "📦"}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{expense.merchant}</p>
-                          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                            <p className="text-xs text-muted-foreground">
-                              {groupBy === "cat"
-                                ? formatDate(toDate(expense.date), "dd MMM")
-                                : (cat?.name ?? expense.category)}
-                            </p>
-                            {!selectMode && expense.tags?.map((tag) => (
-                              <button
-                                key={tag}
-                                onClick={(e) => { e.stopPropagation(); toggleTag(tag) }}
-                                className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium transition-colors ${activeTags.includes(tag) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"}`}
-                              >
-                                #{tag}
-                              </button>
-                            ))}
-                            {expense.recurringId && (
-                              <span
-                                className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary"
-                                title="Gasto recurrente"
-                              >
-                                🔄
-                              </span>
-                            )}
-                            {(expense.items?.length ?? 0) > 0 && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
-                                {expense.items.length} art.
-                              </span>
-                            )}
+
+                        {compactMode ? (
+                          /* ── Compact row: single line ── */
+                          <p className="flex-1 min-w-0 text-sm truncate">
+                            <span className="font-medium">{expense.merchant}</span>
+                            <span className="text-muted-foreground"> · {cat?.name ?? expense.category} · {formatDate(toDate(expense.date), "dd MMM")}</span>
+                          </p>
+                        ) : (
+                          /* ── Normal mode: two lines ── */
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{expense.merchant}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                              <p className="text-xs text-muted-foreground">
+                                {groupBy === "cat"
+                                  ? formatDate(toDate(expense.date), "dd MMM")
+                                  : (cat?.name ?? expense.category)}
+                              </p>
+                              {!selectMode && expense.tags?.map((tag) => (
+                                <button
+                                  key={tag}
+                                  onClick={(e) => { e.stopPropagation(); toggleTag(tag) }}
+                                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium transition-colors ${activeTags.includes(tag) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"}`}
+                                >
+                                  #{tag}
+                                </button>
+                              ))}
+                              {expense.recurringId && (
+                                <span
+                                  className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary"
+                                  title="Gasto recurrente"
+                                >
+                                  🔄
+                                </span>
+                              )}
+                              {(expense.items?.length ?? 0) > 0 && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                  {expense.items.length} art.
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        )}
+
                         <p className="tabular-nums text-sm font-semibold shrink-0">
                           {formatCurrency(expense.total, expense.currency)}
                         </p>
@@ -825,6 +851,12 @@ export function ExpenseList() {
       />
       <ExpenseEditDialog expense={editExpense} onClose={() => setEditExpense(null)} />
       <CsvImport open={csvOpen} onClose={() => setCsvOpen(false)} />
+      <ExportDateRangeDialog
+        open={exportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
+        expenses={expenses}
+        categories={categories}
+      />
 
       {/* ── Sticky bulk action bar ── */}
       {selectMode && selectedIds.size > 0 && (

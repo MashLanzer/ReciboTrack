@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useCallback, useRef } from "react"
+import { useEffect, useCallback, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Command } from "cmdk"
 import { useUIStore } from "@/stores/ui-store"
@@ -21,6 +21,10 @@ import {
   ArrowRight, Search, Sun, Moon, TrendingUp, Briefcase,
   Target, Plane, Zap,
 } from "lucide-react"
+import { useMyGroups } from "@/hooks/use-groups"
+import { useGoals } from "@/hooks/use-goals"
+import { useRecurring } from "@/hooks/use-recurring"
+import { useCategoryBudgets } from "@/hooks/use-category-budgets"
 
 // ─── Quick-search hook (last 150 expenses, cached 5 min) ─────────────────────
 
@@ -67,8 +71,20 @@ export function CommandPalette() {
   const { data: categories = [] } = useCategories()
   const { data: expenses = [] } = useSearchExpenses(commandOpen)
   const inputRef = useRef<HTMLInputElement>(null)
+  const [searchValue, setSearchValue] = useState("")
+
+  // Extended search data sources
+  const currentMonth = format(new Date(), "yyyy-MM")
+  const { data: groups = [] } = useMyGroups()
+  const { data: goals = [] } = useGoals()
+  const { data: recurring = [] } = useRecurring()
+  const { data: budgets = [] } = useCategoryBudgets(currentMonth)
 
   const allCats = categories.length > 0 ? categories : DEFAULT_CATEGORIES
+
+  // Filter helper
+  const q = searchValue.toLowerCase()
+  const matchStr = (s: string) => !q || s.toLowerCase().includes(q)
 
   // Keyboard shortcut: Cmd+K / Ctrl+K
   useEffect(() => {
@@ -92,7 +108,7 @@ export function CommandPalette() {
     }
   }, [commandOpen])
 
-  const close = useCallback(() => setCommandOpen(false), [setCommandOpen])
+  const close = useCallback(() => { setCommandOpen(false); setSearchValue("") }, [setCommandOpen])
 
   function go(href: string) {
     router.push(href)
@@ -126,6 +142,8 @@ export function CommandPalette() {
             <Search className="h-4 w-4 text-muted-foreground shrink-0" />
             <Command.Input
               ref={inputRef}
+              value={searchValue}
+              onValueChange={setSearchValue}
               placeholder="Buscar gastos, navegar, acciones rápidas..."
               className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
@@ -214,7 +232,7 @@ export function CommandPalette() {
             {/* ── Expense results ── */}
             {expenses.length > 0 && (
               <ActionGroup heading={`Gastos recientes (${expenses.length})`}>
-                {expenses.slice(0, 20).map((e) => {
+                {expenses.filter((e) => matchStr(e.merchant) || matchStr(e.notes ?? "") || (e.tags ?? []).some((t) => matchStr(t))).slice(0, 20).map((e) => {
                   const cat = allCats.find((c) => c.id === e.category)
                   return (
                     <ActionItem
@@ -224,6 +242,83 @@ export function CommandPalette() {
                       sub={`${formatCurrency(e.total, e.currency)} · ${format(toDate(e.date), "d MMM yyyy", { locale: es })}`}
                       value={`${e.merchant.toLowerCase()} ${e.category} ${e.notes ?? ""} ${e.tags?.join(" ") ?? ""}`}
                       onSelect={() => go(`/expenses?q=${encodeURIComponent(e.merchant)}`)}
+                    />
+                  )
+                })}
+              </ActionGroup>
+            )}
+
+            {/* ── Grupos ── */}
+            {groups.filter((g) => matchStr(g.name)).length > 0 && (
+              <ActionGroup heading="Grupos">
+                {groups.filter((g) => matchStr(g.name)).slice(0, 4).map((g) => (
+                  <ActionItem
+                    key={g.id}
+                    icon={g.emoji ? <span className="text-base leading-none">{g.emoji}</span> : <Users className="h-4 w-4" />}
+                    label={g.name}
+                    sub={`${g.members.length} miembro${g.members.length !== 1 ? "s" : ""}`}
+                    value={`grupo ${g.name.toLowerCase()}`}
+                    onSelect={() => go("/groups")}
+                    badge={<ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                  />
+                ))}
+              </ActionGroup>
+            )}
+
+            {/* ── Metas ── */}
+            {goals.filter((g) => matchStr(g.name)).length > 0 && (
+              <ActionGroup heading="Metas">
+                {goals.filter((g) => matchStr(g.name)).slice(0, 4).map((g) => (
+                  <ActionItem
+                    key={g.id}
+                    icon={<Target className="h-4 w-4" />}
+                    label={g.name}
+                    sub={`${formatCurrency(g.currentAmount, g.currency)} / ${formatCurrency(g.targetAmount, g.currency)}`}
+                    value={`meta objetivo ${g.name.toLowerCase()}`}
+                    onSelect={() => go("/goals")}
+                    badge={<ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                  />
+                ))}
+              </ActionGroup>
+            )}
+
+            {/* ── Recurrentes ── */}
+            {recurring.filter((r) => matchStr(r.merchant)).length > 0 && (
+              <ActionGroup heading="Recurrentes">
+                {recurring.filter((r) => matchStr(r.merchant)).slice(0, 4).map((r) => (
+                  <ActionItem
+                    key={r.id}
+                    icon={<RefreshCw className="h-4 w-4" />}
+                    label={r.merchant}
+                    sub={`${formatCurrency(r.total, r.currency)} · ${r.frequency}`}
+                    value={`recurrente suscripcion ${r.merchant.toLowerCase()}`}
+                    onSelect={() => go("/recurring")}
+                    badge={<ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                  />
+                ))}
+              </ActionGroup>
+            )}
+
+            {/* ── Presupuestos ── */}
+            {budgets.filter((b) => {
+              const cat = allCats.find((c) => c.id === b.categoryId)
+              return matchStr(cat?.name ?? b.categoryId)
+            }).length > 0 && (
+              <ActionGroup heading="Presupuestos">
+                {budgets.filter((b) => {
+                  const cat = allCats.find((c) => c.id === b.categoryId)
+                  return matchStr(cat?.name ?? b.categoryId)
+                }).slice(0, 3).map((b) => {
+                  const cat = allCats.find((c) => c.id === b.categoryId)
+                  return (
+                    <ActionItem
+                      key={b.id}
+                      icon={<PiggyBank className="h-4 w-4" />}
+                      label={cat?.name ?? b.categoryId}
+                      sub={`Límite: ${formatCurrency(b.amount, b.currency)}`}
+                      value={`presupuesto limite ${(cat?.name ?? b.categoryId).toLowerCase()}`}
+                      onSelect={() => go("/budgets")}
+                      badge={<ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />}
                     />
                   )
                 })}

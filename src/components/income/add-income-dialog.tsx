@@ -9,16 +9,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { useUIStore } from "@/stores/ui-store"
 import { useAddIncome } from "@/hooks/use-income"
+import { useIncomeCategories, DEFAULT_INCOME_CATEGORIES } from "@/hooks/use-income-categories"
+import { ManageIncomeCategoriesDialog } from "./manage-income-categories-dialog"
 import { CURRENCIES } from "@/lib/constants"
-import { TrendingUp } from "lucide-react"
+import { TrendingUp, Settings2 } from "lucide-react"
 
-const INCOME_SOURCES = ["Nómina", "Freelance", "Alquiler", "Inversiones", "Venta", "Otro"]
-
-function emptyForm() {
+function emptyForm(defaultSource = "Nómina") {
   return {
     amount: "",
     currency: "USD",
-    source: "Nómina",
+    source: defaultSource,
     description: "",
     date: new Date().toISOString().split("T")[0],
     recurring: false,
@@ -29,11 +29,20 @@ function emptyForm() {
 export function AddIncomeDialog() {
   const { incomeAddOpen, setIncomeAddOpen } = useUIStore()
   const addIncome = useAddIncome()
+  const { data: customCats = [] } = useIncomeCategories()
+  const [manageCatsOpen, setManageCatsOpen] = useState(false)
   const [form, setForm] = useState(emptyForm)
+
+  // Use custom categories if any exist, otherwise fall back to defaults
+  const categories = customCats.length > 0
+    ? customCats
+    : DEFAULT_INCOME_CATEGORIES.map((d, i) => ({ ...d, id: `default-${i}` }))
+
+  const defaultSource = categories[0]?.name ?? "Nómina"
 
   function handleClose() {
     setIncomeAddOpen(false)
-    setForm(emptyForm())
+    setForm(emptyForm(defaultSource))
   }
 
   async function handleSave() {
@@ -52,6 +61,8 @@ export function AddIncomeDialog() {
   }
 
   return (
+    <>
+    <ManageIncomeCategoriesDialog open={manageCatsOpen} onOpenChange={setManageCatsOpen} />
     <Dialog open={incomeAddOpen} onOpenChange={(o) => { if (!o) handleClose() }}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
@@ -88,13 +99,32 @@ export function AddIncomeDialog() {
             </div>
           </div>
 
-          {/* Source */}
+          {/* Source / Category */}
           <div className="space-y-1.5">
-            <Label>Fuente</Label>
+            <div className="flex items-center justify-between">
+              <Label>Fuente</Label>
+              <button
+                type="button"
+                onClick={() => setManageCatsOpen(true)}
+                className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+              >
+                <Settings2 className="h-3 w-3" />
+                Gestionar
+              </button>
+            </div>
             <Select value={form.source} onValueChange={(v) => setForm({ ...form, source: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {INCOME_SOURCES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.name}>
+                    <span className="flex items-center gap-2">
+                      <span>{c.emoji}</span>
+                      <span>{c.name}</span>
+                    </span>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -144,5 +174,6 @@ export function AddIncomeDialog() {
         </div>
       </DialogContent>
     </Dialog>
+    </>
   )
 }

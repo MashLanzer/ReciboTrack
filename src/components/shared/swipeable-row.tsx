@@ -14,13 +14,21 @@ interface SwipeableRowProps {
   threshold?: number
 }
 
+// Width of the delete-only zone (right side, red)
+const DELETE_SNAP = 80
+
+// Width of the edit+delete zone when both actions are present
+const EDIT_DELETE_SNAP = 160
+
 export function SwipeableRow({ children, onEdit, onDelete, disabled = false, threshold = 60 }: SwipeableRowProps) {
   const startXRef = useRef<number | null>(null)
+  const isDraggingRef = useRef(false)
   const [offset, setOffset] = useState(0)
   const [revealed, setRevealed] = useState<"left" | "right" | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const SNAP = 80 // px that the row snaps to when revealing actions
+  // Snap distance: if both edit and delete are present, snap wider
+  const SNAP = onEdit && onDelete ? EDIT_DELETE_SNAP : DELETE_SNAP
 
   const reset = useCallback(() => {
     setOffset(0)
@@ -30,6 +38,7 @@ export function SwipeableRow({ children, onEdit, onDelete, disabled = false, thr
   function onTouchStart(e: React.TouchEvent) {
     if (disabled) return
     startXRef.current = e.touches[0].clientX
+    isDraggingRef.current = false
   }
 
   function onTouchMove(e: React.TouchEvent) {
@@ -37,68 +46,91 @@ export function SwipeableRow({ children, onEdit, onDelete, disabled = false, thr
     const dx = e.touches[0].clientX - startXRef.current
 
     // Only allow swipe left (negative dx) to reveal right actions
-    if (dx > 0) { setOffset(0); return }
-    setOffset(Math.max(dx, -SNAP * 2))
+    if (dx > 0) {
+      if (!revealed) { setOffset(0); return }
+      // If already revealed, allow swiping back right to reset
+      setOffset(Math.min(0, -SNAP + dx))
+      return
+    }
+
+    isDraggingRef.current = true
+    // Resist going beyond 2× snap
+    setOffset(Math.max(dx, -SNAP * 1.3))
   }
 
   function onTouchEnd() {
-    if (offset < -threshold) {
-      setOffset(-SNAP)
-      setRevealed("right")
-    } else {
+    if (isDraggingRef.current) {
+      if (offset < -threshold) {
+        setOffset(-SNAP)
+        setRevealed("right")
+      } else {
+        reset()
+      }
+    } else if (revealed) {
+      // Tap on sliding content while revealed — reset
       reset()
     }
     startXRef.current = null
+    isDraggingRef.current = false
   }
 
-  function handleEdit() {
+  function handleEdit(e: React.MouseEvent) {
+    e.stopPropagation()
     reset()
     onEdit?.()
   }
 
-  function handleDelete() {
+  function handleDelete(e: React.MouseEvent) {
+    e.stopPropagation()
     reset()
     onDelete?.()
   }
 
-  return (
-    <div ref={containerRef} className="relative overflow-hidden rounded-lg">
-      {/* Action buttons revealed on swipe-left */}
-      <div
-        className="absolute right-0 top-0 bottom-0 flex items-center gap-1 px-2"
-        style={{ width: SNAP }}
-      >
-        {onEdit && (
-          <button
-            onClick={handleEdit}
-            className="flex h-full flex-1 flex-col items-center justify-center gap-1 rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400 hover:bg-blue-500/25 transition-colors"
-          >
-            <Edit className="h-4 w-4" />
-            <span className="text-[9px] font-medium">Editar</span>
-          </button>
-        )}
-        {onDelete && (
-          <button
-            onClick={handleDelete}
-            className="flex h-full flex-1 flex-col items-center justify-center gap-1 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
-          >
-            <Trash2 className="h-4 w-4" />
-            <span className="text-[9px] font-medium">Borrar</span>
-          </button>
-        )}
-      </div>
+  const hasActions = onEdit || onDelete
 
-      {/* Main content — slides left on swipe */}
+  return (
+    <div ref={containerRef} className="relative overflow-hidden rounded-xl">
+      {/* ── Action zone behind the card (revealed on swipe-left) ── */}
+      {hasActions && (
+        <div className="absolute right-0 top-0 bottom-0 flex items-stretch">
+          {/* Edit action — blue, only when onEdit is provided */}
+          {onEdit && (
+            <button
+              onClick={handleEdit}
+              className="flex w-20 flex-col items-center justify-center gap-1 bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 transition-colors"
+            >
+              <Edit className="h-4 w-4" />
+              <span className="text-[10px] font-semibold">Editar</span>
+            </button>
+          )}
+          {/* Delete action — red destructive, spec: absolute right-0 top-0 bottom-0 w-20 bg-destructive */}
+          {onDelete && (
+            <button
+              onClick={handleDelete}
+              className="flex w-20 flex-col items-center justify-center gap-1 bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80 transition-colors rounded-r-xl"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span className="text-[10px] font-semibold">Eliminar</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── Main card — slides left to reveal actions ── */}
       <div
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        onClick={revealed ? reset : undefined}
+        onClick={revealed ? (e) => { e.stopPropagation(); reset() } : undefined}
         style={{
           transform: `translateX(${offset}px)`,
-          transition: startXRef.current === null ? "transform 0.2s ease" : "none",
+          transition: isDraggingRef.current ? "none" : "transform 0.2s ease",
+          willChange: "transform",
         }}
-        className={cn("relative bg-background", revealed && "cursor-pointer")}
+        className={cn(
+          "relative bg-background rounded-xl",
+          revealed && "cursor-pointer select-none",
+        )}
       >
         {children}
       </div>
