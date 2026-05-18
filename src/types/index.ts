@@ -261,3 +261,25 @@ export interface GroupNote {
   createdAt: Timestamp
   expiresAt: Timestamp
 }
+
+// ─── Clients ──────────────────────────────────────────────────────────────────
+
+export interface Client {
+  id: string
+  name: string
+  email?: string
+  phone?: string
+  notes?: string
+  color: string
+  createdAt: Timestamp
+  isActive: boolean
+}
+
+export interface ClientInput {
+  name: string
+  email?: string
+  phone?: string
+  notes?: string
+  color: string
+  isActive: boolean
+}

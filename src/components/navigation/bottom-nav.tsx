@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { signOut } from "firebase/auth"
 import { getFirebaseAuth } from "@/lib/firebase/client"
 import { useAuth } from "@/hooks/use-auth"
@@ -36,7 +36,6 @@ import type { QuickExpense } from "@/types"
 
 export function BottomNav() {
   const pathname = usePathname()
-  const router = useRouter()
   const { user } = useAuth()
   const { theme, setTheme } = useTheme()
   const { setCommandOpen, setScannerOpen, setQuickAddOpen, setIncomeAddOpen } = useUIStore()
@@ -216,41 +215,7 @@ export function BottomNav() {
 
           {/* Grouped nav items */}
           <div className="p-2 grid grid-cols-3 gap-1.5">
-            {/* Items 0–3: Ingresos, Recurrentes, Presupuestos, Categorías */}
-            {MORE_ITEMS.slice(0, 4).map(({ href, label, icon: Icon }) => {
-              const active = pathname === href || pathname.startsWith(href + "/")
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={cn(
-                    "flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl transition-colors",
-                    active
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                  )}
-                >
-                  <Icon className={cn("h-5 w-5", active && "stroke-[2.5]")} />
-                  <span className="text-[11px] font-medium">{label}</span>
-                </Link>
-              )
-            })}
-
-            {/* Accesos rápidos — entre Categorías y Proyectos */}
-            <button
-              onClick={() => {
-                setMoreOpen(false)
-                try { localStorage.setItem("rt-dashboard-tab", "semana") } catch { /**/ }
-                router.push("/dashboard")
-              }}
-              className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl transition-colors text-muted-foreground hover:text-foreground hover:bg-accent"
-            >
-              <Zap className="h-5 w-5" />
-              <span className="text-[11px] font-medium">Accesos rápidos</span>
-            </button>
-
-            {/* Item 4: Proyectos */}
-            {MORE_ITEMS.slice(4).map(({ href, label, icon: Icon }) => {
+            {MORE_ITEMS.map(({ href, label, icon: Icon }) => {
               const active = pathname === href || pathname.startsWith(href + "/")
               return (
                 <Link

@@ -30,11 +30,12 @@ import {
   TrendingUp,
   Wallet,
   AlertTriangle,
+  Plus,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Progress } from "@/components/ui/progress"
-import { useExpensesPeriod } from "@/hooks/use-expenses"
+import { useExpensesPeriod, useAddExpense } from "@/hooks/use-expenses"
 import { startOfMonth, subMonths, endOfMonth } from "date-fns"
 import type { Expense } from "@/types"
 
@@ -47,18 +48,57 @@ export default function ProjectsPage() {
   const { data: categories = [] } = useCategories()
   const { data: budgets = {} } = useProjectBudgets()
   const setBudget = useSetProjectBudget()
+  const addExpense = useAddExpense()
   const allCats = categories.length > 0 ? categories : DEFAULT_CATEGORIES
 
   const [selected, setSelected] = useState<string | null>(null)
   const [renameTarget, setRenameTarget] = useState<ProjectSummary | null>(null)
   const [budgetTarget, setBudgetTarget] = useState<ProjectSummary | null>(null)
   const [budgetInput, setBudgetInput] = useState("")
+  const [newProjectOpen, setNewProjectOpen] = useState(false)
+  const [newProjectName, setNewProjectName] = useState("")
+  const [creatingProject, setCreatingProject] = useState(false)
 
   const selectedProject = projects.find((p) => p.name === selected)
   const projectExpenses = useMemo(
     () => (selected ? expenses.filter((e) => e.project === selected) : []),
     [selected, expenses]
   )
+
+  async function handleCreateProject() {
+    const name = newProjectName.trim()
+    if (!name) { toast.error("El nombre del proyecto es obligatorio"); return }
+    if (projects.some((p) => p.name === name)) {
+      toast.error("Ya existe un proyecto con ese nombre")
+      return
+    }
+    setCreatingProject(true)
+    try {
+      await addExpense.mutateAsync({
+        merchant: name,
+        date: new Date(),
+        items: [],
+        subtotal: 0,
+        tax: 0,
+        total: 0.01,
+        paymentMethod: null,
+        reference: null,
+        category: "otros",
+        currency: "USD",
+        notes: "Placeholder de proyecto",
+        tags: [],
+        receiptImageUrl: null,
+        project: name,
+      })
+      toast.success(`Proyecto "${name}" creado`)
+      setNewProjectOpen(false)
+      setNewProjectName("")
+    } catch {
+      toast.error("Error al crear el proyecto")
+    } finally {
+      setCreatingProject(false)
+    }
+  }
 
   return (
     <>
@@ -72,13 +112,19 @@ export default function ProjectsPage() {
             onRename={() => setRenameTarget(selectedProject!)}
           />
         ) : (
-          <div>
-            <h1 className="font-serif text-2xl">Clientes y Proyectos</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {projects.length > 0
-                ? `${projects.length} proyecto${projects.length !== 1 ? "s" : ""} · últimos 6 meses`
-                : "Asigna gastos a proyectos para verlos aquí"}
-            </p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="font-serif text-2xl">Proyectos</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                {projects.length > 0
+                  ? `${projects.length} proyecto${projects.length !== 1 ? "s" : ""} · últimos 6 meses`
+                  : "Asigna gastos a proyectos para verlos aquí"}
+              </p>
+            </div>
+            <Button onClick={() => { setNewProjectName(""); setNewProjectOpen(true) }} className="gap-2 shrink-0">
+              <Plus className="h-4 w-4" />
+              Nuevo proyecto
+            </Button>
           </div>
         )}
 
@@ -133,6 +179,42 @@ export default function ProjectsPage() {
           }}
         />
       )}
+
+      {/* ── New project dialog ─────────────────────────────────────────── */}
+      <Dialog open={newProjectOpen} onOpenChange={setNewProjectOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Briefcase className="h-4 w-4" />
+              Nuevo proyecto
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              Los proyectos se crean al etiquetar gastos. Este acceso rápido crea un gasto placeholder de $0.01 con el nombre del proyecto.
+            </p>
+            <div>
+              <Label className="text-xs mb-1 block">Nombre del proyecto *</Label>
+              <Input
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCreateProject()}
+                placeholder="Mi proyecto, Cliente XYZ..."
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewProjectOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={handleCreateProject}
+              disabled={creatingProject || !newProjectName.trim()}
+            >
+              {creatingProject ? "Creando…" : "Crear proyecto"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Budget dialog ─────────────────────────────────────────────── */}
       {budgetTarget && (

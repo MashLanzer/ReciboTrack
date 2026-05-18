@@ -322,7 +322,7 @@ export default function RecurringPage() {
           <div className="flex-1 min-w-0">
             <p className="text-xs text-muted-foreground">Costo mensual estimado</p>
             <p className="text-2xl font-bold tabular-nums">
-              ${monthlyTotal.toFixed(2)}
+              {formatCurrency(monthlyTotal)}
             </p>
             <p className="text-xs text-muted-foreground">sumando todos los recurrentes normalizados al mes</p>
           </div>
@@ -383,7 +383,7 @@ export default function RecurringPage() {
               <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-500 shrink-0 animate-bounce" />
               <div className="flex-1">
                 <p className="text-sm font-semibold text-green-800 dark:text-green-400">
-                  🎉✅💚 Todo al día — {templates.length} recurrente{templates.length !== 1 ? "s" : ""} al día
+                  Todo al día — {templates.length} recurrente{templates.length !== 1 ? "s" : ""} al día
                 </p>
                 <p className="text-xs text-green-700/70 dark:text-green-500/70 mt-0.5">
                   No tienes pagos pendientes ni vencidos. ¡Buen trabajo!
@@ -396,13 +396,12 @@ export default function RecurringPage() {
               </p>
             )}
             <div className="pl-9">
-              <button
-                type="button"
-                onClick={() => setViewMode("list")}
+              <Link
+                href="/recurring"
                 className="text-xs text-green-700 dark:text-green-400 underline underline-offset-2 hover:no-underline transition-all"
               >
                 Ver todos los recurrentes →
-              </button>
+              </Link>
             </div>
           </div>
         )
