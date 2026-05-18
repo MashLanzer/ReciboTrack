@@ -3,7 +3,8 @@ import { getAuth, type Auth } from "firebase/auth"
 import {
   initializeFirestore,
   persistentLocalCache,
-  persistentMultipleTabManager,
+  persistentSingleTabManager,
+  CACHE_SIZE_UNLIMITED,
   getFirestore,
   type Firestore,
 } from "firebase/firestore"
@@ -43,7 +44,8 @@ export function getFirebaseDb(): Firestore {
     try {
       _db = initializeFirestore(app, {
         localCache: persistentLocalCache({
-          tabManager: persistentMultipleTabManager(),
+          tabManager: persistentSingleTabManager(undefined),
+          cacheSizeBytes: CACHE_SIZE_UNLIMITED,
         }),
       })
     } catch {

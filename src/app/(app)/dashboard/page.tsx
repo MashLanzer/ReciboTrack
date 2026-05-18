@@ -166,7 +166,7 @@ export default function DashboardPage() {
         onClick={() => setShowRecap(s => !s)}
         className="w-full flex items-center justify-between rounded-2xl border border-dashed border-border px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-border/80 hover:bg-accent/30 transition-all"
       >
-        <span>📊 Resumen del mes</span>
+        <span>Resumen del mes</span>
         {showRecap ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </button>
       {showRecap && <MonthlyRecapCard />}
@@ -220,7 +220,7 @@ export default function DashboardPage() {
         onClick={() => setShowMemories(s => !s)}
         className="w-full flex items-center justify-between rounded-2xl border border-dashed border-border px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-border/80 hover:bg-accent/30 transition-all"
       >
-        <span>📅 Recuerdos y logros</span>
+        <span>Recuerdos y logros</span>
         {showMemories ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </button>
       {showMemories && (
@@ -228,6 +228,9 @@ export default function DashboardPage() {
           <MemoriesWidget />
           <HighlightsWidget />
           <AnniversaryWidget />
+          <p className="text-xs text-muted-foreground text-center py-2">
+            Los recuerdos aparecen cuando llevas más tiempo usando la app
+          </p>
         </div>
       )}
 

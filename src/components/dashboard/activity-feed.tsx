@@ -7,7 +7,7 @@ import {
   startOfDay, endOfDay, subDays,
 } from "date-fns"
 import { es } from "date-fns/locale"
-import { Pencil, ArrowRight, Receipt, Bookmark, BookmarkCheck } from "lucide-react"
+import { Pencil, ArrowRight, Receipt, Bookmark, BookmarkCheck, List, Sparkles } from "lucide-react"
 import { useExpensesPeriod, useFlagExpense } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
 import { useUIStore } from "@/stores/ui-store"
@@ -235,24 +235,28 @@ export function ActivityFeed() {
             <button
               onClick={() => setFeedMode("recent")}
               className={cn(
-                "px-2 py-1 rounded-md font-medium transition-colors",
+                "flex items-center gap-1 px-2 py-1 rounded-md font-medium transition-colors",
                 feedMode === "recent"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
               )}
+              aria-label="Recientes"
             >
-              📋
+              <List className="h-3 w-3" />
+              <span>Recientes</span>
             </button>
             <button
               onClick={() => setFeedMode("smart")}
               className={cn(
-                "px-2 py-1 rounded-md font-medium transition-colors",
+                "flex items-center gap-1 px-2 py-1 rounded-md font-medium transition-colors",
                 feedMode === "smart"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
               )}
+              aria-label="Inteligente"
             >
-              ✨
+              <Sparkles className="h-3 w-3" />
+              <span>Smart</span>
             </button>
           </div>
           <Link

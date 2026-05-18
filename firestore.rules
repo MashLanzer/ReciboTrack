@@ -104,6 +104,13 @@ service cloud.firestore {
       match /projects/{projectId} {
         allow read, write: if isOwner(userId);
       }
+
+      // Cobertura wildcard: cualquier subcolección bajo users/{uid}/ no listada
+      // explícitamente arriba (starred, pinnedItems, watchlist, highlights,
+      // automations, groupFolders, projectBudgets, trustedCircle, categoryBudgets, …)
+      match /{subcollection=**} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // ─── Grupos compartidos (/groups/{groupId}) ────────────────────────────────
@@ -209,6 +216,11 @@ service cloud.firestore {
           // Las entradas de auditoría no se modifican ni eliminan
           allow update, delete: if false;
         }
+      }
+
+      // ── Subcolecciones adicionales del grupo (bets, checklists, …) ────────────
+      match /{subcollection=**} {
+        allow read, write: if isAuth() && isMember(get(/databases/$(database)/documents/groups/$(groupId)).data);
       }
 
       // ── Liquidaciones (/groups/{groupId}/settlements/{settlementId}) ─────────
