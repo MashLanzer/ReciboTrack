@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useMemo } from "react"
 import { useSearchParams } from "next/navigation"
-import { ScanLine, Plus, BarChart2, ChevronDown, ChevronUp, Search } from "lucide-react"
+import { ScanLine, Plus, BarChart2, Search } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -23,6 +23,7 @@ import { SwipeableFeed }      from "@/components/dashboard/swipeable-feed"
 import { QuickStatsBlock, QuickRecentBlock } from "@/components/dashboard/quick-mode-extras"
 import { MonthlyRecapCard }   from "@/components/dashboard/monthly-recap-card"
 import { TodayWidget }        from "@/components/dashboard/today-widget"
+import { CollapsibleContent, CollapsibleChevron } from "@/components/ui/collapsible"
 import { useUIStore }         from "@/stores/ui-store"
 import { useAuth }            from "@/hooks/use-auth"
 import { cn }                 from "@/lib/utils"
@@ -174,9 +175,11 @@ export default function DashboardPage() {
         className="w-full flex items-center justify-between rounded-2xl border border-dashed border-border px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-border/80 hover:bg-accent/30 transition-all"
       >
         <span>Resumen del mes</span>
-        {showRecap ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        <CollapsibleChevron open={showRecap} />
       </button>
-      {showRecap && <MonthlyRecapCard />}
+      <CollapsibleContent open={showRecap}>
+        <MonthlyRecapCard />
+      </CollapsibleContent>
 
       {/* ── Quick actions ─────────────────────────────────────────────── */}
       <div className="flex gap-3">
@@ -228,18 +231,16 @@ export default function DashboardPage() {
         className="w-full flex items-center justify-between rounded-2xl border border-dashed border-border px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-border/80 hover:bg-accent/30 transition-all"
       >
         <span>Recuerdos y logros</span>
-        {showMemories ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        <CollapsibleChevron open={showMemories} />
       </button>
-      {showMemories && (
-        <div className="space-y-3">
-          <MemoriesWidget />
-          <HighlightsWidget />
-          <AnniversaryWidget />
-          <p className="text-xs text-muted-foreground text-center py-2">
-            Los recuerdos aparecen cuando llevas más tiempo usando la app
-          </p>
-        </div>
-      )}
+      <CollapsibleContent open={showMemories} className="space-y-3">
+        <MemoriesWidget />
+        <HighlightsWidget />
+        <AnniversaryWidget />
+        <p className="text-xs text-muted-foreground text-center py-2">
+          Los recuerdos aparecen cuando llevas más tiempo usando la app
+        </p>
+      </CollapsibleContent>
 
       {/* ── Activity feed ─────────────────────────────────────────────── */}
       <div className="space-y-2">
@@ -254,17 +255,13 @@ export default function DashboardPage() {
       >
         <BarChart2 className="h-4 w-4" />
         {showAnalytics ? "Ocultar análisis" : "Ver análisis completo"}
-        {showAnalytics
-          ? <ChevronUp className="h-4 w-4 ml-auto" />
-          : <ChevronDown className="h-4 w-4 ml-auto" />}
+        <CollapsibleChevron open={showAnalytics} className="ml-auto" />
       </button>
 
-      {showAnalytics && (
-        <div className="space-y-2">
-          <SectionLabel>Análisis detallado</SectionLabel>
-          <DashboardStats />
-        </div>
-      )}
+      <CollapsibleContent open={showAnalytics} className="space-y-2">
+        <SectionLabel>Análisis detallado</SectionLabel>
+        <DashboardStats />
+      </CollapsibleContent>
 
       </>)} {/* END dashMode normal */}
 
