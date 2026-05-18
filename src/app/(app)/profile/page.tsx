@@ -32,12 +32,15 @@ import {
   User, Camera, Sun, Moon, Monitor, Download, LogOut, Trash2, Bell, Globe,
   Shield, Check, Loader2, AlertTriangle, BarChart3, EyeOff, Wallet,
   Sheet, Webhook, ExternalLink, Link2Off, Send, RefreshCw, Settings2,
-  ChevronRight, Lock, Smartphone, Database, Plug, CreditCard,
+  ChevronRight, Lock, Smartphone, Database, Plug, CreditCard, Share2, Plus,
 } from "lucide-react"
 import { AccentColorPicker } from "@/components/shared/accent-color-picker"
 import { TrustedCircleCard } from "@/components/profile/trusted-circle-card"
 import { PwaInstallButton } from "@/components/shared/pwa-install-button"
 import { PasskeySetupCard } from "@/components/auth/passkey-setup-card"
+import { CreatePortalDialog } from "@/components/portals/create-portal-dialog"
+import { PortalCard } from "@/components/portals/portal-card"
+import { usePortals } from "@/hooks/use-portals"
 import { format, startOfYear, endOfYear, getMonth, getDay, subMonths } from "date-fns"
 import { es } from "date-fns/locale"
 import type { Expense } from "@/types"
@@ -166,11 +169,12 @@ function PersonalStats() {
 }
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
-type Tab = "perfil" | "preferencias" | "datos" | "cuenta"
+type Tab = "perfil" | "preferencias" | "datos" | "compartir" | "cuenta"
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "perfil",        label: "Perfil",        icon: User },
   { id: "preferencias",  label: "Ajustes",        icon: Settings2 },
   { id: "datos",         label: "Datos",          icon: Database },
+  { id: "compartir",     label: "Compartir",      icon: Share2 },
   { id: "cuenta",        label: "Cuenta",         icon: Shield },
 ]
 
@@ -226,6 +230,11 @@ export default function ProfilePage() {
     try { return JSON.parse(localStorage.getItem("rt-webhook-events") ?? '["new_expense"]') } catch { return ["new_expense"] }
   })
   const [webhookTesting, setWebhookTesting] = useState(false)
+
+  // Portals (Compartir tab)
+  const { data: portals = [], isLoading: portalsLoading } = usePortals()
+  const [createPortalOpen, setCreatePortalOpen] = useState(false)
+  const [newPortalToken, setNewPortalToken] = useState<string | null>(null)
 
   const isGoogleUser = user?.providerData.some((p) => p.providerId === "google.com")
   const initials = user?.displayName
@@ -937,7 +946,97 @@ export default function ProfilePage() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          TAB 4: CUENTA
+          TAB 4: COMPARTIR
+      ══════════════════════════════════════════════════════════════════════ */}
+      {tab === "compartir" && (
+        <div className="space-y-4">
+          <CreatePortalDialog
+            open={createPortalOpen}
+            onOpenChange={setCreatePortalOpen}
+            onCreated={(token) => { setNewPortalToken(token) }}
+          />
+
+          {/* New portal token reveal */}
+          {newPortalToken && (
+            <SectionCard>
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                  <Check className="h-4 w-4" />
+                  <p className="text-sm font-semibold">Portal creado</p>
+                </div>
+                <p className="text-xs text-muted-foreground">Copia el enlace y compártelo. Solo las personas con este link podrán ver los datos.</p>
+                <div className="rounded-lg bg-muted/60 border px-3 py-2 flex items-center gap-2">
+                  <code className="flex-1 text-[11px] font-mono break-all text-foreground">
+                    {typeof window !== "undefined" ? `${window.location.origin}/portal/${newPortalToken}` : `/portal/${newPortalToken}`}
+                  </code>
+                  <Button size="sm" variant="ghost" className="h-7 shrink-0"
+                    onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/portal/${newPortalToken}`); toast.success("Copiado") }}>
+                    <Share2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <Button size="sm" variant="ghost" className="w-full text-muted-foreground text-xs" onClick={() => setNewPortalToken(null)}>
+                  Listo
+                </Button>
+              </div>
+            </SectionCard>
+          )}
+
+          {/* Portals list */}
+          <SectionCard>
+            <div className="px-4 py-3 border-b flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Portales compartidos</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Links con permisos finos para contadores, socios y familiares</p>
+              </div>
+              <Button size="sm" className="gap-1.5 h-8" onClick={() => setCreatePortalOpen(true)}>
+                <Plus className="h-3.5 w-3.5" />
+                Nuevo
+              </Button>
+            </div>
+            <div className="p-4 space-y-3">
+              {portalsLoading ? (
+                <div className="space-y-2">
+                  {[1,2].map(i => <div key={i} className="h-28 rounded-xl bg-muted/40 animate-pulse" />)}
+                </div>
+              ) : portals.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+                    <Share2 className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm font-medium">Aún no tienes portales</p>
+                  <p className="text-xs text-muted-foreground mt-1">Crea un portal para compartir tus gastos con permisos personalizados</p>
+                  <Button size="sm" variant="outline" className="mt-4 gap-2" onClick={() => setCreatePortalOpen(true)}>
+                    <Plus className="h-3.5 w-3.5" /> Crear mi primer portal
+                  </Button>
+                </div>
+              ) : (
+                portals.map((portal) => <PortalCard key={portal.id} portal={portal} />)
+              )}
+            </div>
+          </SectionCard>
+
+          {/* How it works */}
+          <SectionCard>
+            <div className="p-4 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cómo funciona</p>
+              {[
+                { emoji: "🔗", text: "Cada portal tiene un enlace único con token de 48 caracteres — imposible de adivinar" },
+                { emoji: "🔒", text: "Los datos se filtran en el servidor. El visitante nunca recibe más de lo que le permites" },
+                { emoji: "⏱️", text: "Los portales expiran automáticamente. Puedes revocarlos con un clic en cualquier momento" },
+                { emoji: "📊", text: "Ves cuántas veces se accedió al portal y cuándo fue el último acceso" },
+              ].map(({ emoji, text }) => (
+                <div key={text} className="flex gap-2.5 items-start">
+                  <span className="text-base shrink-0">{emoji}</span>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{text}</p>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB 5: CUENTA
       ══════════════════════════════════════════════════════════════════════ */}
       {tab === "cuenta" && (
         <div className="space-y-4">

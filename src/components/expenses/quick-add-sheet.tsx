@@ -15,6 +15,7 @@ import { X, Check } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
+import { GeoPicker, type GeoPickerValue } from "@/components/shared/geo-picker"
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -37,6 +38,7 @@ export function QuickAddSheet() {
     paymentMethod: "",
     tags: "",
   })
+  const [geo, setGeo] = useState<GeoPickerValue | null>(null)
 
   // ── Known merchants from last 6 months (for datalist autocomplete) ──────────
   const now = useMemo(() => new Date(), [])
@@ -89,7 +91,12 @@ export function QuickAddSheet() {
         tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
         items: [],
         receiptImageUrl: null,
-      })
+        ...(geo ? {
+          geo:         { lat: geo.lat, lng: geo.lng, accuracy: geo.accuracy },
+          cityName:    geo.cityName,
+          countryCode: geo.countryCode,
+        } : {}),
+      } as Parameters<typeof addExpense.mutateAsync>[0])
       const isOffline = !navigator.onLine
       toast.success(isOffline ? "Guardado localmente" : "Gasto añadido", {
         description: isOffline ? "Se sincronizará al reconectar" : undefined,
@@ -233,6 +240,9 @@ export function QuickAddSheet() {
                 className="h-9 text-sm flex-1"
               />
             </div>
+
+            {/* Geo picker */}
+            <GeoPicker value={geo} onChange={setGeo} compact />
 
             {/* Payment method + Tags row */}
             <div className="flex gap-2">
