@@ -123,8 +123,10 @@ export function GroupFolders({ groupId }: GroupFoldersProps) {
       }
       setOpen(false)
       setForm(emptyForm())
-    } catch {
-      toast.error("Error al guardar carpeta")
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Error desconocido"
+      toast.error("Error al guardar carpeta", { description: msg })
+      console.error("[GroupFolders]", err)
     }
   }
 

@@ -30,8 +30,8 @@ import {
 import { toast } from "sonner"
 import { GroupChecklists } from "@/components/groups/group-checklists"
 import { GroupFolders } from "@/components/groups/group-folders"
-import { CommentButton } from "@/components/groups/group-comments"
-import { AuditLogButton } from "@/components/groups/expense-audit-log"
+import { CommentsDialog } from "@/components/groups/group-comments"
+import { AuditLogDialog2 as AuditLogDialog } from "@/components/groups/expense-audit-log"
 import { GroupEvents } from "@/components/groups/group-events"
 import { GroupPolls } from "@/components/groups/group-polls"
 import { ExpenseReactions } from "@/components/groups/expense-reactions"
@@ -44,7 +44,7 @@ import {
   Search, SlidersHorizontal, TrendingUp, HandCoins, History,
   ChevronDown, ChevronUp, BarChart2, X, Share2, Download, Bell,
   Target, Link as LinkIcon, ChevronLeft, Scale, LayoutGrid,
-  Calendar, ClipboardList, Gift, FolderOpen,
+  Calendar, ClipboardList, Gift, FolderOpen, MessageCircle,
 } from "lucide-react"
 import {
   ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip,
@@ -759,114 +759,141 @@ function BalanceTab({
   return (
     <div className="space-y-4">
       {/* My balance hero */}
-      <div className={`rounded-xl px-4 py-4 text-center ${
-        myBalance > 0.01 ? "bg-green-500/10 border border-green-500/20"
-        : myBalance < -0.01 ? "bg-destructive/10 border border-destructive/20"
-        : "bg-muted/50 border"
-      }`}>
-        <p className="text-xs text-muted-foreground mb-1">Tu balance neto</p>
-        <p className={`text-3xl font-bold tabular-nums ${
-          myBalance > 0.01 ? "text-green-600"
+      <div className={cn(
+        "rounded-2xl px-5 py-5 text-center relative overflow-hidden",
+        myBalance > 0.01
+          ? "bg-gradient-to-br from-green-500/15 to-emerald-500/5 border border-green-500/25"
+          : myBalance < -0.01
+          ? "bg-gradient-to-br from-destructive/15 to-red-500/5 border border-destructive/25"
+          : "bg-gradient-to-br from-muted/60 to-muted/20 border"
+      )}>
+        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-widest mb-2">Tu balance neto</p>
+        <p className={cn(
+          "text-4xl font-black tabular-nums tracking-tight",
+          myBalance > 0.01 ? "text-green-600 dark:text-green-400"
           : myBalance < -0.01 ? "text-destructive"
           : "text-muted-foreground"
-        }`}>
+        )}>
           {myBalance > 0.01 ? "+" : ""}{formatCurrency(myBalance)}
         </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          {myBalance > 0.01 ? "te deben en total"
+        <p className={cn(
+          "text-xs mt-2 font-medium",
+          myBalance > 0.01 ? "text-green-600/80 dark:text-green-400/80"
+          : myBalance < -0.01 ? "text-destructive/70"
+          : "text-muted-foreground"
+        )}>
+          {myBalance > 0.01 ? "te deben en total 👍"
            : myBalance < -0.01 ? "debes en total"
            : "estás en cero 🎉"}
         </p>
       </div>
 
       {/* Per-person debts */}
-      {othersWithBalance.length > 0 ? (
+      {group.members.filter((m) => m.uid !== currentUid).length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Detalles</p>
+          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground px-0.5">Por persona</p>
           {group.members.filter((m) => m.uid !== currentUid).map((m) => {
             const balance = balances[m.uid] ?? 0
-            if (Math.abs(balance) < 0.01) return (
-              <div key={m.uid} className="flex items-center gap-3 p-3 rounded-xl border bg-muted/20">
-                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm font-semibold">
-                  {m.displayName[0]?.toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{m.displayName}</p>
-                  <p className="text-[10px] text-muted-foreground">en cero ✓</p>
-                </div>
-              </div>
-            )
-
-            // balance > 0 → m owes me; balance < 0 → I owe m
             const iOweM = balance < 0
             const amount = Math.abs(balance)
+            const isZero = Math.abs(balance) < 0.01
 
             return (
-              <div key={m.uid} className={`flex items-center gap-3 p-3 rounded-xl border ${iOweM ? "border-destructive/30 bg-destructive/5" : "border-green-500/30 bg-green-500/5"}`}>
-                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-sm font-semibold shrink-0">
+              <div
+                key={m.uid}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors",
+                  isZero
+                    ? "bg-muted/30 border-border/50"
+                    : iOweM
+                    ? "bg-destructive/5 border-destructive/20"
+                    : "bg-green-500/5 border-green-500/20"
+                )}
+              >
+                {/* Avatar */}
+                <div className={cn(
+                  "h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0",
+                  isZero ? "bg-muted text-muted-foreground"
+                  : iOweM ? "bg-destructive/15 text-destructive"
+                  : "bg-green-500/15 text-green-600 dark:text-green-400"
+                )}>
                   {m.displayName[0]?.toUpperCase()}
                 </div>
+
+                {/* Name + status */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{m.displayName}</p>
-                  <p className={`text-[11px] font-medium tabular-nums ${iOweM ? "text-destructive" : "text-green-600"}`}>
-                    {iOweM ? `Le debes ${formatCurrency(amount)}` : `Te debe ${formatCurrency(amount)}`}
-                  </p>
+                  <p className="text-sm font-semibold truncate">{m.displayName}</p>
+                  {isZero ? (
+                    <p className="text-[11px] text-muted-foreground">en cero ✓</p>
+                  ) : (
+                    <p className={cn(
+                      "text-[11px] font-medium tabular-nums",
+                      iOweM ? "text-destructive" : "text-green-600 dark:text-green-400"
+                    )}>
+                      {iOweM ? `Le debes ${formatCurrency(amount)}` : `Te debe ${formatCurrency(amount)}`}
+                    </p>
+                  )}
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  {/* Recordar — only makes sense when someone owes you */}
-                  {!iOweM && (
+
+                {/* Action buttons */}
+                {!isZero && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {!iOweM && (
+                      <button
+                        title="Enviar recordatorio"
+                        onClick={() => {
+                          const msg = `Hola ${m.displayName.split(" ")[0]} 👋\n\nTe recuerdo que me debes ${formatCurrency(amount)} del grupo. Cuando puedas, ¡muchas gracias! 🙏`
+                          if (navigator.share) {
+                            navigator.share({ text: msg }).catch(() => {
+                              navigator.clipboard.writeText(msg)
+                              toast.success("Mensaje copiado")
+                            })
+                          } else {
+                            navigator.clipboard.writeText(msg)
+                            toast.success("Mensaje copiado")
+                          }
+                        }}
+                        className="h-8 w-8 flex items-center justify-center rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      >
+                        <Bell className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                     <Button
                       size="sm"
-                      variant="ghost"
-                      className="h-7 px-2 text-xs gap-1"
-                      title="Enviar recordatorio de deuda"
+                      variant={iOweM ? "destructive" : "default"}
+                      className="h-8 px-3 text-xs gap-1.5"
                       onClick={() => {
-                        const msg = `Hola ${m.displayName.split(" ")[0]} 👋\n\nTe recuerdo que me debes ${formatCurrency(amount)} del grupo. Cuando puedas, ¡muchas gracias! 🙏`
-                        if (navigator.share) {
-                          navigator.share({ text: msg }).catch(() => {
-                            navigator.clipboard.writeText(msg)
-                            toast.success("Mensaje copiado al portapapeles")
-                          })
-                        } else {
-                          navigator.clipboard.writeText(msg)
-                          toast.success("Mensaje copiado al portapapeles")
-                        }
+                        const fromUid = iOweM ? currentUid : m.uid
+                        const toUid   = iOweM ? m.uid       : currentUid
+                        setSettleDialog({ fromUid, toUid, amount })
+                        setSettleAmount(amount.toFixed(2))
+                        setSettleCurrency("USD")
+                        setSettleNote("")
                       }}
                     >
-                      <Bell className="h-3 w-3" />
-                      Recordar
+                      <HandCoins className="h-3.5 w-3.5" />
+                      Saldar
                     </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant={iOweM ? "destructive" : "outline"}
-                    className="h-7 px-2.5 text-xs gap-1"
-                    onClick={() => {
-                      // fromUid = debtor, toUid = creditor
-                      const fromUid = iOweM ? currentUid : m.uid
-                      const toUid   = iOweM ? m.uid       : currentUid
-                      setSettleDialog({ fromUid, toUid, amount })
-                      setSettleAmount(amount.toFixed(2))
-                      setSettleCurrency("USD")
-                      setSettleNote("")
-                    }}
-                  >
-                    <HandCoins className="h-3 w-3" />
-                    Saldar
-                  </Button>
-                </div>
+                  </div>
+                )}
               </div>
             )
           })}
         </div>
-      ) : expenses.length > 0 ? (
-        <div className="text-center py-6 text-muted-foreground">
-          <p className="text-2xl mb-2">🎉</p>
-          <p className="text-sm font-medium">¡Todos en cero!</p>
-          <p className="text-xs mt-1">No hay deudas pendientes en el grupo.</p>
+      )}
+
+      {/* All-zero state */}
+      {expenses.length > 0 && othersWithBalance.length === 0 && (
+        <div className="rounded-2xl border bg-green-500/5 border-green-500/20 py-8 text-center">
+          <p className="text-3xl mb-2">🎉</p>
+          <p className="text-sm font-semibold text-green-700 dark:text-green-400">¡Todos en cero!</p>
+          <p className="text-xs text-muted-foreground mt-1">No hay deudas pendientes en el grupo.</p>
         </div>
-      ) : (
-        <div className="text-center py-6 text-muted-foreground">
+      )}
+
+      {expenses.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground">
+          <Receipt className="h-8 w-8 mx-auto mb-2 opacity-30" />
           <p className="text-sm">Sin gastos registrados aún.</p>
         </div>
       )}
@@ -1130,6 +1157,8 @@ function GroupDetail({
   const [addOpen, setAddOpen] = useState(false)
   const [editExpense, setEditExpense] = useState<GroupExpense | null>(null)
   const [formSaving, setFormSaving] = useState(false)
+  const [commentExpense, setCommentExpense] = useState<GroupExpense | null>(null)
+  const [auditExpense, setAuditExpense] = useState<GroupExpense | null>(null)
 
   // Group editing
   const [editGroupOpen, setEditGroupOpen] = useState(false)
@@ -1622,53 +1651,87 @@ function GroupDetail({
             if (e.privacy === "private" && e.paidByUid !== currentUid) return null
 
             return (
-              <div key={e.id} className="rounded-xl border hover:bg-accent/20 transition-colors group">
-                <div className="flex items-center gap-3 p-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-base"
-                    style={{ backgroundColor: `${cat?.color ?? "#6b7280"}20` }}>
+              <div key={e.id} className="rounded-xl border bg-card hover:bg-accent/10 transition-colors group overflow-hidden">
+                <div className="flex items-center gap-3 px-3 pt-3 pb-2">
+                  {/* Category icon */}
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base"
+                    style={{ backgroundColor: `${cat?.color ?? "#6b7280"}18` }}
+                  >
                     {cat?.icon ?? "📦"}
                   </div>
+
+                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1">
-                      <p className="text-sm font-medium truncate">{e.merchant}</p>
+                      <p className="text-sm font-semibold truncate">{e.merchant}</p>
                       {e.privacy === "private" && <span className="text-[10px]" title="Privado">🔒</span>}
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                      <p className="text-xs text-muted-foreground">
-                        {isMyExpense ? "Tú pagaste" : `Pagó ${e.paidByName}`}
-                      </p>
-                      {splitLabel && <Badge variant="outline" className="text-[10px] h-4 px-1">{splitLabel}</Badge>}
-                      <span className="text-[10px] text-muted-foreground">
+                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                      <span className="text-[11px] text-muted-foreground">
+                        {isMyExpense ? "Tú" : e.paidByName}
+                      </span>
+                      {splitLabel && (
+                        <Badge variant="secondary" className="text-[10px] h-4 px-1.5 font-mono">{splitLabel}</Badge>
+                      )}
+                      <span className="text-[10px] text-muted-foreground/60">·</span>
+                      <span className="text-[11px] text-muted-foreground capitalize">
                         {format(toDate(e.date), "d MMM", { locale: es })}
                       </span>
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="tabular-nums text-sm font-semibold">{formatCurrency(e.total, e.currency)}</p>
-                    {e.splitType !== "full" && e.splitWith.length > 1 && (
-                      <p className="text-[11px] text-muted-foreground tabular-nums">
-                        {isMyExpense
-                          ? `cobras ${formatCurrency(e.total - myShare, e.currency)}`
-                          : `tu parte ${formatCurrency(myShare, e.currency)}`}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all ml-1 shrink-0">
-                    <CommentButton groupId={group.id} expenseId={e.id} expenseName={e.merchant} />
-                    <AuditLogButton groupId={group.id} expenseId={e.id} merchant={e.merchant} />
-                    {canEdit && (
-                      <>
-                        <button onClick={() => openEdit(e)} className="text-muted-foreground hover:text-foreground">
-                          <Pencil className="h-3.5 w-3.5" />
+
+                  {/* Amount + menu */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="text-right">
+                      <p className="tabular-nums text-sm font-bold">{formatCurrency(e.total, e.currency)}</p>
+                      {e.splitType !== "full" && e.splitWith.length > 1 && (
+                        <p className="text-[10px] text-muted-foreground tabular-nums">
+                          {isMyExpense
+                            ? `+${formatCurrency(e.total - myShare, e.currency)}`
+                            : `tu parte ${formatCurrency(myShare, e.currency)}`}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Single ⋮ dropdown for all actions */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0">
+                          <MoreVertical className="h-4 w-4" />
                         </button>
-                        <button onClick={() => handleDelete(e)} className="text-muted-foreground hover:text-destructive">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </>
-                    )}
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem onClick={() => setCommentExpense(e)}>
+                          <MessageCircle className="h-4 w-4" />
+                          Comentarios
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setAuditExpense(e)}>
+                          <History className="h-4 w-4" />
+                          Historial
+                        </DropdownMenuItem>
+                        {canEdit && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => openEdit(e)}>
+                              <Pencil className="h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(e)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Eliminar
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
-                {/* Reactions */}
+
+                {/* Reactions row */}
                 <div className="px-3 pb-2">
                   <ExpenseReactions groupId={group.id} expenseId={e.id} />
                 </div>
@@ -1676,6 +1739,26 @@ function GroupDetail({
             )
           })}
         </div>
+      )}
+
+      {/* ── Shared dialogs (comments + audit) ── */}
+      {commentExpense && (
+        <CommentsDialog
+          open={!!commentExpense}
+          onClose={() => setCommentExpense(null)}
+          groupId={group.id}
+          expenseId={commentExpense.id}
+          expenseName={commentExpense.merchant}
+        />
+      )}
+      {auditExpense && (
+        <AuditLogDialog
+          open={!!auditExpense}
+          onOpenChange={(v) => { if (!v) setAuditExpense(null) }}
+          groupId={group.id}
+          expenseId={auditExpense.id}
+          merchant={auditExpense.merchant}
+        />
       )}
 
       {/* ── Balance tab ── */}
