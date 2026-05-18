@@ -1368,11 +1368,6 @@ function GroupDetail({
 
   return (
     <div className="space-y-4">
-      {/* Group Notes — ephemeral notes row */}
-      <div className="rounded-2xl border bg-card overflow-hidden -mb-2">
-        <GroupNotes groupId={group.id} members={group.members} />
-      </div>
-
       {/* ── NEW HEADER ── */}
       <div className="space-y-1">
         {/* Row 1: back + title + actions */}
@@ -1521,6 +1516,9 @@ function GroupDetail({
       {/* ── Gastos tab ── */}
       {tab === "gastos" && (
         <div className="space-y-3">
+          {/* Notes efímeras del grupo */}
+          <GroupNotes groupId={group.id} members={group.members} />
+
           {/* Search + filter bar */}
           <div className="flex gap-2">
             <div className="relative flex-1">
