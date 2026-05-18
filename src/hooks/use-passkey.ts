@@ -1,24 +1,49 @@
 "use client"
 
+/**
+ * Passkey / Biometric authentication hook
+ *
+ * Two completely independent code paths:
+ *
+ * ── NATIVE (Capacitor APK on Android/iOS) ──────────────────────────────────
+ *   Uses @aparajita/capacitor-biometric-auth which calls Android BiometricPrompt
+ *   / iOS LocalAuthentication natively. WebAuthn is NOT used (unsupported in
+ *   Android WebView).
+ *
+ *   Registration = saving a localStorage flag (the biometric IS the device lock).
+ *   Verification = native biometric prompt → if ok, check Firebase session.
+ *
+ * ── WEB (PWA / desktop browser) ────────────────────────────────────────────
+ *   Uses the WebAuthn PublicKeyCredential API (navigator.credentials).
+ *   Credential ID stored as hex in localStorage (v2 key, avoids base64 padding).
+ */
+
 import { useState, useEffect } from "react"
 import { getFirebaseAuth } from "@/lib/firebase/client"
 import type { User } from "firebase/auth"
 
 // ── Storage keys ─────────────────────────────────────────────────────────────
-// v2: credential ID stored as hex (avoids base64url padding issues entirely)
-const PASSKEY_CRED_KEY  = "rbt_passkey_cred_v2"
-const PASSKEY_EMAIL_KEY = "rbt_passkey_email"
 
-// ── Encoding helpers ──────────────────────────────────────────────────────────
+const PASSKEY_CRED_KEY   = "rbt_passkey_cred_v2"   // web: hex credential ID
+const PASSKEY_EMAIL_KEY  = "rbt_passkey_email"
+const NATIVE_BIO_KEY     = "rbt_native_bio_reg"     // native: "1" when enabled
 
-/** ArrayBuffer → hex string (no encoding issues, portable) */
+// ── Native Capacitor detection ────────────────────────────────────────────────
+
+function isNativeApp(): boolean {
+  if (typeof window === "undefined") return false
+  const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
+  return cap?.isNativePlatform?.() ?? false
+}
+
+// ── Encoding helpers (web path only) ─────────────────────────────────────────
+
 function bufToHex(buf: ArrayBuffer): string {
   return Array.from(new Uint8Array(buf))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("")
 }
 
-/** hex string → Uint8Array (with an explicit ArrayBuffer so TS is happy with BufferSource) */
 function hexToBuf(hex: string): Uint8Array<ArrayBuffer> {
   const buf   = new ArrayBuffer(hex.length / 2)
   const bytes = new Uint8Array(buf)
@@ -28,25 +53,53 @@ function hexToBuf(hex: string): Uint8Array<ArrayBuffer> {
   return bytes
 }
 
-// ── Support detection ─────────────────────────────────────────────────────────
+// ── Firebase session helper ───────────────────────────────────────────────────
+
+async function waitForFirebaseUser(
+  auth: ReturnType<typeof getFirebaseAuth>,
+  timeoutMs: number,
+): Promise<User | null> {
+  if (auth.currentUser) return auth.currentUser
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => { unsub(); resolve(auth.currentUser) }, timeoutMs)
+    const unsub = auth.onAuthStateChanged((user) => { clearTimeout(timer); unsub(); resolve(user) })
+  })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUPPORT DETECTION
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Async hook — returns true only when the device has a platform authenticator
- * (fingerprint, Face ID, Windows Hello, etc.) that can verify the user.
+ * Returns true when biometric auth is available on this device.
  *
- * Uses `isUserVerifyingPlatformAuthenticatorAvailable()` which is the correct
- * API for detecting biometric capability, as opposed to just checking for the
- * `PublicKeyCredential` constructor which exists even on devices with no
- * enrolled biometrics.
+ * Native APK:  uses @aparajita/capacitor-biometric-auth checkBiometry()
+ * Web browser: uses WebAuthn isUserVerifyingPlatformAuthenticatorAvailable()
  */
 export function usePasskeySupport(): boolean {
   const [supported, setSupported] = useState(false)
 
   useEffect(() => {
     if (typeof window === "undefined") return
+
+    if (isNativeApp()) {
+      // ── Native path ──────────────────────────────────────────────────────
+      // Dynamically import the plugin so the web bundle doesn't break if the
+      // native plugin bridge isn't registered (old APK without the plugin).
+      import("@aparajita/capacitor-biometric-auth")
+        .then(({ BiometricAuth }) => BiometricAuth.checkBiometry())
+        .then((result) => setSupported(result.isAvailable || result.deviceIsSecure))
+        .catch(() => {
+          // Plugin not available in this APK build — fall back to always-supported
+          // so the user at least sees the button and gets a clear error on tap.
+          setSupported(true)
+        })
+      return
+    }
+
+    // ── Web path ─────────────────────────────────────────────────────────────
     if (!window.PublicKeyCredential) return
     if (typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== "function") {
-      // Older browsers that have WebAuthn but not this method — assume supported
       setSupported(true)
       return
     }
@@ -58,80 +111,42 @@ export function usePasskeySupport(): boolean {
   return supported
 }
 
-/** Returns true if a passkey credential is stored on this device */
+/** Returns true if a passkey/biometric has been registered on this device */
 export function useHasPasskey(): boolean {
   const [has, setHas] = useState(false)
   useEffect(() => {
-    setHas(!!localStorage.getItem(PASSKEY_CRED_KEY))
+    setHas(hasStoredPasskey())
   }, [])
   return has
 }
 
-// ── Registration ──────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// REGISTRATION
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Registers a platform passkey for the current Firebase user.
- * Stores the credential ID as hex in localStorage.
+ * Registers biometric authentication for this device.
+ *
+ * Native APK:  verifies biometry once, then saves a flag.
+ * Web browser: creates a WebAuthn platform credential.
  */
 export function useRegisterPasskey() {
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError]         = useState<string | null>(null)
 
   async function register() {
-    const auth = getFirebaseAuth()
-    const user = auth.currentUser
-    if (!user) throw new Error("Debes estar autenticado para activar el acceso biométrico")
-    if (!window.PublicKeyCredential) throw new Error("Tu navegador no soporta passkeys")
-
     setIsLoading(true)
     setError(null)
 
     try {
-      const challenge = new Uint8Array(32)
-      crypto.getRandomValues(challenge)
-
-      // NOTE: On iOS the navigator.credentials.create() call MUST happen
-      // synchronously within a user-gesture handler. We keep all async work
-      // (setIsLoading is sync, crypto is sync) before the call.
-      const credential = await navigator.credentials.create({
-        publicKey: {
-          challenge,
-          rp: {
-            name: "ReciboTrack",
-            // rpId must be the hostname only (no port, no protocol)
-            id: window.location.hostname,
-          },
-          user: {
-            // rawId must be a stable unique bytes for this user
-            id: new TextEncoder().encode(user.uid),
-            name: user.email ?? user.uid,
-            displayName: user.displayName ?? user.email ?? "Usuario",
-          },
-          pubKeyCredParams: [
-            { alg: -7,   type: "public-key" },  // ES256 (preferred)
-            { alg: -257, type: "public-key" },  // RS256 (fallback for Windows Hello)
-            { alg: -8,   type: "public-key" },  // EdDSA (future-proofing)
-          ],
-          authenticatorSelection: {
-            authenticatorAttachment: "platform",  // only device biometrics
-            userVerification: "required",          // fingerprint/face required
-            residentKey: "preferred",              // better UX on mobile
-          },
-          timeout: 60_000,
-          attestation: "none",  // we don't verify attestation server-side
-        },
-      }) as PublicKeyCredential | null
-
-      if (!credential) throw new Error("El registro fue cancelado")
-
-      // Store as hex — avoids all base64url padding issues
-      const hexId = bufToHex(credential.rawId)
-      localStorage.setItem(PASSKEY_CRED_KEY, hexId)
-      localStorage.setItem(PASSKEY_EMAIL_KEY, user.email ?? "")
-
+      if (isNativeApp()) {
+        await registerNative()
+      } else {
+        await registerWeb()
+      }
       return true
     } catch (err: unknown) {
-      const msg = getWebAuthnErrorMessage(err)
+      const msg = err instanceof Error ? err.message : "Error al registrar"
       setError(msg)
       throw new Error(msg)
     } finally {
@@ -142,83 +157,165 @@ export function useRegisterPasskey() {
   return { register, isLoading, error }
 }
 
-// ── Verification ──────────────────────────────────────────────────────────────
+// ── Native registration ───────────────────────────────────────────────────────
+
+async function registerNative(): Promise<void> {
+  const auth = getFirebaseAuth()
+  if (!auth.currentUser) throw new Error("Debes estar autenticado para activar el acceso biométrico")
+
+  const { BiometricAuth, BiometryErrorType } = await import("@aparajita/capacitor-biometric-auth")
+
+  try {
+    // Prompt once to confirm biometrics work before saving the flag
+    await BiometricAuth.authenticate({
+      reason:               "Confirma tu huella para activar el acceso rápido",
+      cancelTitle:          "Cancelar",
+      allowDeviceCredential: true,
+      androidTitle:         "Activar acceso biométrico",
+      androidSubtitle:      "Toca el sensor de huella o usa tu bloqueo de pantalla",
+    })
+  } catch (err: unknown) {
+    throw new Error(getBiometricErrorMessage(err))
+  }
+
+  // Biometry confirmed — save registration flag
+  localStorage.setItem(NATIVE_BIO_KEY, "1")
+  localStorage.setItem(PASSKEY_EMAIL_KEY, auth.currentUser.email ?? "")
+}
+
+// ── Web registration ──────────────────────────────────────────────────────────
+
+async function registerWeb(): Promise<void> {
+  const auth = getFirebaseAuth()
+  const user = auth.currentUser
+  if (!user) throw new Error("Debes estar autenticado para activar el acceso biométrico")
+  if (!window.PublicKeyCredential) throw new Error("Tu navegador no soporta passkeys")
+
+  const challenge = new Uint8Array(32)
+  crypto.getRandomValues(challenge)
+
+  const credential = await navigator.credentials.create({
+    publicKey: {
+      challenge,
+      rp: {
+        name: "ReciboTrack",
+        id:   window.location.hostname,
+      },
+      user: {
+        id:          new TextEncoder().encode(user.uid),
+        name:        user.email ?? user.uid,
+        displayName: user.displayName ?? user.email ?? "Usuario",
+      },
+      pubKeyCredParams: [
+        { alg: -7,   type: "public-key" },   // ES256
+        { alg: -257, type: "public-key" },   // RS256
+        { alg: -8,   type: "public-key" },   // EdDSA
+      ],
+      authenticatorSelection: {
+        authenticatorAttachment: "platform",
+        userVerification:        "required",
+        residentKey:             "preferred",
+      },
+      timeout:     60_000,
+      attestation: "none",
+    },
+  }) as PublicKeyCredential | null
+
+  if (!credential) throw new Error("El registro fue cancelado")
+
+  localStorage.setItem(PASSKEY_CRED_KEY, bufToHex(credential.rawId))
+  localStorage.setItem(PASSKEY_EMAIL_KEY, user.email ?? "")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VERIFICATION
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Verifies a previously-registered passkey via biometrics.
- *
- * On success, returns the current Firebase user if still authenticated
- * (the common case — Firebase sessions persist in IndexedDB). Returns null
- * if the Firebase session has expired (user must re-login with email/Google).
- *
- * This is intentionally a client-only flow. The passkey acts as a "session
- * guardian": it verifies the person has the device and biometric, then allows
- * re-using the existing Firebase session without re-entering a password.
+ * Verifies biometric auth.
+ * On success, returns the current Firebase user if the session is still valid.
  */
-export async function verifyPasskey(): Promise<{ ok: boolean; firebaseUser: User | null; error?: string }> {
-  const hexId = localStorage.getItem(PASSKEY_CRED_KEY)
-  if (!hexId) return { ok: false, firebaseUser: null, error: "No hay passkey registrada en este dispositivo" }
+export async function verifyPasskey(): Promise<{
+  ok: boolean
+  firebaseUser: User | null
+  error?: string
+}> {
+  try {
+    if (isNativeApp()) {
+      return await verifyNative()
+    }
+    return await verifyWeb()
+  } catch (err: unknown) {
+    return { ok: false, firebaseUser: null, error: err instanceof Error ? err.message : "Error desconocido" }
+  }
+}
 
+// ── Native verification ───────────────────────────────────────────────────────
+
+async function verifyNative(): Promise<{ ok: boolean; firebaseUser: User | null; error?: string }> {
+  if (!localStorage.getItem(NATIVE_BIO_KEY)) {
+    return { ok: false, firebaseUser: null, error: "No hay acceso biométrico configurado en este dispositivo" }
+  }
+
+  try {
+    const { BiometricAuth } = await import("@aparajita/capacitor-biometric-auth")
+
+    await BiometricAuth.authenticate({
+      reason:                "Verifica tu identidad para entrar",
+      cancelTitle:           "Cancelar",
+      allowDeviceCredential: true,
+      androidTitle:          "ReciboTrack",
+      androidSubtitle:       "Usa tu huella dactilar o bloqueo de pantalla",
+    })
+  } catch (err: unknown) {
+    return { ok: false, firebaseUser: null, error: getBiometricErrorMessage(err) }
+  }
+
+  // Biometry passed — check Firebase session
+  const auth         = getFirebaseAuth()
+  const firebaseUser = await waitForFirebaseUser(auth, 3000)
+  return { ok: true, firebaseUser }
+}
+
+// ── Web verification ──────────────────────────────────────────────────────────
+
+async function verifyWeb(): Promise<{ ok: boolean; firebaseUser: User | null; error?: string }> {
+  const hexId = localStorage.getItem(PASSKEY_CRED_KEY)
+  if (!hexId) {
+    return { ok: false, firebaseUser: null, error: "No hay passkey registrada en este dispositivo" }
+  }
   if (!window.PublicKeyCredential) {
     return { ok: false, firebaseUser: null, error: "Tu navegador no soporta passkeys" }
   }
 
   try {
-    const challenge = new Uint8Array(32)
+    const challenge  = new Uint8Array(32)
     crypto.getRandomValues(challenge)
-
-    const credBytes = hexToBuf(hexId)
+    const credBytes  = hexToBuf(hexId)
 
     const assertion = await navigator.credentials.get({
       publicKey: {
         challenge,
-        rpId: window.location.hostname,
-        userVerification: "required",
-        allowCredentials: [{ id: credBytes, type: "public-key" }],
-        timeout: 60_000,
+        rpId:              window.location.hostname,
+        userVerification:  "required",
+        allowCredentials:  [{ id: credBytes, type: "public-key" }],
+        timeout:           60_000,
       },
     }) as PublicKeyCredential | null
 
-    if (!assertion) {
-      return { ok: false, firebaseUser: null, error: "La verificación fue cancelada" }
-    }
+    if (!assertion) return { ok: false, firebaseUser: null, error: "La verificación fue cancelada" }
 
-    // WebAuthn verification succeeded — now check Firebase session
-    const auth = getFirebaseAuth()
-
-    // Firebase persists auth in IndexedDB. currentUser is loaded synchronously
-    // from the in-memory cache after initial hydration.
+    const auth         = getFirebaseAuth()
     const firebaseUser = await waitForFirebaseUser(auth, 3000)
-
     return { ok: true, firebaseUser }
   } catch (err: unknown) {
-    const msg = getWebAuthnErrorMessage(err)
-    return { ok: false, firebaseUser: null, error: msg }
+    return { ok: false, firebaseUser: null, error: getWebAuthnErrorMessage(err) }
   }
 }
 
-/** Waits up to `timeoutMs` for Firebase to resolve the current user */
-async function waitForFirebaseUser(
-  auth: ReturnType<typeof getFirebaseAuth>,
-  timeoutMs: number
-): Promise<User | null> {
-  if (auth.currentUser) return auth.currentUser
-
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      unsub()
-      resolve(auth.currentUser)
-    }, timeoutMs)
-
-    const unsub = auth.onAuthStateChanged((user) => {
-      clearTimeout(timer)
-      unsub()
-      resolve(user)
-    })
-  })
-}
-
-// ── Hook wrappers ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// HOOK WRAPPERS
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function usePasskeyLogin() {
   const isSupported = usePasskeySupport()
@@ -237,13 +334,16 @@ export function usePasskeyLogin() {
   return { login, isLoading, isSupported, hasPasskey }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
 
-/** Removes the stored passkey credential */
+/** Removes all stored passkey/biometric data */
 export function clearPasskey() {
   localStorage.removeItem(PASSKEY_CRED_KEY)
   localStorage.removeItem(PASSKEY_EMAIL_KEY)
-  // Also clear the old v1 key if present
+  localStorage.removeItem(NATIVE_BIO_KEY)
+  // Also clear old v1 key if present
   localStorage.removeItem("rbt_passkey_cred")
 }
 
@@ -252,64 +352,70 @@ export function getPasskeyEmail(): string | null {
   return localStorage.getItem(PASSKEY_EMAIL_KEY)
 }
 
-/** Returns true if ANY passkey credential is stored (checks both v1 and v2) */
+/** Returns true if ANY biometric/passkey is stored (web or native) */
 export function hasStoredPasskey(): boolean {
   if (typeof window === "undefined") return false
-  return !!(localStorage.getItem(PASSKEY_CRED_KEY) || localStorage.getItem("rbt_passkey_cred"))
+  return !!(
+    localStorage.getItem(NATIVE_BIO_KEY) ||
+    localStorage.getItem(PASSKEY_CRED_KEY) ||
+    localStorage.getItem("rbt_passkey_cred")
+  )
 }
 
 /**
- * Migrates a v1 credential (base64url string) to v2 (hex string).
- * Called once on app mount to transparently upgrade existing users.
+ * Migrates v1 web credential (base64url) to v2 (hex).
+ * Native credentials don't need migration.
  */
 export function migratePasskeyV1ToV2() {
   if (typeof window === "undefined") return
   const v1 = localStorage.getItem("rbt_passkey_cred")
   if (!v1 || localStorage.getItem(PASSKEY_CRED_KEY)) return
-
   try {
-    // v1 stored the base64url credential.id — convert to hex
-    const b64 = v1.replace(/-/g, "+").replace(/_/g, "/")
-    const padded = b64.padEnd(b64.length + (4 - b64.length % 4) % 4, "=")
-    const bytes = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0))
-    const hex = bufToHex(bytes.buffer)
-    localStorage.setItem(PASSKEY_CRED_KEY, hex)
+    const b64    = v1.replace(/-/g, "+").replace(/_/g, "/")
+    const padded = b64.padEnd(b64.length + (4 - (b64.length % 4)) % 4, "=")
+    const bytes  = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0))
+    localStorage.setItem(PASSKEY_CRED_KEY, bufToHex(bytes.buffer))
     localStorage.removeItem("rbt_passkey_cred")
   } catch {
-    // If migration fails, remove the broken v1 entry so user re-registers
     localStorage.removeItem("rbt_passkey_cred")
   }
 }
 
-/** Converts WebAuthn/DOMException errors to Spanish user-friendly messages */
+// ── Error message helpers ─────────────────────────────────────────────────────
+
+/** Maps @aparajita/capacitor-biometric-auth errors to Spanish messages */
+function getBiometricErrorMessage(err: unknown): string {
+  if (!err) return "Error desconocido"
+  const code = (err as { code?: string }).code ?? ""
+
+  const MAP: Record<string, string> = {
+    userCancel:           "Cancelado por el usuario.",
+    appCancel:            "Operación interrumpida.",
+    systemCancel:         "Cancelado por el sistema.",
+    authenticationFailed: "Biometría no reconocida. Inténtalo de nuevo.",
+    biometryLockout:      "Demasiados intentos fallidos. Desbloquea el dispositivo con tu PIN e inténtalo de nuevo.",
+    biometryNotAvailable: "La biometría no está disponible. Asegúrate de haberla configurado en Ajustes.",
+    biometryNotEnrolled:  "No tienes ninguna huella o cara registrada. Ve a Ajustes → Seguridad para añadirla.",
+    passcodeNotSet:       "El dispositivo no tiene bloqueo de pantalla configurado.",
+    noDeviceCredential:   "No hay credencial de dispositivo disponible.",
+  }
+
+  return MAP[code] ?? (err instanceof Error ? err.message : "Error de autenticación biométrica")
+}
+
+/** Maps WebAuthn / DOMException errors to Spanish messages */
 function getWebAuthnErrorMessage(err: unknown): string {
   if (!(err instanceof Error)) return "Error desconocido"
-
   const name = (err as { name?: string }).name ?? ""
   const msg  = err.message.toLowerCase()
 
-  // DOMException names from the WebAuthn spec
-  if (name === "NotAllowedError" || msg.includes("not allowed")) {
-    return "La verificación fue cancelada o denegada. Inténtalo de nuevo."
-  }
-  if (name === "SecurityError" || msg.includes("security")) {
-    return "Error de seguridad. Asegúrate de acceder desde la URL correcta (HTTPS)."
-  }
-  if (name === "NotSupportedError" || msg.includes("not supported")) {
-    return "Tu dispositivo no admite este tipo de autenticación biométrica."
-  }
-  if (name === "InvalidStateError" || msg.includes("already registered")) {
-    return "Ya tienes una passkey registrada en este dispositivo."
-  }
-  if (name === "AbortError" || msg.includes("abort")) {
-    return "La operación fue interrumpida. Inténtalo de nuevo."
-  }
-  if (name === "ConstraintError") {
-    return "El dispositivo no cumple los requisitos de seguridad necesarios."
-  }
-  if (msg.includes("timeout")) {
-    return "Tiempo agotado. Inténtalo de nuevo."
-  }
+  if (name === "NotAllowedError"  || msg.includes("not allowed"))    return "La verificación fue cancelada o denegada. Inténtalo de nuevo."
+  if (name === "SecurityError"    || msg.includes("security"))       return "Error de seguridad. Asegúrate de acceder desde la URL correcta (HTTPS)."
+  if (name === "NotSupportedError"|| msg.includes("not supported"))  return "Tu dispositivo no admite este tipo de autenticación biométrica."
+  if (name === "InvalidStateError"|| msg.includes("already"))        return "Ya tienes una passkey registrada en este dispositivo."
+  if (name === "AbortError"       || msg.includes("abort"))          return "La operación fue interrumpida. Inténtalo de nuevo."
+  if (name === "ConstraintError")                                     return "El dispositivo no cumple los requisitos de seguridad necesarios."
+  if (msg.includes("timeout"))                                       return "Tiempo agotado. Inténtalo de nuevo."
 
   return err.message || "No se pudo completar la autenticación biométrica"
 }
