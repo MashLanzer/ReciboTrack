@@ -40,10 +40,11 @@ import { GroupWishlist } from "@/components/groups/group-wishlist"
 import { GroupBets } from "@/components/groups/group-bets"
 import {
   Users, Plus, LogOut, Copy, RefreshCw, Trash2, Archive, ArchiveRestore,
-  ArrowLeft, Receipt, UserPlus, Crown, Check, Pencil, MoreVertical,
+  Receipt, UserPlus, Crown, Check, Pencil, MoreVertical,
   Search, SlidersHorizontal, TrendingUp, HandCoins, History,
   ChevronDown, ChevronUp, BarChart2, X, Share2, Download, Bell,
-  Target, Link as LinkIcon,
+  Target, Link as LinkIcon, ChevronLeft, Scale, LayoutGrid,
+  Calendar, ClipboardList, Gift, FolderOpen,
 } from "lucide-react"
 import {
   ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip,
@@ -1103,6 +1104,8 @@ function BalanceTab({
 
 // ─── Group detail ─────────────────────────────────────────────────────────────
 
+type ExtraTab = "stats" | "eventos" | "encuestas" | "deseos" | "retos" | "carpetas" | null
+
 function GroupDetail({
   group: initialGroup, onBack, onGroupUpdated,
 }: {
@@ -1122,7 +1125,8 @@ function GroupDetail({
   const updateGroup = useUpdateGroup()
   const archiveGroup = useArchiveGroup()
 
-  const [tab, setTab] = useState<"gastos" | "balance" | "stats" | "miembros" | "eventos" | "encuestas" | "deseos" | "retos">("gastos")
+  const [tab, setTab] = useState<"gastos" | "balance" | "miembros" | "mas">("gastos")
+  const [extraTab, setExtraTab] = useState<ExtraTab>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [editExpense, setEditExpense] = useState<GroupExpense | null>(null)
   const [formSaving, setFormSaving] = useState(false)
@@ -1318,6 +1322,16 @@ function GroupDetail({
     toast.success("Código copiado")
   }
 
+  async function shareInviteLink() {
+    const url = `${window.location.origin}/join?code=${inviteCode}`
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success("Enlace copiado", { description: url })
+    } catch {
+      toast.error("No se pudo copiar el enlace")
+    }
+  }
+
   // Available months from expenses
   const availableMonths = useMemo(() => {
     const set = new Set<string>()
@@ -1345,91 +1359,89 @@ function GroupDetail({
 
   const myBalance = computeBalances(expenses, settlements, group.members)[currentUid] ?? 0
 
+  // Since date from first expense
+  const sinceDate = useMemo(() => {
+    if (expenses.length === 0) return null
+    const first = [...expenses].sort((a, b) => a.date.toDate().getTime() - b.date.toDate().getTime())[0]
+    return first ? format(first.date.toDate(), "d MMM yyyy", { locale: es }) : null
+  }, [expenses])
+
   return (
     <div className="space-y-4">
-      {/* Group Notes (Feature I) — ephemeral notes row */}
+      {/* Group Notes — ephemeral notes row */}
       <div className="rounded-2xl border bg-card overflow-hidden -mb-2">
         <GroupNotes groupId={group.id} members={group.members} />
       </div>
 
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">{group.emoji}</span>
-            <h1 className="font-serif text-xl truncate">{group.name}</h1>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-xs text-muted-foreground">
-              {group.members.length} miembros · {formatCurrency(totalSpent)} total
+      {/* ── NEW HEADER ── */}
+      <div className="space-y-1">
+        {/* Row 1: back + title + actions */}
+        <div className="flex items-start gap-2">
+          {/* Back button */}
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 mt-0.5" onClick={onBack} title="Volver a grupos">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+
+          {/* Title area */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-2xl leading-none">{group.emoji}</span>
+              <h1 className="font-serif text-xl truncate">{group.name}</h1>
+              <GroupTypeBadge type={group.type} />
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2">
+              {group.description && <span className="italic">{group.description}</span>}
+              <span>{group.members.length} miembros</span>
+              {sinceDate && <span>· desde {sinceDate}</span>}
             </p>
-            <GroupTypeBadge type={group.type} />
           </div>
-          {group.description && (
-            <p className="text-xs text-muted-foreground mt-0.5 truncate italic">{group.description}</p>
-          )}
-          {/* Historial total */}
-          {expenses.length > 0 && (() => {
-            const firstExpDate = [...expenses].sort((a, b) => a.date.toDate().getTime() - b.date.toDate().getTime())[0]
-            const since = firstExpDate ? format(firstExpDate.date.toDate(), "d MMM yyyy", { locale: es }) : null
-            return (
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                📊 Total desde siempre: <span className="font-semibold">{formatCurrency(totalSpent)}</span>
-                {since && <> · Activo desde {since}</>}
-              </p>
-            )
-          })()}
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Button size="sm" variant="outline" className="gap-1.5 h-8" onClick={async () => {
-            const url = `${window.location.origin}/join?code=${inviteCode}`
-            try {
-              await navigator.clipboard.writeText(url)
-              toast.success("🔗 Enlace copiado", { description: url })
-            } catch {
-              toast.error("No se pudo copiar el enlace")
-            }
-          }}>
-            <LinkIcon className="h-3.5 w-3.5" />
-            Compartir
-          </Button>
-          <Button size="sm" className="gap-1.5 h-8" onClick={() => setAddOpen(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            Añadir
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {isAdmin && (
-                <DropdownMenuItem onClick={() => setEditGroupOpen(true)}>
-                  <Pencil className="h-4 w-4" />
-                  Editar grupo
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-1 shrink-0">
+            <Button size="sm" className="gap-1.5 h-8" onClick={() => setAddOpen(true)}>
+              <Plus className="h-3.5 w-3.5" />
+              Añadir
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" title="Más opciones">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {isAdmin && (
+                  <DropdownMenuItem onClick={() => setEditGroupOpen(true)}>
+                    <Pencil className="h-4 w-4" />
+                    Editar grupo
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={shareInviteLink}>
+                  <LinkIcon className="h-4 w-4" />
+                  Compartir código
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onClick={copyCode}>
-                <Copy className="h-4 w-4" />
-                Copiar código de invitación
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLeave} className="text-destructive focus:text-destructive">
-                <LogOut className="h-4 w-4" />
-                Salir del grupo
-              </DropdownMenuItem>
-              {isAdmin && (
-                <DropdownMenuItem onClick={handleArchive} className="text-muted-foreground">
-                  <Archive className="h-4 w-4" />
-                  Archivar grupo
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => exportGroupCSV(group, expenses, settlements)}>
+                  <Download className="h-4 w-4" />
+                  Exportar CSV
                 </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuItem onClick={() => exportGroupPDF(group, expenses, settlements, computeBalances(expenses, settlements, group.members))}>
+                  <Download className="h-4 w-4" />
+                  Exportar PDF
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {isAdmin && (
+                  <DropdownMenuItem onClick={handleArchive} className="text-muted-foreground">
+                    <Archive className="h-4 w-4" />
+                    Archivar grupo
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={handleLeave} className="text-destructive focus:text-destructive">
+                  <LogOut className="h-4 w-4" />
+                  Salir del grupo
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
 
@@ -1482,24 +1494,33 @@ function GroupDetail({
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="overflow-x-auto -mx-1 px-1">
-        <div className="flex gap-1 rounded-xl bg-muted p-1 min-w-max">
-          {(["gastos", "balance", "stats", "miembros", "eventos", "encuestas", "deseos", "retos"] as const).map((t) => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-medium capitalize transition-colors ${tab === t ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
-              {t === "stats" ? "Análisis" : t === "eventos" ? "Eventos" : t === "encuestas" ? "Encuestas" : t === "deseos" ? "🎁 Deseos" : t === "retos" ? "🎯 Retos" : t.charAt(0).toUpperCase() + t.slice(1)}
-            </button>
-          ))}
-        </div>
+      {/* ── 4-TAB BAR ── */}
+      <div className="flex rounded-xl bg-muted p-1 gap-1">
+        {(
+          [
+            { key: "gastos",   label: "Gastos",   Icon: Receipt    },
+            { key: "balance",  label: "Balance",  Icon: Scale      },
+            { key: "miembros", label: "Miembros", Icon: Users      },
+            { key: "mas",      label: "Más",      Icon: LayoutGrid },
+          ] as const
+        ).map(({ key, label, Icon }) => (
+          <button
+            key={key}
+            onClick={() => { setTab(key); if (key !== "mas") setExtraTab(null) }}
+            className={cn(
+              "flex-1 flex flex-col items-center gap-0.5 rounded-lg py-2 text-[10px] font-medium transition-colors",
+              tab === key ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* ── Gastos tab ── */}
       {tab === "gastos" && (
         <div className="space-y-3">
-          {/* Folders for grouping/filtering */}
-          <GroupFolders groupId={group.id} />
-
           {/* Search + filter bar */}
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -1664,32 +1685,6 @@ function GroupDetail({
         <BalanceTab group={group} expenses={expenses} settlements={settlements} currentUid={currentUid} />
       )}
 
-      {/* ── Stats tab ── */}
-      {tab === "stats" && (
-        <div className="space-y-4">
-          {/* Export buttons */}
-          {expenses.length > 0 && (
-            <div className="flex gap-2">
-              <Button
-                variant="outline" size="sm" className="gap-1.5 text-xs flex-1"
-                onClick={() => exportGroupCSV(group, expenses, settlements)}
-              >
-                <Download className="h-3.5 w-3.5" />
-                Exportar CSV
-              </Button>
-              <Button
-                variant="outline" size="sm" className="gap-1.5 text-xs flex-1"
-                onClick={() => exportGroupPDF(group, expenses, settlements, computeBalances(expenses, settlements, group.members))}
-              >
-                <Download className="h-3.5 w-3.5" />
-                Exportar PDF
-              </Button>
-            </div>
-          )}
-          <StatsTab expenses={filteredExpenses.length < expenses.length ? filteredExpenses : expenses} group={group} categories={categories} />
-        </div>
-      )}
-
       {/* ── Miembros tab ── */}
       {tab === "miembros" && (
         <div className="space-y-4">
@@ -1747,7 +1742,6 @@ function GroupDetail({
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground">Comparte este código para que otros se unan al grupo</p>
-              {/* Direct invite link via Web Share */}
               <Button
                 variant="outline"
                 size="sm"
@@ -1800,29 +1794,102 @@ function GroupDetail({
         </div>
       )}
 
-      {/* ── Eventos tab ── */}
-      {tab === "eventos" && (
-        <GroupEvents groupId={group.id} members={group.members} />
-      )}
-
-      {/* ── Encuestas tab ── */}
-      {tab === "encuestas" && (
-        <GroupPolls groupId={group.id} members={group.members} />
-      )}
-
-      {/* ── Lista de deseos tab (Feature H) ── */}
-      {tab === "deseos" && (
+      {/* ── Más tab ── */}
+      {tab === "mas" && (
         <div className="space-y-4">
-          <div className="rounded-2xl border bg-card p-4">
-            <GroupWishlist groupId={group.id} currency="USD" />
-          </div>
-          <GroupChecklists groupId={group.id} />
-        </div>
-      )}
+          {extraTab === null ? (
+            /* Feature grid */
+            <div className="grid grid-cols-2 gap-3">
+              {(
+                [
+                  { key: "stats",     Icon: BarChart2,     label: "Análisis",      desc: "Estadísticas y tendencias" },
+                  { key: "eventos",   Icon: Calendar,      label: "Eventos",        desc: "Citas y planes del grupo" },
+                  { key: "encuestas", Icon: ClipboardList, label: "Encuestas",      desc: "Vota con tu grupo" },
+                  { key: "deseos",    Icon: Gift,          label: "Lista de deseos", desc: "Cosas que quieren comprar" },
+                  { key: "retos",     Icon: Target,        label: "Retos",          desc: "Apuestas y desafíos" },
+                  { key: "carpetas",  Icon: FolderOpen,    label: "Carpetas",       desc: "Organiza los gastos" },
+                ] as { key: ExtraTab & string; Icon: React.FC<{ className?: string }>; label: string; desc: string }[]
+              ).map(({ key, Icon, label, desc }) => (
+                <button
+                  key={key}
+                  onClick={() => setExtraTab(key as ExtraTab)}
+                  className="rounded-2xl border bg-card p-4 flex flex-col items-center gap-2 text-center hover:bg-accent/50 transition-colors"
+                >
+                  <Icon className="h-6 w-6 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">{label}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{desc}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            /* Extra feature view */
+            <div className="space-y-4">
+              {/* Back to grid */}
+              <button
+                onClick={() => setExtraTab(null)}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Volver
+              </button>
 
-      {/* ── Retos tab (Feature B) ── */}
-      {tab === "retos" && (
-        <GroupBets groupId={group.id} members={group.members} />
+              {extraTab === "stats" && (
+                <div className="space-y-4">
+                  {expenses.length > 0 && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline" size="sm" className="gap-1.5 text-xs flex-1"
+                        onClick={() => exportGroupCSV(group, expenses, settlements)}
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Exportar CSV
+                      </Button>
+                      <Button
+                        variant="outline" size="sm" className="gap-1.5 text-xs flex-1"
+                        onClick={() => exportGroupPDF(group, expenses, settlements, computeBalances(expenses, settlements, group.members))}
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Exportar PDF
+                      </Button>
+                    </div>
+                  )}
+                  <StatsTab
+                    expenses={filteredExpenses.length < expenses.length ? filteredExpenses : expenses}
+                    group={group}
+                    categories={categories}
+                  />
+                </div>
+              )}
+
+              {extraTab === "eventos" && (
+                <GroupEvents groupId={group.id} members={group.members} />
+              )}
+
+              {extraTab === "encuestas" && (
+                <GroupPolls groupId={group.id} members={group.members} />
+              )}
+
+              {extraTab === "deseos" && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border bg-card p-4">
+                    <GroupWishlist groupId={group.id} currency="USD" />
+                  </div>
+                  <GroupChecklists groupId={group.id} />
+                </div>
+              )}
+
+              {extraTab === "retos" && (
+                <GroupBets groupId={group.id} members={group.members} />
+              )}
+
+              {extraTab === "carpetas" && (
+                <GroupFolders groupId={group.id} />
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {/* ── Add expense dialog ── */}
@@ -1981,22 +2048,28 @@ export default function GroupsPage() {
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-5">
+      {/* ── List header ── */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-serif text-2xl">Grupos</h1>
           <p className="text-xs text-muted-foreground mt-0.5">{activeGroups.length} activo{activeGroups.length !== 1 ? "s" : ""}</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setJoinOpen(true)}>
-            <UserPlus className="h-3.5 w-3.5" />
-            Unirse
+        <div className="flex gap-1.5">
+          <Button variant="outline" size="icon" className="h-8 w-8" title="Unirse a un grupo" onClick={() => setJoinOpen(true)}>
+            <UserPlus className="h-4 w-4" />
           </Button>
-          <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            Crear
+          <Button size="icon" className="h-8 w-8" title="Crear grupo" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
           </Button>
         </div>
       </div>
+
+      {/* GroupFolders at top of list */}
+      {activeGroups.length > 0 && (
+        <div className="rounded-2xl border bg-card overflow-hidden">
+          <GroupFolders groupId="__list__" />
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-3">
