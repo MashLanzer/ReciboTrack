@@ -1,33 +1,28 @@
 "use client"
 
-import { useState } from "react"
 import { Fingerprint, Check, Loader2 } from "lucide-react"
-import { usePasskeySupport, useRegisterPasskey, clearPasskey } from "@/hooks/use-passkey"
+import { usePasskeySupport, useHasPasskey, useRegisterPasskey, clearPasskey } from "@/hooks/use-passkey"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 
 export function PasskeySetupCard() {
   const isSupported = usePasskeySupport()
-  const { register, isLoading } = useRegisterPasskey()
-  const [registered, setRegistered] = useState(() => {
-    if (typeof window === "undefined") return false
-    return !!localStorage.getItem("rbt_passkey_cred")
-  })
+  const registered  = useHasPasskey()
+  const { register, isLoading, error } = useRegisterPasskey()
 
   async function handleRegister() {
     try {
       await register()
-      setRegistered(true)
       toast.success("Acceso biométrico activado")
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Error al registrar"
+      // error state is already set by the hook; show the hook's message if available
+      const msg = error ?? (err instanceof Error ? err.message : "Error al registrar")
       toast.error(msg)
     }
   }
 
   function handleDeactivate() {
     clearPasskey()
-    setRegistered(false)
     toast.success("Acceso biométrico desactivado")
   }
 

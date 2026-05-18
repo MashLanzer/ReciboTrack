@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import { Loader2, Receipt, Smartphone, Fingerprint } from "lucide-react"
-import { usePasskeySupport, usePasskeyLogin } from "@/hooks/use-passkey"
+import { usePasskeySupport, usePasskeyLogin, migratePasskeyV1ToV2 } from "@/hooks/use-passkey"
 
 /** Returns true when running inside a Capacitor native WebView */
 function useIsNativeApp() {
@@ -56,6 +56,9 @@ function LoginForm() {
   const firebaseConfigured = !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY
   const passkeySupported = usePasskeySupport()
   const { login: passkeyLogin, isLoading: passkeyLoading, hasPasskey } = usePasskeyLogin()
+
+  // Migrate v1 passkey credentials (base64url → hex) on first render
+  useEffect(() => { migratePasskeyV1ToV2() }, [])
 
   function setSessionCookie() {
     document.cookie = `session=1; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`
@@ -186,12 +189,16 @@ function LoginForm() {
             variant="outline"
             className="w-full gap-3"
             onClick={async () => {
-              const ok = await passkeyLogin()
-              if (ok) {
+              const result = await passkeyLogin()
+              if (result.ok && result.firebaseUser) {
+                setSessionCookie()
                 toast.success("Autenticado con biometría")
                 navigateAfterLogin()
+              } else if (result.ok && !result.firebaseUser) {
+                // Biometric passed but Firebase session expired
+                toast.info("Tu sesión ha expirado. Inicia sesión con email o Google.", { duration: 6000 })
               } else {
-                toast.error("La autenticación biométrica falló")
+                toast.error(result.error ?? "La autenticación biométrica falló")
               }
             }}
             disabled={passkeyLoading}
