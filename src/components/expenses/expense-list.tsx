@@ -343,7 +343,11 @@ export function ExpenseList() {
           Actualizando...
         </div>
       )}
-      {/* ── Row 1: Search + Filter toggle + Export ─────────────────────── */}
+      {/* ── Sticky search + filter bar ───────────────────────────────────
+           Uses negative horizontal margin + matching padding to extend the
+           background edge-to-edge even inside the page's px-4 container.    */}
+      <div className="sticky top-14 z-20 -mx-4 px-4 pt-1 pb-3 bg-background/95 backdrop-blur-sm border-b border-border/40 space-y-2">
+      {/* Row 1: Search + Filter toggle + Export */}
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -607,6 +611,7 @@ export function ExpenseList() {
           </button>
         </div>
       )}
+      </div> {/* /sticky search + filter bar */}
 
       {expenses.length === 0 ? (
         hasActiveFilters ? (
