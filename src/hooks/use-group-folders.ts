@@ -3,7 +3,7 @@
 import {
   collection,
   doc,
-  addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   getDocs,
@@ -61,7 +61,10 @@ export function useCreateGroupFolder() {
       description?: string
     }) => {
       if (!user) throw new Error("No autenticado")
-      await addDoc(foldersCol(groupId), {
+      // Use setDoc+doc() instead of addDoc() to avoid Firebase v12
+      // internal __list__ verification bug on new subcollections
+      const newRef = doc(foldersCol(groupId))
+      await setDoc(newRef, {
         groupId,
         name,
         emoji,
