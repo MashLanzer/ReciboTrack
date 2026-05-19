@@ -1,6 +1,7 @@
 import { TopNav } from "@/components/navigation/top-nav"
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { AuthGuard } from "@/components/shared/auth-guard"
+import { AppLock } from "@/components/shared/app-lock"
 import { NotificationInit } from "@/components/shared/notification-init"
 import { UpdateBanner } from "@/components/shared/update-banner"
 import { CommandPalette } from "@/components/shared/command-palette"
@@ -22,6 +23,7 @@ import { PullToRefresh } from "@/components/shared/pull-to-refresh"
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
+      <AppLock>
       <OfflineBanner />
       <NotificationInit />
       <AccentColorProvider />
@@ -47,6 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
         <BottomNav />
       </div>
+      </AppLock>
     </AuthGuard>
   )
 }

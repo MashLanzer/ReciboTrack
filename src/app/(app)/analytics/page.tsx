@@ -335,10 +335,11 @@ export default function AnalyticsPage() {
 
   async function handleUpdateProgress() {
     if (!progressDialog) return
-    const amount = parseFloat(progressInput)
-    if (isNaN(amount) || amount < 0) { toast.error("Monto inválido"); return }
+    const increment = parseFloat(progressInput)
+    if (isNaN(increment) || increment < 0) { toast.error("Monto inválido"); return }
+    const newAmount = progressDialog.current + increment
     try {
-      await updateProgress.mutateAsync({ id: progressDialog.id, currentAmount: amount })
+      await updateProgress.mutateAsync({ id: progressDialog.id, currentAmount: newAmount })
       toast.success("Progreso actualizado")
       setProgressDialog(null)
       setProgressInput("")
@@ -944,7 +945,7 @@ export default function AnalyticsPage() {
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button
-                          onClick={() => { setProgressDialog({ id: goal.id, current: goal.currentAmount, name: goal.name }); setProgressInput(goal.currentAmount.toString()) }}
+                          onClick={() => { setProgressDialog({ id: goal.id, current: goal.currentAmount, name: goal.name }); setProgressInput("") }}
                           className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded border border-border hover:border-foreground/30 transition-colors"
                         >
                           Actualizar
@@ -1123,21 +1124,42 @@ export default function AnalyticsPage() {
       <Dialog open={!!progressDialog} onOpenChange={(o) => !o && setProgressDialog(null)}>
         <DialogContent className="sm:max-w-xs">
           <DialogHeader>
-            <DialogTitle>Actualizar "{progressDialog?.name}"</DialogTitle>
+            <DialogTitle>Aportar a "{progressDialog?.name}"</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 mt-1">
+            {/* Current balance read-only */}
+            <div className="rounded-lg bg-muted/50 px-3 py-2 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Ahorrado hasta ahora</span>
+              <span className="text-sm font-semibold tabular-nums">
+                {formatCurrency(progressDialog?.current ?? 0)}
+              </span>
+            </div>
+            {/* Increment input */}
             <div className="space-y-1.5">
-              <Label>Monto ahorrado actual</Label>
+              <Label>Cantidad a añadir</Label>
               <Input
                 type="number" step="0.01" min="0"
                 value={progressInput}
                 onChange={(e) => setProgressInput(e.target.value)}
                 className="tabular-nums text-lg"
+                placeholder="0.00"
                 autoFocus
               />
             </div>
-            <Button className="w-full" onClick={handleUpdateProgress} disabled={updateProgress.isPending}>
-              Guardar progreso
+            {/* Live preview */}
+            {progressInput && !isNaN(parseFloat(progressInput)) && parseFloat(progressInput) > 0 && (
+              <div className="rounded-lg bg-green-500/10 border border-green-500/20 px-3 py-2 flex items-center justify-between animate-[fadeSlideUp_0.2s_ease_both]">
+                <span className="text-xs text-muted-foreground">Nuevo total</span>
+                <div className="flex items-center gap-1.5 text-sm font-semibold tabular-nums text-green-700 dark:text-green-400">
+                  <span className="text-muted-foreground font-normal text-xs">
+                    {formatCurrency(progressDialog?.current ?? 0)} + {formatCurrency(parseFloat(progressInput))} =
+                  </span>
+                  {formatCurrency((progressDialog?.current ?? 0) + parseFloat(progressInput))}
+                </div>
+              </div>
+            )}
+            <Button className="w-full" onClick={handleUpdateProgress} disabled={updateProgress.isPending || !progressInput || parseFloat(progressInput) <= 0}>
+              {updateProgress.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Añadir aporte"}
             </Button>
           </div>
         </DialogContent>
