@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, Suspense, lazy } from "react"
+import { useMemo, useState, useRef, useEffect, Suspense, lazy } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore"
 import { getFirebaseDb } from "@/lib/firebase/client"
@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
-import { TrendingUp, TrendingDown, Minus, Plus, Trash2, Target, AlertTriangle, Check, FileDown, Loader2 } from "lucide-react"
+import { TrendingUp, TrendingDown, Minus, Plus, Trash2, Target, AlertTriangle, Check, FileDown, Loader2, BarChart2, Landmark, FileText } from "lucide-react"
 import { exportMonthlyPDF } from "@/components/expenses/export-utils"
 import { ShareSummary } from "@/components/expenses/share-summary"
 import { FinancialHealth } from "@/components/analytics/financial-health"
@@ -122,6 +122,15 @@ export default function AnalyticsPage() {
   })
 
   const [activeTab, setActiveTab] = useState<"resumen" | "metas" | "finanzas" | "informes">("resumen")
+  const [animatingTab, setAnimatingTab] = useState<string | null>(null)
+  const prevTabRef = useRef(activeTab)
+  useEffect(() => {
+    if (prevTabRef.current === activeTab) return
+    prevTabRef.current = activeTab
+    setAnimatingTab(activeTab)
+    const t = setTimeout(() => setAnimatingTab(null), 450)
+    return () => clearTimeout(t)
+  }, [activeTab])
   const [goalDialog, setGoalDialog] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [progressDialog, setProgressDialog] = useState<{ id: string; current: number; name: string } | null>(null)
@@ -368,12 +377,12 @@ export default function AnalyticsPage() {
     }
   }
 
-  // ── Tab labels ──────────────────────────────────────────────────────────────
+  // ── Tab definitions ─────────────────────────────────────────────────────────
   const TABS = [
-    { id: "resumen",  label: "Resumen" },
-    { id: "metas",    label: "Metas" },
-    { id: "finanzas", label: "Finanzas" },
-    { id: "informes", label: "Informes" },
+    { id: "resumen",  label: "Resumen",  Icon: BarChart2  },
+    { id: "metas",    label: "Metas",    Icon: Target     },
+    { id: "finanzas", label: "Finanzas", Icon: Landmark   },
+    { id: "informes", label: "Informes", Icon: FileText   },
   ] as const
 
   return (
@@ -407,20 +416,30 @@ export default function AnalyticsPage() {
 
       {/* ── Tab bar ── */}
       <div className="flex gap-1 p-1 rounded-xl bg-muted">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={cn(
-              "flex-1 py-2 rounded-lg text-xs font-semibold transition-all",
-              activeTab === t.id
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          const isActive = activeTab === t.id
+          return (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={cn(
+                "flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg text-xs font-semibold transition-all",
+                isActive
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <t.Icon
+                className={cn(
+                  "h-3.5 w-3.5 transition-none",
+                  isActive && "stroke-[2.5]",
+                  animatingTab === t.id && "nav-icon-pop",
+                )}
+              />
+              {t.label}
+            </button>
+          )
+        })}
       </div>
 
       {/* ════════════════════ TAB: RESUMEN ════════════════════ */}
