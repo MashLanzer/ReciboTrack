@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
 import { NAV_ITEMS, MORE_ITEMS, MORE_GROUPS } from "./nav-items"
+import { useNavAlerts } from "@/hooks/use-nav-alerts"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   MoreHorizontal,
@@ -43,6 +44,8 @@ export function BottomNav() {
   const [actionOpen, setActionOpen] = useState(false)
   const [splitOpen, setSplitOpen] = useState(false)
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  const { overdueCount, exceededCount } = useNavAlerts()
+  const totalAlerts = overdueCount + exceededCount
 
   // ── Animation tracking: detect which tab just became active ───────────────
   const [animatingHref, setAnimatingHref] = useState<string | null>(null)
@@ -242,18 +245,28 @@ export function BottomNav() {
                 <div className="grid grid-cols-5 gap-1">
                   {group.items.map(({ href, label, icon: Icon }) => {
                     const active = pathname === href || pathname.startsWith(href + "/")
+                    // Per-item alert count
+                    const alertCount =
+                      href === "/recurring" ? overdueCount :
+                      href === "/budgets"   ? exceededCount : 0
                     return (
                       <Link
                         key={href}
                         href={href}
                         onClick={() => setMoreOpen(false)}
                         className={cn(
-                          "flex flex-col items-center gap-1 px-1 py-2.5 rounded-xl transition-colors",
+                          "relative flex flex-col items-center gap-1 px-1 py-2.5 rounded-xl transition-colors",
                           active
                             ? "bg-primary/10 text-primary"
                             : "text-muted-foreground hover:text-foreground hover:bg-accent"
                         )}
                       >
+                        {alertCount > 0 && (
+                          <span className="absolute top-1 right-1 h-3.5 min-w-[0.875rem] px-0.5 rounded-full
+                            bg-rose-500 text-white text-[8px] font-bold flex items-center justify-center">
+                            {alertCount}
+                          </span>
+                        )}
                         <Icon className={cn("h-[18px] w-[18px]", active && "stroke-[2.5]")} />
                         <span className="text-[9px] font-medium text-center leading-tight line-clamp-1">{label}</span>
                       </Link>
@@ -447,7 +460,15 @@ export function BottomNav() {
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {moreActive && !moreOpen && (
+              {/* Alert count badge on Más button */}
+              {totalAlerts > 0 && !moreOpen && (
+                <span className="absolute top-1 right-2.5 h-4 min-w-[1rem] px-0.5 rounded-full
+                  bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center
+                  animate-[fadeSlideUp_0.2s_ease-out_both]">
+                  {totalAlerts}
+                </span>
+              )}
+              {moreActive && !moreOpen && totalAlerts === 0 && (
                 <span className="absolute top-1.5 right-4 h-1.5 w-1.5 rounded-full bg-primary" />
               )}
               <MoreHorizontal className={cn(
@@ -457,7 +478,7 @@ export function BottomNav() {
               )} />
               <span className="text-[10px] font-medium">Más</span>
               {/* Active dot for Más when a "more" route is active */}
-              {moreActive && !moreOpen && (
+              {moreActive && !moreOpen && totalAlerts === 0 && (
                 <span className="absolute bottom-0.5 h-[3px] w-4 rounded-full bg-foreground origin-center" />
               )}
             </button>
