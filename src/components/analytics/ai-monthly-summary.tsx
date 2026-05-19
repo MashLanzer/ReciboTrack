@@ -1,8 +1,10 @@
 "use client"
+
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Sparkles, Loader2, RefreshCw } from "lucide-react"
+import { Button }   from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Sparkles, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 
 interface Props {
@@ -11,21 +13,49 @@ interface Props {
   month: string
 }
 
+// ─── Pulsing skeleton while AI generates ─────────────────────────────────────
+
+function AISkeleton() {
+  return (
+    <div className="space-y-3 py-1" aria-busy aria-label="Generando resumen…">
+      {/* Simulated text lines at varying widths */}
+      <div className="space-y-2">
+        <Skeleton className="h-3.5 w-full rounded-md" />
+        <Skeleton className="h-3.5 w-[90%] rounded-md" />
+        <Skeleton className="h-3.5 w-[95%] rounded-md" />
+        <Skeleton className="h-3.5 w-[75%] rounded-md" />
+      </div>
+      <div className="space-y-2">
+        <Skeleton className="h-3.5 w-full rounded-md" />
+        <Skeleton className="h-3.5 w-[85%] rounded-md" />
+        <Skeleton className="h-3.5 w-[60%] rounded-md" />
+      </div>
+      <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 pt-1">
+        <Sparkles className="h-3 w-3 animate-pulse text-primary" />
+        Analizando tus gastos con IA…
+      </p>
+    </div>
+  )
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
 export function AiMonthlySummary({ expenses, categoryBreakdown, month }: Props) {
-  const [summary, setSummary] = useState<string>("")
-  const [loading, setLoading] = useState(false)
+  const [summary,   setSummary]   = useState<string>("")
+  const [loading,   setLoading]   = useState(false)
   const [generated, setGenerated] = useState(false)
 
   async function generate() {
     setLoading(true)
+    setGenerated(false)   // reset so fade-in fires again on regeneration
     try {
-      const res = await fetch("/api/ai-summary", {
+      const res  = await fetch("/api/ai-summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ expenses, categories: categoryBreakdown, month }),
       })
       const data = await res.json()
-      if (data.error) throw new Error(data.error)
+      if (data.error)   throw new Error(data.error)
       if (!data.summary) throw new Error("Respuesta vacía")
       setSummary(data.summary)
       setGenerated(true)
@@ -47,24 +77,41 @@ export function AiMonthlySummary({ expenses, categoryBreakdown, month }: Props) 
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {!generated ? (
+
+        {/* ── Loading skeleton ───────────────────────────────────────────── */}
+        {loading && <AISkeleton />}
+
+        {/* ── Idle — generate button ─────────────────────────────────────── */}
+        {!loading && !generated && (
           <div className="flex flex-col items-center gap-3 py-4 text-center">
             <p className="text-xs text-muted-foreground">
               Genera un análisis personalizado de tus gastos de {month} con inteligencia artificial
             </p>
-            <Button size="sm" onClick={generate} disabled={loading} className="gap-2">
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {loading ? "Analizando..." : "Generar resumen"}
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-sm leading-relaxed text-foreground/90">{summary}</p>
-            <Button variant="ghost" size="sm" onClick={generate} disabled={loading} className="gap-1.5 h-7 text-xs">
-              <RefreshCw className="h-3 w-3" /> Regenerar
+            <Button size="sm" onClick={generate} className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              Generar resumen
             </Button>
           </div>
         )}
+
+        {/* ── Summary — fades in when ready ──────────────────────────────── */}
+        {!loading && generated && (
+          <div className="space-y-3 animate-[fadeSlideUp_0.35s_ease-out_both]">
+            <p className="text-sm leading-relaxed text-foreground/90 whitespace-pre-line">
+              {summary}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={generate}
+              className="gap-1.5 h-7 text-xs"
+            >
+              <RefreshCw className="h-3 w-3" />
+              Regenerar
+            </Button>
+          </div>
+        )}
+
       </CardContent>
     </Card>
   )
