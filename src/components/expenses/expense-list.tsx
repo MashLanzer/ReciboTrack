@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { useExpenses, useDeleteExpense, useAddExpense, useUpdateExpense, type ExpenseSort } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
-import { formatCurrency, formatDate, toDate } from "@/lib/utils"
+import { formatCurrency, formatDate, toDate, cn } from "@/lib/utils"
 import { EXPENSES_PER_PAGE } from "@/lib/constants"
 import type { Expense } from "@/types"
 import { Button } from "@/components/ui/button"
@@ -104,6 +104,40 @@ export function ExpenseList() {
   const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set())
   // Map of id → timeout handle so we can cancel on undo
   const deleteTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
+  // ── Long-press → enter select mode ──────────────────────────────────────
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressStart = useRef<{ x: number; y: number } | null>(null)
+
+  function onRowTouchStart(e: React.TouchEvent, id: string) {
+    if (selectMode) return
+    longPressStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+    longPressTimer.current = setTimeout(() => {
+      navigator.vibrate?.(40)   // haptic feedback on Android
+      setSelectMode(true)
+      setSelectedIds(new Set([id]))
+      longPressStart.current = null
+    }, 420)
+  }
+
+  function onRowTouchMove(e: React.TouchEvent) {
+    if (!longPressStart.current || !longPressTimer.current) return
+    const dx = Math.abs(e.touches[0].clientX - longPressStart.current.x)
+    const dy = Math.abs(e.touches[0].clientY - longPressStart.current.y)
+    if (dx > 8 || dy > 8) {                       // moved → cancel long-press
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+      longPressStart.current = null
+    }
+  }
+
+  function onRowTouchEnd() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+    longPressStart.current = null
+  }
 
   // Update URL params helper — resets to page 1 unless page is explicitly set
   const setParams = useCallback((updates: Record<string, string | null>) => {
@@ -715,13 +749,22 @@ export function ExpenseList() {
                         }`}
                         style={compactMode ? { minHeight: 44 } : undefined}
                         onClick={() => selectMode ? toggleSelect(expense.id) : setDetailExpense(expense)}
+                        onTouchStart={(e) => onRowTouchStart(e, expense.id)}
+                        onTouchMove={onRowTouchMove}
+                        onTouchEnd={onRowTouchEnd}
                       >
-                        {/* Checkbox (select mode only) */}
+                        {/* Checkbox (select mode only) — key changes on toggle → remount → CSS pop */}
                         {selectMode && (
-                          <div className="shrink-0 text-primary">
+                          <div
+                            key={`chk-${expense.id}-${selectedIds.has(expense.id)}`}
+                            className={cn(
+                              "shrink-0 check-pop",
+                              selectedIds.has(expense.id) ? "text-primary" : "text-muted-foreground"
+                            )}
+                          >
                             {selectedIds.has(expense.id)
                               ? <CheckSquare className="h-5 w-5" />
-                              : <Square className="h-5 w-5 text-muted-foreground" />}
+                              : <Square className="h-5 w-5" />}
                           </div>
                         )}
 
@@ -879,7 +922,7 @@ export function ExpenseList() {
       {/* ── Sticky bulk action bar ── */}
       {selectMode && selectedIds.size > 0 && (
         <div className="fixed bottom-16 md:bottom-4 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
-          <div className="pointer-events-auto flex items-center gap-2 bg-foreground text-background rounded-2xl px-4 py-3 shadow-2xl border border-foreground/10">
+          <div className="slide-up-fade pointer-events-auto flex items-center gap-2 bg-foreground text-background rounded-2xl px-4 py-3 shadow-2xl border border-foreground/10">
             <span className="text-sm font-medium tabular-nums">
               {selectedIds.size} seleccionado{selectedIds.size !== 1 ? "s" : ""}
             </span>
