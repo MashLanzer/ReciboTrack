@@ -34,6 +34,7 @@ import {
   Sheet, Webhook, ExternalLink, Link2Off, Send, RefreshCw, Settings2,
   ChevronRight, Lock, Smartphone, Database, Plug, CreditCard, Share2, Plus,
 } from "lucide-react"
+import { CollapsibleContent, CollapsibleChevron } from "@/components/ui/collapsible"
 import { AccentColorPicker } from "@/components/shared/accent-color-picker"
 import { TrustedCircleCard } from "@/components/profile/trusted-circle-card"
 import { PwaInstallButton } from "@/components/shared/pwa-install-button"
@@ -91,6 +92,41 @@ function SectionHeader({ title, description }: { title: string; description?: st
     <div className="px-4 py-3 border-b">
       <p className="text-sm font-semibold">{title}</p>
       {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
+    </div>
+  )
+}
+
+/** Section card with a collapsible body. Starts collapsed if defaultOpen=false */
+function CollapsibleSectionCard({
+  title,
+  description,
+  defaultOpen = false,
+  children,
+  className,
+}: {
+  title: string
+  description?: string
+  defaultOpen?: boolean
+  children: React.ReactNode
+  className?: string
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className={cn("rounded-2xl border bg-card", className)}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/30 rounded-2xl transition-colors"
+      >
+        <div>
+          <p className="text-sm font-semibold">{title}</p>
+          {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
+        </div>
+        <CollapsibleChevron open={open} className="h-4 w-4 text-muted-foreground shrink-0 ml-2" />
+      </button>
+      <CollapsibleContent open={open}>
+        <div className="border-t">{children}</div>
+      </CollapsibleContent>
     </div>
   )
 }
@@ -679,8 +715,7 @@ export default function ProfilePage() {
               </SectionCard>
 
               {/* ── Round-Ups ── */}
-              <SectionCard>
-                <SectionHeader title="Round-Ups automáticos" description="Redondea cada gasto y ahorra la diferencia en una meta" />
+              <CollapsibleSectionCard title="Round-Ups automáticos" description="Redondea cada gasto y ahorra la diferencia en una meta">
                 <div className="px-4 divide-y">
                   <SettingRow label="Activar Round-Ups">
                     <Toggle checked={roundupSettings?.roundupEnabled ?? false} onChange={(v) => setRoundupSettings.mutate({ roundupEnabled: v })} />
@@ -696,11 +731,10 @@ export default function ProfilePage() {
                     </SettingRow>
                   )}
                 </div>
-              </SectionCard>
+              </CollapsibleSectionCard>
 
               {/* ── Notificaciones ── */}
-              <SectionCard>
-                <SectionHeader title="Notificaciones" />
+              <CollapsibleSectionCard title="Notificaciones">
                 <div className="px-4 divide-y">
                   <SettingRow label="Notificaciones push" description="Requiere permiso en el navegador">
                     <Toggle
@@ -732,11 +766,10 @@ export default function ProfilePage() {
                     </div>
                   </SettingRow>
                 </div>
-              </SectionCard>
+              </CollapsibleSectionCard>
 
               {/* ── Categorías visibles ── */}
-              <SectionCard>
-                <SectionHeader title="Categorías visibles" description="Oculta las que no usas en los formularios" />
+              <CollapsibleSectionCard title="Categorías visibles" description="Oculta las que no usas en los formularios">
                 <div className="p-4 space-y-3">
                   <div className="flex flex-wrap gap-2">
                     {DEFAULT_CATEGORIES.map((cat) => {
@@ -769,7 +802,7 @@ export default function ProfilePage() {
                     </button>
                   )}
                 </div>
-              </SectionCard>
+              </CollapsibleSectionCard>
             </>
           )}
         </div>
@@ -873,7 +906,7 @@ export default function ProfilePage() {
           </SectionCard>
 
           {/* ── Webhook ── */}
-          <SectionCard>
+          <CollapsibleSectionCard title="Webhook personal" description="Automatiza con Zapier, Make o n8n">
             <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -938,7 +971,7 @@ export default function ProfilePage() {
                 </div>
               )}
             </div>
-          </SectionCard>
+          </CollapsibleSectionCard>
 
           {/* ── Trusted Circle ── */}
           <TrustedCircleCard />
