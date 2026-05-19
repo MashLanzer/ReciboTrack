@@ -109,6 +109,26 @@ export function ExpenseList() {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longPressStart = useRef<{ x: number; y: number } | null>(null)
 
+  // #1 — Limpiar todos los timers pendientes al desmontar el componente
+  // Evita memory leaks y actualizaciones de estado en componentes ya desmontados
+  useEffect(() => {
+    return () => {
+      deleteTimers.current.forEach((timer) => clearTimeout(timer))
+      deleteTimers.current.clear()
+      if (longPressTimer.current) clearTimeout(longPressTimer.current)
+    }
+  }, [])
+
+  // #3 — Salir del modo selección múltiple con la tecla Escape
+  useEffect(() => {
+    if (!selectMode) return
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") exitSelectMode()
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [selectMode]) // eslint-disable-line react-hooks/exhaustive-deps
+
   function onRowTouchStart(e: React.TouchEvent, id: string) {
     if (selectMode) return
     longPressStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
@@ -117,7 +137,7 @@ export function ExpenseList() {
       setSelectMode(true)
       setSelectedIds(new Set([id]))
       longPressStart.current = null
-    }, 420)
+    }, 300) // #21 — reducido de 420ms a 300ms (estándar mobile)
   }
 
   function onRowTouchMove(e: React.TouchEvent) {

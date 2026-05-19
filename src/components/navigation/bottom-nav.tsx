@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "firebase/auth"
@@ -40,6 +41,7 @@ export function BottomNav() {
   const { user } = useAuth()
   const { theme, setTheme } = useTheme()
   const { setCommandOpen, setScannerOpen, setQuickAddOpen, setIncomeAddOpen } = useUIStore()
+  const queryClient = useQueryClient()
   const [moreOpen, setMoreOpen] = useState(false)
   const [actionOpen, setActionOpen] = useState(false)
   const [splitOpen, setSplitOpen] = useState(false)
@@ -116,6 +118,9 @@ export function BottomNav() {
   async function handleSignOut() {
     try {
       await signOut(getFirebaseAuth())
+      // #8 — Limpiar caché de React Query para que el siguiente usuario
+      // no vea datos del usuario anterior al volver a loguearse
+      queryClient.clear()
       document.cookie = "session=; path=/; Max-Age=0; SameSite=Lax"
       window.location.href = "/login"
     } catch {

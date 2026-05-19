@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState, useEffect } from "react"
+import { Suspense, useState, useEffect, useRef } from "react"
 import { ExpenseList }           from "@/components/expenses/expense-list"
 import { ExpenseCalendar }       from "@/components/expenses/expense-calendar"
 import { ExpenseThreads }        from "@/components/expenses/expense-threads"
@@ -28,18 +28,45 @@ function ExpenseListFallback() {
   )
 }
 
-// ─── View panel — parent passes key={view} to force remount on switch ────────
+// ─── View panel ───────────────────────────────────────────────────────────────
+// #4 — Cada vista se monta la primera vez que se visita y permanece montada.
+// Las vistas inactivas se ocultan con CSS (hidden) para preservar scroll y estado.
+// Esto evita el remount completo que antes causaba pérdida de scroll position.
+
+const ALL_VIEWS: ViewMode[] = ["list", "cal", "threads", "grid"]
 
 function ViewPanel({ view }: { view: ViewMode }) {
+  // Registra qué vistas han sido visitadas → una vez montada, nunca se desmonta
+  const visitedRef = useRef<Set<ViewMode>>(new Set([view]))
+  const [visited, setVisited] = useState<Set<ViewMode>>(visitedRef.current)
+
+  useEffect(() => {
+    if (!visitedRef.current.has(view)) {
+      const next = new Set(visitedRef.current)
+      next.add(view)
+      visitedRef.current = next
+      setVisited(next)
+    }
+  }, [view])
+
   return (
-    <div className="animate-[fadeSlideUp_0.18s_ease-out_both]">
-      <Suspense fallback={<ExpenseListFallback />}>
-        {view === "cal"     ? <ExpenseCalendar /> :
-         view === "threads" ? <ExpenseThreads /> :
-         view === "grid"    ? <ExpenseGridView /> :
-                              <ExpenseList />}
-      </Suspense>
-    </div>
+    <>
+      {ALL_VIEWS.map((v) => (
+        <div
+          key={v}
+          className={v === view ? "animate-[fadeSlideUp_0.18s_ease-out_both]" : "hidden"}
+        >
+          {visited.has(v) && (
+            <Suspense fallback={<ExpenseListFallback />}>
+              {v === "cal"     ? <ExpenseCalendar /> :
+               v === "threads" ? <ExpenseThreads /> :
+               v === "grid"    ? <ExpenseGridView /> :
+                                 <ExpenseList />}
+            </Suspense>
+          )}
+        </div>
+      ))}
+    </>
   )
 }
 
@@ -80,8 +107,7 @@ export default function ExpensesPage() {
         <FlaggedExpensesPanel />
       </div>
 
-      {/* Active view — key forces remount → CSS animation fires on every switch */}
-      <ViewPanel key={view} view={view} />
+      <ViewPanel view={view} />
 
       {/* Archived expenses */}
       <div className="mt-6">

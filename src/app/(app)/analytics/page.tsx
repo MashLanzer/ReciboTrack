@@ -60,6 +60,7 @@ function use6MonthExpenses() {
   return useQuery({
     queryKey: ["expenses-6m-analytics", user?.uid],
     enabled: !!user,
+    staleTime: 1000 * 60 * 5, // #5 — 5 min de cache para evitar refetches innecesarios
     queryFn: async () => {
       if (!user) return []
       const start = startOfMonth(subMonths(new Date(), 5))

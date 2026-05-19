@@ -70,13 +70,19 @@ function LoginForm() {
   }
 
   async function initUserProfile(uid: string, displayName: string, email: string) {
-    const ref = doc(getFirebaseDb(), "users", uid)
-    await setDoc(ref, {
-      displayName,
-      email,
-      photoURL: getFirebaseAuth().currentUser?.photoURL ?? null,
-      defaultCurrency: "USD",
-    }, { merge: true })
+    // #7 — try-catch para no dejar usuarios logueados sin perfil en Firestore
+    try {
+      const ref = doc(getFirebaseDb(), "users", uid)
+      await setDoc(ref, {
+        displayName,
+        email,
+        photoURL: getFirebaseAuth().currentUser?.photoURL ?? null,
+        defaultCurrency: "USD",
+      }, { merge: true })
+    } catch (err) {
+      // No crítico para el flujo de login, pero lo registramos
+      console.error("[initUserProfile] Error al crear perfil de usuario:", err)
+    }
   }
 
   async function handleGoogle() {

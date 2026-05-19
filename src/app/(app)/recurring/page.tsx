@@ -110,7 +110,16 @@ function getDueStatus(nextDueDate: Timestamp): {
   const due = nextDueDate.toDate()
   const diff = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
-  if (diff < 0)  return { label: `Vencido hace ${Math.abs(diff)}d`, variant: "destructive", daysUntil: diff, urgency: "overdue" }
+  if (diff < 0) {
+    const abs = Math.abs(diff)
+    // #15 — Formato legible para vencimientos muy antiguos
+    const label = abs >= 365
+      ? `Vencido hace ${Math.floor(abs / 365)} año${Math.floor(abs / 365) !== 1 ? "s" : ""}`
+      : abs >= 30
+      ? `Vencido hace ${Math.floor(abs / 30)} mes${Math.floor(abs / 30) !== 1 ? "es" : ""}`
+      : `Vencido hace ${abs} día${abs !== 1 ? "s" : ""}`
+    return { label, variant: "destructive", daysUntil: diff, urgency: "overdue" }
+  }
   if (diff === 0) return { label: "Vence hoy",  variant: "warning",     daysUntil: 0,    urgency: "critical" }
   if (diff === 1) return { label: "Mañana",     variant: "warning",     daysUntil: 1,    urgency: "critical" }
   if (diff <= 2)  return { label: `En ${diff} días`, variant: "warning", daysUntil: diff, urgency: "critical" }
@@ -230,6 +239,20 @@ export default function RecurringPage() {
   }
 
   async function handleRegister(t: RecurringTemplate) {
+    // #6 — Advertir si el pago está vencido para que el usuario confirme
+    const daysLate = Math.floor(
+      (new Date().getTime() - t.nextDueDate.toDate().getTime()) / (1000 * 60 * 60 * 24)
+    )
+    if (daysLate > 0) {
+      const label = daysLate >= 30
+        ? `hace ${Math.floor(daysLate / 30)} mes${Math.floor(daysLate / 30) !== 1 ? "es" : ""}`
+        : `hace ${daysLate} día${daysLate !== 1 ? "s" : ""}`
+      const ok = confirm(
+        `"${t.merchant}" venció ${label}.\n\nSe registrará con fecha de hoy (${new Date().toLocaleDateString("es")}). ¿Continuar?`
+      )
+      if (!ok) return
+    }
+
     setRegisteringId(t.id)
     try {
       await addExpense.mutateAsync({
