@@ -70,7 +70,7 @@ export function ExpenseList() {
   const [bulkCatValue, setBulkCatValue] = useState("")
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
-  const { activeAccount } = useUIStore()
+  const { activeAccount, setScannerOpen, setQuickAddOpen } = useUIStore()
 
   // ── Swipe hint — shown once per session on the first row ────────────────
   const [showSwipeHint, setShowSwipeHint] = useState(false)
@@ -660,30 +660,74 @@ export function ExpenseList() {
 
       {expenses.length === 0 ? (
         hasActiveFilters ? (
-          /* Filtered to zero — help user reset */
-          <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-            <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
-              <Search className="h-6 w-6 text-muted-foreground/60" />
+          /* ── Filtered to zero — help user understand which filters are active ── */
+          <div className="flex flex-col items-center justify-center py-16 gap-4 text-center
+            animate-[fadeSlideUp_0.2s_ease-out_both]">
+            <div className="h-14 w-14 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+              <Filter className="h-6 w-6 text-amber-600 dark:text-amber-400" />
             </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Ningún gasto coincide con estos filtros</p>
-              <p className="text-xs text-muted-foreground">Prueba a ampliar el rango de fechas o limpiar la búsqueda</p>
+            <div className="space-y-1.5">
+              <p className="text-sm font-semibold">Sin resultados para estos filtros</p>
+              <p className="text-xs text-muted-foreground max-w-[240px] leading-relaxed">
+                Ningún gasto coincide con la combinación de filtros activos. Prueba a ampliar el rango o quitar algún filtro.
+              </p>
             </div>
-            <Button size="sm" variant="outline" onClick={() => router.replace(pathname)}>
+            {/* Active filter chips */}
+            <div className="flex flex-wrap justify-center gap-1.5 max-w-[280px]">
+              {search && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-medium text-muted-foreground border">
+                  🔍 &ldquo;{search}&rdquo;
+                </span>
+              )}
+              {category && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-medium text-muted-foreground border">
+                  🏷 {category}
+                </span>
+              )}
+              {activeTags.map((tag) => (
+                <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-medium text-muted-foreground border">
+                  # {tag}
+                </span>
+              ))}
+              {(fromStr || toStr) && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-medium text-muted-foreground border">
+                  📅 {fromStr}{fromStr && toStr ? " → " : ""}{toStr}
+                </span>
+              )}
+            </div>
+            <Button size="sm" variant="outline" onClick={() => router.replace(pathname)}
+              className="gap-1.5">
+              <X className="h-3.5 w-3.5" />
               Limpiar todos los filtros
             </Button>
           </div>
         ) : (
-          /* No expenses at all — first-time user */
-          <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
-            <div className="h-16 w-16 rounded-3xl bg-primary/10 flex items-center justify-center">
-              <Receipt className="h-7 w-7 text-primary" />
+          /* ── No expenses at all — first-time user onboarding ── */
+          <div className="flex flex-col items-center justify-center py-20 gap-5 text-center
+            animate-[fadeSlideUp_0.25s_ease-out_both]">
+            <div className="relative">
+              <div className="h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center">
+                <Receipt className="h-8 w-8 text-primary" />
+              </div>
+              {/* Decorative dot rings */}
+              <div className="absolute -inset-3 rounded-full border border-primary/10" />
+              <div className="absolute -inset-6 rounded-full border border-primary/5" />
             </div>
             <div className="space-y-1.5 max-w-[260px]">
-              <p className="font-semibold text-base">Aún no tienes gastos</p>
+              <p className="font-semibold text-base">Tu historial está vacío</p>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Escanea un recibo o añade tu primer gasto manualmente para empezar a controlar tus finanzas.
+                Todavía no has registrado ningún gasto. Escanea tu primer recibo o añádelo manualmente para empezar.
               </p>
+            </div>
+            <div className="flex flex-col gap-2 w-40">
+              <Button size="sm" className="gap-2 w-full" onClick={() => setScannerOpen(true)}>
+                <Upload className="h-3.5 w-3.5" />
+                Escanear recibo
+              </Button>
+              <Button size="sm" variant="outline" className="gap-2 w-full" onClick={() => setQuickAddOpen(true)}>
+                <Receipt className="h-3.5 w-3.5" />
+                Añadir manual
+              </Button>
             </div>
           </div>
         )
