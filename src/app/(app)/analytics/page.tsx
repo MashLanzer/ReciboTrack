@@ -25,6 +25,7 @@ import { TrendingUp, TrendingDown, Minus, Plus, Trash2, Target, AlertTriangle, C
 import { exportMonthlyPDF } from "@/components/expenses/export-utils"
 import { ShareSummary } from "@/components/expenses/share-summary"
 import { FinancialHealth } from "@/components/analytics/financial-health"
+import { ErrorBoundary }  from "@/components/ui/error-boundary"
 import { AiMonthlySummary } from "@/components/analytics/ai-monthly-summary"
 import { AiSuggestions } from "@/components/analytics/ai-suggestions"
 import { TimeTravelSelector } from "@/components/analytics/time-travel-selector"
@@ -980,13 +981,29 @@ export default function AnalyticsPage() {
             {[1,2,3,4].map(i => <Skeleton key={i} className="h-48 rounded-2xl" />)}
           </div>
         }>
-          <YearComparison />
-          <YearProjection />
-          <MonthlyPrediction />
-          <VATReport />
-          <SankeyChart />
-          <MerchantTracker />
-          <CategoryTrend />
+          <div className="space-y-4">
+            <ErrorBoundary label="Comparativa anual">
+              <YearComparison />
+            </ErrorBoundary>
+            <ErrorBoundary label="Proyección del año">
+              <YearProjection />
+            </ErrorBoundary>
+            <ErrorBoundary label="Predicción mensual">
+              <MonthlyPrediction />
+            </ErrorBoundary>
+            <ErrorBoundary label="Informe de IVA">
+              <VATReport />
+            </ErrorBoundary>
+            <ErrorBoundary label="Diagrama Sankey">
+              <SankeyChart />
+            </ErrorBoundary>
+            <ErrorBoundary label="Seguimiento de comercios">
+              <MerchantTracker />
+            </ErrorBoundary>
+            <ErrorBoundary label="Tendencia por categoría">
+              <CategoryTrend />
+            </ErrorBoundary>
+          </div>
         </Suspense>
       )}
 
@@ -997,36 +1014,39 @@ export default function AnalyticsPage() {
             {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-48 rounded-2xl" />)}
           </div>
         }>
-          {/* P&L estado de resultados */}
-          <PersonalPL />
-
-          {/* Gastos por region */}
-          <CitySpendingMap expenses={all} />
-
-          {/* Budget optimizer */}
-          <BudgetOptimizer expenses={selected} />
-
-          {/* Cash flow 6 meses */}
-          <CashFlowChart />
-
-          {/* Advanced chart con indicadores */}
-          <AdvancedChart expenses={all} />
-
-          {/* Spending timeline */}
-          <SpendingTimeline expenses={all} days={30} />
-
-          {/* Expense type groups */}
-          <ExpenseTypeGroups expenses={all} categories={categories} />
-
-          {/* Ask Finance AI */}
-          <AskFinance
-            context={{
-              monthTotal: selectedTotal,
-              prevMonthTotal: comparedTotal,
-              topCategories: categoryComparison.slice(0, 5).map((c) => ({ name: c.name, total: c.current })),
-              savingsRate: undefined,
-            }}
-          />
+          <div className="space-y-4">
+            <ErrorBoundary label="Estado de resultados P&L">
+              <PersonalPL />
+            </ErrorBoundary>
+            <ErrorBoundary label="Mapa de gasto por ciudad">
+              <CitySpendingMap expenses={all} />
+            </ErrorBoundary>
+            <ErrorBoundary label="Optimizador de presupuesto">
+              <BudgetOptimizer expenses={selected} />
+            </ErrorBoundary>
+            <ErrorBoundary label="Flujo de caja">
+              <CashFlowChart />
+            </ErrorBoundary>
+            <ErrorBoundary label="Gráfico avanzado">
+              <AdvancedChart expenses={all} />
+            </ErrorBoundary>
+            <ErrorBoundary label="Timeline de gastos">
+              <SpendingTimeline expenses={all} days={30} />
+            </ErrorBoundary>
+            <ErrorBoundary label="Grupos por tipo de gasto">
+              <ExpenseTypeGroups expenses={all} categories={categories} />
+            </ErrorBoundary>
+            <ErrorBoundary label="Consultas financieras con IA">
+              <AskFinance
+                context={{
+                  monthTotal: selectedTotal,
+                  prevMonthTotal: comparedTotal,
+                  topCategories: categoryComparison.slice(0, 5).map((c) => ({ name: c.name, total: c.current })),
+                  savingsRate: undefined,
+                }}
+              />
+            </ErrorBoundary>
+          </div>
         </Suspense>
       )}
 
