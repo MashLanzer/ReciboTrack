@@ -62,10 +62,19 @@ export function SpendingTimeline({ expenses, days = 30 }: SpendingTimelineProps)
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium flex items-center gap-1.5">
-          <Activity className="h-4 w-4 text-primary" />
-          Timeline de gastos — {days} días
-        </CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-1.5">
+            <Activity className="h-4 w-4 text-primary" />
+            Timeline de gastos — {days} días
+          </CardTitle>
+          {/* Interaction hint — auto-fades after 3.5 s, only shown once */}
+          <span className="hint-fade-out shrink-0 inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/60 px-2 py-0.5 text-[10px] text-muted-foreground select-none">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
+              <path d="M5 1v4M3 7c0 1.1.9 2 2 2s2-.9 2-2V5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+            Toca para ver valores
+          </span>
+        </div>
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span>Promedio activo: <span className="font-semibold text-foreground">{formatCurrency(avg)}/día</span></span>
           {maxDay.daily > 0 && (
@@ -120,7 +129,7 @@ export function SpendingTimeline({ expenses, days = 30 }: SpendingTimelineProps)
                 stroke="hsl(var(--primary))"
                 strokeWidth={2}
                 dot={false}
-                activeDot={{ r: 4 }}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: "hsl(var(--background))", fill: "hsl(var(--primary))" }}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -163,7 +172,7 @@ export function SpendingTimeline({ expenses, days = 30 }: SpendingTimelineProps)
                 stroke="#22c55e"
                 strokeWidth={2}
                 dot={false}
-                activeDot={{ r: 4 }}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: "hsl(var(--background))", fill: "#22c55e" }}
               />
             </AreaChart>
           </ResponsiveContainer>

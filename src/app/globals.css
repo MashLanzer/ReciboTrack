@@ -138,6 +138,13 @@ body {
 }
 .check-pop { animation: checkPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 
+/* ── Interaction hint — fades out after 3.5 s ───────────────────────────── */
+@keyframes hintFadeOut {
+  0%,  70% { opacity: 1; }
+  100%      { opacity: 0; pointer-events: none; }
+}
+.hint-fade-out { animation: hintFadeOut 1s ease-out 3.5s forwards; }
+
 /* ── Swipe hint — brief left-peek and snap back ──────────────────────────── */
 @keyframes swipe-hint {
   0%   { transform: translateX(0); }
