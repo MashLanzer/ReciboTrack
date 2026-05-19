@@ -844,41 +844,63 @@ export default function ProfilePage() {
           {/* ── Export ── */}
           <SectionCard>
             <SectionHeader title="Exportar gastos" description="Descarga tus datos en distintos formatos" />
-            <div className="p-4 space-y-2">
+            <div className="p-4 space-y-3">
               <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg p-2.5">
-                Los botones de abajo exportan los gastos de los últimos 6 meses.
-                Para exportar rangos personalizados usa el botón <strong>"Exportar"</strong> en la página de Gastos.
+                Los formatos de abajo exportan los gastos de los últimos 6 meses.
+                Para rangos personalizados usa <strong>"Exportar"</strong> en la página de Gastos.
               </p>
-              <Button
-                variant="outline" size="sm" className="w-full gap-2 justify-start"
-                onClick={() => {
-                  if (!recentExpenses.length) { toast.info("Sin gastos para exportar"); return }
-                  toast.info("Preparando exportación…")
-                  exportToCSV(recentExpenses)
-                }}
-              >
-                <Download className="h-4 w-4" /> Exportar CSV (últimos 6 meses)
-              </Button>
-              <Button
-                variant="outline" size="sm" className="w-full gap-2 justify-start"
-                onClick={() => {
-                  if (!recentExpenses.length) { toast.info("Sin gastos para exportar"); return }
-                  exportHoldedCsv(recentExpenses)
-                  toast.success("Exportado para Holded")
-                }}
-              >
-                <Download className="h-4 w-4" /> Exportar para Holded
-              </Button>
-              <Button
-                variant="outline" size="sm" className="w-full gap-2 justify-start"
-                onClick={() => {
-                  if (!recentExpenses.length) { toast.info("Sin gastos para exportar"); return }
-                  exportContasimpleCsv(recentExpenses)
-                  toast.success("Exportado para Contasimple")
-                }}
-              >
-                <Download className="h-4 w-4" /> Exportar para Contasimple
-              </Button>
+
+              {/* CSV genérico */}
+              <div>
+                <Button
+                  variant="outline" size="sm" className="w-full gap-2 justify-start"
+                  onClick={() => {
+                    if (!recentExpenses.length) { toast.info("Sin gastos para exportar"); return }
+                    toast.info("Preparando exportación…")
+                    exportToCSV(recentExpenses)
+                  }}
+                >
+                  <Download className="h-4 w-4" /> Exportar CSV genérico
+                </Button>
+                <p className="text-[10px] text-muted-foreground mt-1 pl-1">
+                  Columnas: fecha, comercio, categoría, total, moneda, notas. Compatible con Excel, Numbers y cualquier hoja de cálculo.
+                </p>
+              </div>
+
+              {/* Holded */}
+              <div>
+                <Button
+                  variant="outline" size="sm" className="w-full gap-2 justify-start"
+                  onClick={() => {
+                    if (!recentExpenses.length) { toast.info("Sin gastos para exportar"); return }
+                    exportHoldedCsv(recentExpenses)
+                    toast.success("Exportado para Holded")
+                  }}
+                >
+                  <Download className="h-4 w-4" /> Exportar para Holded
+                </Button>
+                <p className="text-[10px] text-muted-foreground mt-1 pl-1">
+                  Formato Holded ERP: importa tus gastos directamente como facturas recibidas en tu cuenta de Holded.
+                </p>
+              </div>
+
+              {/* Contasimple */}
+              <div>
+                <Button
+                  variant="outline" size="sm" className="w-full gap-2 justify-start"
+                  onClick={() => {
+                    if (!recentExpenses.length) { toast.info("Sin gastos para exportar"); return }
+                    exportContasimpleCsv(recentExpenses)
+                    toast.success("Exportado para Contasimple")
+                  }}
+                >
+                  <Download className="h-4 w-4" /> Exportar para Contasimple
+                </Button>
+                <p className="text-[10px] text-muted-foreground mt-1 pl-1">
+                  Formato Contasimple: columnas adaptadas al ERP español para importar gastos como apuntes contables.
+                </p>
+              </div>
+
               <Button
                 variant="outline" size="sm" className="w-full gap-2 justify-start text-primary"
                 onClick={() => { window.location.href = "/expenses" }}
