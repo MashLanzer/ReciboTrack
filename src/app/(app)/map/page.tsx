@@ -1,13 +1,13 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useExpensesPeriod } from "@/hooks/use-expenses"
 import { useGeoInsights } from "@/hooks/use-geo-insights"
 import { GeoInsightsPanel } from "@/components/map/geo-insights-panel"
 import { formatCurrency } from "@/lib/utils"
 import { subMonths } from "date-fns"
-import { MapPin, Lightbulb, Loader2, TrendingUp } from "lucide-react"
+import { MapPin, Lightbulb, Loader2, ShieldOff, ExternalLink } from "lucide-react"
 import type { Expense } from "@/types"
 
 // Dynamic import — MapLibre is heavy and must be client-only
@@ -35,6 +35,19 @@ export default function MapPage() {
   const [selectedInsightId, setSelectedInsightId]   = useState<string | null>(null)
   const [selectedExpenseId, setSelectedExpenseId]   = useState<string | null>(null)
   const [activePanel, setActivePanel]               = useState<"map" | "insights">("map")
+  const [geoPermission, setGeoPermission]           = useState<PermissionState | null>(null)
+
+  // Check geolocation permission state on mount (and listen for changes)
+  useEffect(() => {
+    if (typeof window === "undefined" || !("permissions" in navigator)) return
+    let status: PermissionStatus | null = null
+    navigator.permissions.query({ name: "geolocation" }).then((s) => {
+      status = s
+      setGeoPermission(s.state)
+      s.onchange = () => setGeoPermission(s.state)
+    }).catch(() => { /* Permissions API not supported */ })
+    return () => { if (status) status.onchange = null }
+  }, [])
 
   const geoExpenses = useMemo(
     () => expenses.filter((e): e is GeoExpense => !!(e as GeoExpense).geo?.lat),
@@ -103,6 +116,10 @@ export default function MapPage() {
             <div className="h-full flex items-center justify-center bg-muted/20 rounded-2xl border">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
+          ) : !hasGeoData && geoPermission === "denied" ? (
+            <div className="h-full flex items-center justify-center bg-muted/10 rounded-2xl border border-dashed p-6">
+              <GeoPermissionDenied />
+            </div>
           ) : (
             <ExpenseMap
               expenses={expenses}
@@ -150,18 +167,63 @@ export default function MapPage() {
             </div>
           )}
 
-          {/* No geo data hint */}
+          {/* No geo data / permission fallback */}
           {!hasGeoData && !isLoading && (
-            <div className="rounded-2xl border bg-muted/30 p-4 text-center">
-              <p className="text-2xl mb-2">📍</p>
-              <p className="text-sm font-medium">Activa ubicación al registrar gastos</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Toca el botón 📍 en el formulario de nuevo gasto para capturar la ubicación
-              </p>
-            </div>
+            geoPermission === "denied" ? (
+              <GeoPermissionDenied />
+            ) : (
+              <div className="rounded-2xl border bg-muted/30 p-4 text-center">
+                <p className="text-2xl mb-2">📍</p>
+                <p className="text-sm font-medium">Activa ubicación al registrar gastos</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Toca el botón 📍 en el formulario de nuevo gasto para capturar la ubicación
+                </p>
+              </div>
+            )
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ── Geolocation denied fallback ───────────────────────────────────────────────
+
+function GeoPermissionDenied() {
+  // Detect OS to give the right browser-settings path
+  const isIOS = typeof navigator !== "undefined" && /iPhone|iPad|iPod/.test(navigator.userAgent)
+  const hint = isIOS
+    ? "Ve a Ajustes → Privacidad → Localización → tu navegador"
+    : "Haz clic en el candado 🔒 en la barra de dirección → Permisos del sitio → Ubicación"
+
+  return (
+    <div className="flex flex-col items-center text-center gap-4 max-w-xs mx-auto
+      animate-[fadeSlideUp_0.25s_ease-out_both]">
+      <div className="h-12 w-12 rounded-2xl bg-destructive/10 flex items-center justify-center">
+        <ShieldOff className="h-6 w-6 text-destructive" />
+      </div>
+      <div className="space-y-1">
+        <p className="text-sm font-semibold">Ubicación bloqueada</p>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Permitiste que el navegador bloquee la ubicación para este sitio. Los gastos futuros no
+          podrán capturar coordenadas.
+        </p>
+      </div>
+      <div className="rounded-xl border bg-muted/40 px-4 py-3 text-left space-y-1 w-full">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Cómo volver a activarla
+        </p>
+        <p className="text-xs text-foreground/80 leading-relaxed">{hint}</p>
+      </div>
+      <a
+        href="https://support.google.com/chrome/answer/142065"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline underline-offset-2"
+      >
+        <ExternalLink className="h-3 w-3" />
+        Ver ayuda del navegador
+      </a>
     </div>
   )
 }
