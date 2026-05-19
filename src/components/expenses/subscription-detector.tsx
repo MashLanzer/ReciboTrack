@@ -151,17 +151,33 @@ export function SubscriptionDetector() {
   return (
     <div className="rounded-2xl border bg-card overflow-hidden mb-4">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
-        <Sparkles className="h-4 w-4 text-primary shrink-0" />
+      <div className="flex items-center gap-3 px-4 py-3 border-b bg-primary/5">
+        {/* Icon with notification dot */}
+        <div className="relative shrink-0">
+          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Sparkles className="h-4 w-4 text-primary" />
+          </div>
+          {/* Live notification dot */}
+          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-60" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500" />
+          </span>
+        </div>
+
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold">
-            {visible.length} suscripción{visible.length > 1 ? "es" : ""} detectada{visible.length > 1 ? "s" : ""}
+            Suscripciones detectadas
           </p>
           <p className="text-xs text-muted-foreground">
-            Cobros recurrentes no registrados en tus plantillas
+            Cobros recurrentes no registrados aún
           </p>
         </div>
-        <Badge className="shrink-0 text-xs">{visible.length}</Badge>
+
+        {/* Notification count badge */}
+        <span className="shrink-0 min-w-[1.5rem] h-6 px-1.5 rounded-full bg-amber-500 text-white text-xs font-bold
+          tabular-nums flex items-center justify-center animate-[fadeSlideUp_0.25s_ease-out_both]">
+          {visible.length}
+        </span>
       </div>
 
       {/* Suggestions */}
