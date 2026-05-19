@@ -28,6 +28,26 @@ function isNativeApp(): boolean {
   return cap?.isNativePlatform?.() ?? false
 }
 
+/**
+ * Detecta si el dispositivo es móvil/tablet.
+ * El bloqueo biométrico solo tiene sentido en móviles — en PC el prompt
+ * de passkey no es huella digital y resulta confuso para el usuario.
+ *
+ * Criterios (cualquiera es suficiente):
+ *  1. Capacitor nativo (siempre móvil)
+ *  2. User-agent con indicadores de móvil/tablet
+ *  3. Touch points > 1 con pantalla pequeña (≤ 1024px)
+ */
+function isMobileDevice(): boolean {
+  if (typeof window === "undefined") return false
+  // 1. App nativa (Capacitor)
+  if (isNativeApp()) return true
+  // 2. User-agent
+  if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) return true
+  // 3. Touch + pantalla pequeña (tablet incluida)
+  return navigator.maxTouchPoints > 1 && window.screen.width <= 1024
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function AppLock({ children }: { children: React.ReactNode }) {
@@ -66,6 +86,12 @@ export function AppLock({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setNative(isNativeApp())
 
+    // En PC/desktop el bloqueo biométrico no aplica — dejamos pasar directamente
+    if (!isMobileDevice()) {
+      setLocked(false)
+      return
+    }
+
     if (!hasStoredPasskey()) {
       // No hay biometría registrada → dejar pasar sin bloquear
       setLocked(false)
@@ -93,9 +119,11 @@ export function AppLock({ children }: { children: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locked])
 
-  // ── Re-bloquear si la app vuelve del fondo ────────────────────────────────
+  // ── Re-bloquear si la app vuelve del fondo (solo móvil) ─────────────────
   useEffect(() => {
     if (typeof document === "undefined") return
+    // En PC no tiene sentido re-bloquear al volver del fondo
+    if (!isMobileDevice()) return
 
     const handler = () => {
       if (document.hidden) {
