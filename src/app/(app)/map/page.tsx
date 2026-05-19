@@ -10,16 +10,33 @@ import { subMonths } from "date-fns"
 import { MapPin, Lightbulb, Loader2, ShieldOff, ExternalLink } from "lucide-react"
 import type { Expense } from "@/types"
 
+// #29 — Skeleton con shimmer mientras carga MapLibre (paquete pesado)
+function MapLoadingSkeleton() {
+  return (
+    <div className="h-full rounded-2xl border overflow-hidden relative bg-muted/30 animate-pulse">
+      {/* Fake map tiles grid */}
+      <div className="absolute inset-0 grid grid-cols-4 grid-rows-4 gap-px opacity-20">
+        {Array.from({ length: 16 }).map((_, i) => (
+          <div key={i} className="bg-muted-foreground/10" />
+        ))}
+      </div>
+      {/* Center pin indicator */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+        <div className="h-10 w-10 rounded-full bg-muted-foreground/15 flex items-center justify-center">
+          <MapPin className="h-5 w-5 text-muted-foreground/40" />
+        </div>
+        <div className="h-3 w-24 rounded-full bg-muted-foreground/15" />
+      </div>
+    </div>
+  )
+}
+
 // Dynamic import — MapLibre is heavy and must be client-only
 const ExpenseMap = dynamic(
   () => import("@/components/map/expense-map").then((m) => m.ExpenseMap),
   {
     ssr: false,
-    loading: () => (
-      <div className="h-full flex items-center justify-center bg-muted/20 rounded-2xl border">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
-    ),
+    loading: () => <MapLoadingSkeleton />,
   },
 )
 
@@ -113,9 +130,7 @@ export default function MapPage() {
         {/* Map */}
         <div className={`flex-1 min-h-0 rounded-2xl overflow-hidden ${activePanel !== "map" ? "hidden sm:block" : ""}`}>
           {isLoading ? (
-            <div className="h-full flex items-center justify-center bg-muted/20 rounded-2xl border">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
+            <MapLoadingSkeleton />
           ) : !hasGeoData && geoPermission === "denied" ? (
             <div className="h-full flex items-center justify-center bg-muted/10 rounded-2xl border border-dashed p-6">
               <GeoPermissionDenied />

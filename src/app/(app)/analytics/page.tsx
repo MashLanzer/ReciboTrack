@@ -150,11 +150,12 @@ export default function AnalyticsPage() {
   const selected = useMemo(() => expensesForMonth(all, selectedOffset), [all, selectedOffset])
   const compared = useMemo(() => expensesForMonth(all, selectedOffset + 1), [all, selectedOffset])
 
-  const selectedTotal = selected.reduce((a, e) => a + e.total, 0)
-  const comparedTotal = compared.reduce((a, e) => a + e.total, 0)
+  // #28 — Memoizar totales para evitar recalcular en cada render
+  const selectedTotal = useMemo(() => selected.reduce((a, e) => a + e.total, 0), [selected])
+  const comparedTotal = useMemo(() => compared.reduce((a, e) => a + e.total, 0), [compared])
 
-  const selectedMonth = subMonths(today, selectedOffset)
-  const comparedMonth = subMonths(today, selectedOffset + 1)
+  const selectedMonth = useMemo(() => subMonths(today, selectedOffset), [today, selectedOffset])
+  const comparedMonth = useMemo(() => subMonths(today, selectedOffset + 1), [today, selectedOffset])
 
   // ── 6-month trend data (for the trend bar chart) ───────────────────────────
   const trendData = useMemo(() => {
@@ -236,13 +237,13 @@ export default function AnalyticsPage() {
     }).sort((a, b) => b.current - a.current)
   }, [selected, compared, categories])
 
-  // Chart data for comparison bar chart
-  const comparisonChartData = categoryComparison.slice(0, 8).map((c) => ({
+  // #28 — Memoizar chart data derivada de categoryComparison
+  const comparisonChartData = useMemo(() => categoryComparison.slice(0, 8).map((c) => ({
     name: c.icon + " " + c.name.slice(0, 8),
     [format(selectedMonth, "MMM", { locale: es })]: c.current,
     [format(comparedMonth, "MMM", { locale: es })]: c.prev,
     color: c.color,
-  }))
+  })), [categoryComparison, selectedMonth, comparedMonth])
 
   const selLabel = format(selectedMonth, "MMM yyyy", { locale: es })
   const cmpLabel = format(comparedMonth, "MMM yyyy", { locale: es })

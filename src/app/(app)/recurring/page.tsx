@@ -483,26 +483,17 @@ export default function RecurringPage() {
             </Section>
           )}
 
-          {/* Later section */}
+          {/* Later section — #31 mostrar primeros 20, "ver más" si hay más */}
           {later.length > 0 && (
-            <Section
-              title="Más adelante"
-              icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
-              count={later.length}
-            >
-              {later.map((t) => (
-                <RecurringItem
-                  key={t.id}
-                  template={t}
-                  categories={allCategories}
-                  registeringId={registeringId}
-                  onRegister={handleRegister}
-                  onSnooze={handleSnooze}
-                  onEdit={openEdit}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </Section>
+            <LaterSection
+              items={later}
+              allCategories={allCategories}
+              registeringId={registeringId}
+              onRegister={handleRegister}
+              onSnooze={handleSnooze}
+              onEdit={openEdit}
+              onDelete={handleDelete}
+            />
           )}
         </>
       )}
@@ -891,6 +882,61 @@ function CalendarView({
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
+
+// #31 — Sección "Más adelante" con paginación para no renderizar >100 items
+const LATER_PAGE_SIZE = 20
+
+function LaterSection({
+  items,
+  allCategories,
+  registeringId,
+  onRegister,
+  onSnooze,
+  onEdit,
+  onDelete,
+}: {
+  items: RecurringTemplate[]
+  allCategories: { id: string; name: string; icon: string; color: string }[]
+  registeringId: string | null
+  onRegister: (t: RecurringTemplate) => void
+  onSnooze: (id: string) => void
+  onEdit: (t: RecurringTemplate) => void
+  onDelete: (id: string, merchant: string) => void
+}) {
+  const [visibleCount, setVisibleCount] = useState(LATER_PAGE_SIZE)
+  const visible = items.slice(0, visibleCount)
+  const hasMore = visibleCount < items.length
+  const remaining = items.length - visibleCount
+
+  return (
+    <Section
+      title="Más adelante"
+      icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
+      count={items.length}
+    >
+      {visible.map((t) => (
+        <RecurringItem
+          key={t.id}
+          template={t}
+          categories={allCategories}
+          registeringId={registeringId}
+          onRegister={onRegister}
+          onSnooze={onSnooze}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      ))}
+      {hasMore && (
+        <button
+          onClick={() => setVisibleCount((n) => n + LATER_PAGE_SIZE)}
+          className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-2 underline-offset-2 hover:underline"
+        >
+          Ver {Math.min(remaining, LATER_PAGE_SIZE)} más de {remaining} restantes
+        </button>
+      )}
+    </Section>
+  )
+}
 
 function Section({
   title,
