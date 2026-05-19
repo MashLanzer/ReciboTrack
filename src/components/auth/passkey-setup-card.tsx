@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Fingerprint, Check, Loader2, Smartphone } from "lucide-react"
-import { usePasskeySupport, useHasPasskey, useRegisterPasskey, clearPasskey } from "@/hooks/use-passkey"
+import { Fingerprint, Check, Loader2, Smartphone, ShieldCheck } from "lucide-react"
+import { usePasskeySupport, useHasPasskey, useRegisterPasskey, clearPasskey, verifyPasskey } from "@/hooks/use-passkey"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 
@@ -17,7 +17,8 @@ export function PasskeySetupCard() {
   const isSupported = usePasskeySupport()
   const registered  = useHasPasskey()
   const { register, isLoading, error } = useRegisterPasskey()
-  const [native, setNative] = useState(false)
+  const [native, setNative]   = useState(false)
+  const [testing, setTesting] = useState(false)
 
   useEffect(() => { setNative(isNativeApp()) }, [])
 
@@ -34,6 +35,22 @@ export function PasskeySetupCard() {
   function handleDeactivate() {
     clearPasskey()
     toast.success("Acceso biométrico desactivado")
+  }
+
+  async function handleTest() {
+    setTesting(true)
+    const result = await verifyPasskey()
+    setTesting(false)
+    if (result.ok) {
+      toast.success("¡Biometría verificada correctamente!", {
+        description: "Tu acceso biométrico funciona bien en este dispositivo.",
+        duration: 4000,
+      })
+    } else {
+      toast.error("Verificación fallida", {
+        description: result.error,
+      })
+    }
   }
 
   // Determine subtitle based on context + state
@@ -79,15 +96,29 @@ export function PasskeySetupCard() {
       </div>
 
       {isSupported && (
-        <div className="shrink-0">
+        <div className="shrink-0 flex flex-col items-end gap-1.5">
           {registered ? (
-            <Button
-              size="sm" variant="outline"
-              className="h-7 text-xs text-destructive border-destructive/30 hover:text-destructive"
-              onClick={handleDeactivate}
-            >
-              Desactivar
-            </Button>
+            <>
+              <Button
+                size="sm" variant="outline"
+                className="h-7 text-xs gap-1.5"
+                onClick={handleTest}
+                disabled={testing}
+              >
+                {testing
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : <ShieldCheck className="h-3 w-3 text-emerald-600" />
+                }
+                Probar
+              </Button>
+              <Button
+                size="sm" variant="ghost"
+                className="h-6 text-[10px] text-destructive hover:text-destructive px-2"
+                onClick={handleDeactivate}
+              >
+                Desactivar
+              </Button>
+            </>
           ) : (
             <Button
               size="sm" variant="outline"
@@ -109,3 +140,4 @@ export function PasskeySetupCard() {
     </div>
   )
 }
+
