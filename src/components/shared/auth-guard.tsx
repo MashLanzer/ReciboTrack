@@ -13,7 +13,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loading) return
     if (!user) {
-      router.push(`/login?from=${encodeURIComponent(pathname)}`)
+      // #18 — Usar replace en vez de push para evitar que el usuario
+      // quede atrapado en un loop de redirección con el botón "atrás"
+      router.replace(`/login?from=${encodeURIComponent(pathname)}`)
     }
   }, [user, loading, router, pathname])
 

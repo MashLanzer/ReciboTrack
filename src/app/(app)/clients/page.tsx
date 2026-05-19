@@ -82,6 +82,18 @@ export default function ClientsPage() {
   async function handleSave() {
     if (!form.name.trim()) { toast.error("El nombre es obligatorio"); return }
 
+    // #17 — Validar formato de email si se proporcionó
+    if (form.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(form.email.trim())) {
+        toast.error("El email no tiene un formato válido")
+        return
+      }
+    }
+
+    // #27 — Asegurar que el color sea uno de los predefinidos; si no, usar el primero
+    const safeColor = PRESET_COLORS.includes(form.color) ? form.color : PRESET_COLORS[0]
+
     setSaving(true)
     try {
       const input: ClientInput = {
@@ -89,7 +101,7 @@ export default function ClientsPage() {
         email: form.email.trim() || undefined,
         phone: form.phone.trim() || undefined,
         notes: form.notes.trim() || undefined,
-        color: form.color,
+        color: safeColor,
         isActive: form.isActive,
       }
 

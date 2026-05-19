@@ -2,6 +2,7 @@ import { BudgetOverview } from "@/components/dashboard/budget-overview"
 import { CategoryBudgetsClient } from "@/components/budgets/category-budgets-client"
 import { TripLinkCard } from "@/components/budgets/trip-link-card"
 import { NotificationSettingsCard } from "@/components/notifications/notification-settings-card"
+import { ErrorBoundary } from "@/components/ui/error-boundary"
 
 export default function BudgetsPage() {
   return (
@@ -11,16 +12,25 @@ export default function BudgetsPage() {
         <p className="text-sm text-muted-foreground mt-1">Control mensual y por viaje / evento</p>
       </div>
 
-      <CategoryBudgetsClient />
+      {/* #19 — ErrorBoundary por sección para aislar fallos */}
+      <ErrorBoundary label="Presupuestos por categoría">
+        <CategoryBudgetsClient />
+      </ErrorBoundary>
 
-      <BudgetOverview />
+      <ErrorBoundary label="Resumen de presupuesto">
+        <BudgetOverview />
+      </ErrorBoundary>
 
       <div className="border-t pt-6">
-        <TripLinkCard />
+        <ErrorBoundary label="Viajes y eventos" compact>
+          <TripLinkCard />
+        </ErrorBoundary>
       </div>
 
       <div className="border-t pt-6">
-        <NotificationSettingsCard />
+        <ErrorBoundary label="Ajustes de notificaciones" compact>
+          <NotificationSettingsCard />
+        </ErrorBoundary>
       </div>
     </div>
   )

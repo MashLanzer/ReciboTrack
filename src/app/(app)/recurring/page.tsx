@@ -552,7 +552,17 @@ export default function RecurringPage() {
                   step="0.01"
                   placeholder="0.00"
                   value={form.subtotal}
-                  onChange={(e) => setForm({ ...form, subtotal: e.target.value })}
+                  onChange={(e) => {
+                    const sub = e.target.value
+                    const tax = form.tax
+                    // #16 — Auto-calcular total = subtotal + tax
+                    const autoTotal = (parseFloat(sub) || 0) + (parseFloat(tax) || 0)
+                    setForm({
+                      ...form,
+                      subtotal: sub,
+                      total: autoTotal > 0 ? String(autoTotal) : form.total,
+                    })
+                  }}
                   className="tabular-nums"
                 />
               </div>
@@ -563,7 +573,17 @@ export default function RecurringPage() {
                   step="0.01"
                   placeholder="0.00"
                   value={form.tax}
-                  onChange={(e) => setForm({ ...form, tax: e.target.value })}
+                  onChange={(e) => {
+                    const tax = e.target.value
+                    const sub = form.subtotal
+                    // #16 — Auto-calcular total = subtotal + tax
+                    const autoTotal = (parseFloat(sub) || 0) + (parseFloat(tax) || 0)
+                    setForm({
+                      ...form,
+                      tax,
+                      total: autoTotal > 0 ? String(autoTotal) : form.total,
+                    })
+                  }}
                   className="tabular-nums"
                 />
               </div>

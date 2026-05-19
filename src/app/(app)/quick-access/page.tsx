@@ -119,6 +119,8 @@ export default function QuickAccessPage() {
         toast.success("Acceso rápido creado")
       }
       setDialogOpen(false)
+      // #26 — Resetear el formulario después de guardar para que no persistan datos
+      setForm(EMPTY_FORM)
     } catch {
       toast.error("Error al guardar")
     } finally {
