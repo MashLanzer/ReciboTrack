@@ -1052,10 +1052,10 @@ export default function AnalyticsPage() {
         </Suspense>
       )}
 
-      {/* ── Dialogs — always mounted so they don't close when switching tabs ── */}
+      {/* ── Dialogs — montados solo cuando están abiertos para ahorrar memoria ── */}
 
       {/* ── Dialog nueva meta / límite ── */}
-      <Dialog open={goalDialog} onOpenChange={setGoalDialog}>
+      {goalDialog && <Dialog open onOpenChange={setGoalDialog}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>
@@ -1119,10 +1119,10 @@ export default function AnalyticsPage() {
             </Button>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog>}
 
       {/* ── Dialog actualizar progreso ── */}
-      <Dialog open={!!progressDialog} onOpenChange={(o) => !o && setProgressDialog(null)}>
+      {!!progressDialog && <Dialog open onOpenChange={(o) => !o && setProgressDialog(null)}>
         <DialogContent className="sm:max-w-xs">
           <DialogHeader>
             <DialogTitle>Aportar a "{progressDialog?.name}"</DialogTitle>
@@ -1164,7 +1164,7 @@ export default function AnalyticsPage() {
             </Button>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog>}
     </div>
   )
 }

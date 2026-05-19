@@ -1,6 +1,7 @@
 "use client"
 
 import { Suspense, useEffect, useState, useMemo } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { useSearchParams } from "next/navigation"
 import { ScanLine, Plus, BarChart2, Search } from "lucide-react"
 import { format } from "date-fns"
@@ -94,18 +95,25 @@ function useDashMode(): ["normal" | "quick", (m: "normal" | "quick") => void] {
 
 export default function DashboardPage() {
   const { user } = useAuth()
-  const { setScannerOpen, setQuickAddOpen, setCommandOpen } = useUIStore()
+  const { setScannerOpen, setQuickAddOpen, setCommandOpen, activeAccount } = useUIStore()
+  const queryClient = useQueryClient()
   const [showAnalytics, setShowAnalytics] = useState(false)
   const [showRecap, setShowRecap] = useState(false)
   const [showMemories, setShowMemories] = useState(false)
   const [dashMode, setDashMode] = useDashMode()
   const dateLabel = useMemo(() => format(new Date(), "EEEE d 'de' MMMM", { locale: es }), [])
 
+  // #10 — Invalidar queries al cambiar de cuenta personal/negocio
+  // Asegura que todos los widgets muestren datos de la cuenta correcta
+  useEffect(() => {
+    queryClient.invalidateQueries()
+  }, [activeAccount, queryClient])
+
   return (
     <div className="container max-w-2xl mx-auto px-4 pt-5 pb-28 space-y-5">
 
       {/* ── Scan param handler ─────────────────────────────────────────── */}
-      <Suspense>
+      <Suspense fallback={null}>
         <ScanParamHandler />
       </Suspense>
 
@@ -143,14 +151,14 @@ export default function DashboardPage() {
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          Vista rapida
+          Vista rápida
         </button>
       </div>
 
       {/* ── Quick mode: swipeable feed + extras ──────────────────────── */}
       {dashMode === "quick" && (
         <div className="space-y-3">
-          <SectionLabel>Vista rapida</SectionLabel>
+          <SectionLabel>Vista rápida</SectionLabel>
           <SwipeableFeed />
           <QuickStatsBlock />
           <QuickRecentBlock />

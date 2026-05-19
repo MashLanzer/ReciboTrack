@@ -120,6 +120,22 @@ export default function MapPage() {
             <div className="h-full flex items-center justify-center bg-muted/10 rounded-2xl border border-dashed p-6">
               <GeoPermissionDenied />
             </div>
+          ) : !hasGeoData ? (
+            // #13 — Mensaje explícito cuando hay permiso pero ningún gasto tiene coordenadas
+            <div className="h-full flex items-center justify-center bg-muted/10 rounded-2xl border border-dashed p-6">
+              <div className="flex flex-col items-center text-center gap-4 max-w-xs mx-auto animate-[fadeSlideUp_0.25s_ease-out_both]">
+                <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center text-2xl">
+                  📍
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-sm font-semibold">Ningún gasto tiene ubicación</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Tus gastos no tienen coordenadas guardadas. Al añadir un gasto, activa el botón
+                    de ubicación <span className="font-medium">📍</span> para que aparezca aquí.
+                  </p>
+                </div>
+              </div>
+            </div>
           ) : (
             <ExpenseMap
               expenses={expenses}
@@ -230,8 +246,12 @@ function GeoPermissionDenied() {
 
 // ── City breakdown ────────────────────────────────────────────────────────────
 
+const CITIES_INITIAL = 5
+
 function CityBreakdown({ expenses }: { expenses: GeoExpense[] }) {
-  const cityData = useMemo(() => {
+  const [showAll, setShowAll] = useState(false)
+
+  const allCityData = useMemo(() => {
     const map = new Map<string, { total: number; count: number }>()
     expenses.forEach((e) => {
       const city = (e as GeoExpense & { cityName?: string }).cityName ?? "Sin ciudad"
@@ -241,10 +261,12 @@ function CityBreakdown({ expenses }: { expenses: GeoExpense[] }) {
     return [...map.entries()]
       .map(([city, v]) => ({ city, ...v }))
       .sort((a, b) => b.total - a.total)
-      .slice(0, 5)
   }, [expenses])
 
-  const maxTotal = cityData[0]?.total ?? 1
+  // #14 — Mostrar solo las primeras N ciudades, con botón "ver más"
+  const cityData = showAll ? allCityData : allCityData.slice(0, CITIES_INITIAL)
+  const hasMore = allCityData.length > CITIES_INITIAL
+  const maxTotal = allCityData[0]?.total ?? 1
 
   return (
     <div className="space-y-2">
@@ -264,6 +286,16 @@ function CityBreakdown({ expenses }: { expenses: GeoExpense[] }) {
           </div>
         </div>
       ))}
+      {hasMore && (
+        <button
+          onClick={() => setShowAll((v) => !v)}
+          className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors pt-1 underline-offset-2 hover:underline"
+        >
+          {showAll
+            ? "Ver menos"
+            : `Ver ${allCityData.length - CITIES_INITIAL} ciudad${allCityData.length - CITIES_INITIAL !== 1 ? "es" : ""} más`}
+        </button>
+      )}
     </div>
   )
 }
