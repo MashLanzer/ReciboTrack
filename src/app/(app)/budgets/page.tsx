@@ -1,7 +1,6 @@
-import Link from "next/link"
-import { ArrowRight } from "lucide-react"
 import { BudgetOverview } from "@/components/dashboard/budget-overview"
 import { CategoryBudgetsClient } from "@/components/budgets/category-budgets-client"
+import { TripLinkCard } from "@/components/budgets/trip-link-card"
 import { NotificationSettingsCard } from "@/components/notifications/notification-settings-card"
 
 export default function BudgetsPage() {
@@ -17,18 +16,7 @@ export default function BudgetsPage() {
       <BudgetOverview />
 
       <div className="border-t pt-6">
-        <Link href="/trips">
-          <div className="flex items-center justify-between rounded-2xl border p-4 hover:bg-accent/40 transition-colors cursor-pointer">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">✈️</span>
-              <div>
-                <p className="font-semibold">Viajes y eventos</p>
-                <p className="text-sm text-muted-foreground">Presupuestos por viaje</p>
-              </div>
-            </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground" />
-          </div>
-        </Link>
+        <TripLinkCard />
       </div>
 
       <div className="border-t pt-6">
