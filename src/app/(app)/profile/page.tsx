@@ -244,6 +244,8 @@ export default function ProfilePage() {
   const [handleInput, setHandleInput] = useState("")
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const [avatarMenuOpen, setAvatarMenuOpen] = useState(false)
 
   // Password change dialog
   const [pwDialog, setPwDialog] = useState(false)
@@ -486,12 +488,38 @@ export default function ProfilePage() {
                     <AvatarFallback className="text-xl font-semibold">{initials}</AvatarFallback>
                   </Avatar>
                   <button
-                    onClick={() => avatarInputRef.current?.click()}
+                    onClick={() => setAvatarMenuOpen((o) => !o)}
                     className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-foreground text-background flex items-center justify-center hover:bg-foreground/80 transition-colors"
                   >
                     <Camera className="h-3.5 w-3.5" />
                   </button>
+                  {/* Gallery input */}
                   <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+                  {/* Camera capture input (mobile front cam) */}
+                  <input ref={cameraInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handleAvatarChange} />
+
+                  {/* Floating source picker */}
+                  {avatarMenuOpen && (
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 flex flex-col gap-1
+                      rounded-xl border bg-card shadow-lg p-1.5 w-36 animate-[fadeSlideUp_0.15s_ease-out_both]">
+                      <button
+                        type="button"
+                        onClick={() => { setAvatarMenuOpen(false); cameraInputRef.current?.click() }}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium hover:bg-muted transition-colors text-left"
+                      >
+                        <Camera className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        Cámara
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setAvatarMenuOpen(false); avatarInputRef.current?.click() }}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium hover:bg-muted transition-colors text-left"
+                      >
+                        <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        Galería
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   {editingName ? (
