@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useMemo } from "react"
+import { useState, useRef, useMemo, useEffect } from "react"
 import { useCategoryBudgets, useSetCategoryBudget, useDeleteCategoryBudget } from "@/hooks/use-category-budgets"
 import { useCategories } from "@/hooks/use-categories"
 import { useExpensesForMonth } from "@/hooks/use-expenses"
@@ -24,6 +24,112 @@ function getPctColor(pct: number): string {
   if (pct >= 90) return "text-rose-600"
   if (pct >= 70) return "text-amber-600"
   return "text-emerald-600"
+}
+
+function getRingColor(pct: number): string {
+  if (pct >= 90) return "hsl(0 84.2% 60.2%)"
+  if (pct >= 70) return "#f59e0b"
+  return "#22c55e"
+}
+
+// ─── Mini donut ring (40 px, animated) ───────────────────────────────────────
+
+function MiniRing({ pct, size = 40 }: { pct: number; size?: number }) {
+  const STROKE = 4
+  const r = (size - STROKE * 2) / 2
+  const circ = 2 * Math.PI * r
+  const clampedPct = Math.min(pct, 100)
+  const offset = circ * (1 - clampedPct / 100)
+  const color = getRingColor(pct)
+
+  // Animate from 0 on mount
+  const [animOffset, setAnimOffset] = useState(circ)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setAnimOffset(offset))
+    return () => cancelAnimationFrame(id)
+  }, [offset])
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      className="shrink-0 -rotate-90"
+      aria-hidden
+    >
+      {/* Track */}
+      <circle
+        cx={size / 2} cy={size / 2} r={r}
+        fill="none"
+        strokeWidth={STROKE}
+        className="stroke-muted"
+      />
+      {/* Fill arc */}
+      <circle
+        cx={size / 2} cy={size / 2} r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth={STROKE}
+        strokeLinecap="round"
+        strokeDasharray={circ}
+        strokeDashoffset={animOffset}
+        style={{ transition: "stroke-dashoffset 0.7s cubic-bezier(0.4,0,0.2,1)" }}
+      />
+    </svg>
+  )
+}
+
+// ─── Large donut ring for global header ──────────────────────────────────────
+
+function GlobalRing({ pct, size = 96 }: { pct: number; size?: number }) {
+  const STROKE = 8
+  const r = (size - STROKE * 2) / 2
+  const circ = 2 * Math.PI * r
+  const clampedPct = Math.min(pct, 100)
+  const offset = circ * (1 - clampedPct / 100)
+  const color = getRingColor(pct)
+
+  const [animOffset, setAnimOffset] = useState(circ)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setAnimOffset(offset))
+    return () => cancelAnimationFrame(id)
+  }, [offset])
+
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        className="-rotate-90"
+        aria-hidden
+      >
+        <circle
+          cx={size / 2} cy={size / 2} r={r}
+          fill="none"
+          strokeWidth={STROKE}
+          className="stroke-muted"
+        />
+        <circle
+          cx={size / 2} cy={size / 2} r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={STROKE}
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={animOffset}
+          style={{ transition: "stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1)" }}
+        />
+      </svg>
+      {/* Center label */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className={cn("text-xl font-bold tabular-nums leading-none", getPctColor(pct))}>
+          {clampedPct.toFixed(0)}%
+        </span>
+        <span className="text-[9px] text-muted-foreground mt-0.5 leading-none">usado</span>
+      </div>
+    </div>
+  )
 }
 
 export function CategoryBudgetsClient() {
@@ -69,6 +175,25 @@ export function CategoryBudgetsClient() {
       return aStarred - bStarred
     })
   }, [categories, starredCats])
+
+  // Global utilization — only across categories that have a budget
+  const globalStats = useMemo(() => {
+    let totalBudget = 0
+    let totalSpent = 0
+    let budgetedCount = 0
+    let exceededCount = 0
+    for (const b of budgets) {
+      if (b.amount > 0) {
+        totalBudget += b.amount
+        const spent = spendMap.get(b.categoryId) ?? 0
+        totalSpent += spent
+        budgetedCount++
+        if (spent > b.amount) exceededCount++
+      }
+    }
+    const pct = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0
+    return { totalBudget, totalSpent, pct, budgetedCount, exceededCount }
+  }, [budgets, spendMap])
 
   function startEdit(categoryId: string) {
     const existing = budgetMap.get(categoryId)
@@ -134,6 +259,43 @@ export function CategoryBudgetsClient() {
         <span className="text-xs text-muted-foreground font-mono">{month}</span>
       </div>
 
+      {/* ── Global utilization header ─────────────────────────────────────── */}
+      {globalStats.budgetedCount > 0 && (
+        <div className="rounded-2xl border bg-card px-4 py-4 flex items-center gap-4
+          animate-[fadeSlideUp_0.3s_ease-out_both]">
+          <GlobalRing pct={globalStats.pct} size={96} />
+          <div className="flex-1 min-w-0 space-y-2">
+            <div>
+              <p className="text-xs text-muted-foreground">Utilización global</p>
+              <p className="text-sm font-semibold tabular-nums">
+                {formatCurrency(globalStats.totalSpent)}{" "}
+                <span className="text-muted-foreground font-normal">
+                  / {formatCurrency(globalStats.totalBudget)}
+                </span>
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Con límite</p>
+                <p className="text-sm font-bold tabular-nums">{globalStats.budgetedCount}</p>
+              </div>
+              {globalStats.exceededCount > 0 && (
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Excedidas</p>
+                  <p className="text-sm font-bold tabular-nums text-rose-600">{globalStats.exceededCount}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Disponible</p>
+                <p className="text-sm font-bold tabular-nums">
+                  {formatCurrency(Math.max(globalStats.totalBudget - globalStats.totalSpent, 0))}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {sortedCategories.map((cat) => {
         const budget = budgetMap.get(cat.id)
         const spent = spendMap.get(cat.id) ?? 0
@@ -197,9 +359,16 @@ export function CategoryBudgetsClient() {
               ) : (
                 <div className="flex items-center gap-1 shrink-0">
                   {hasBudget && (
-                    <span className={cn("text-sm font-semibold tabular-nums", getPctColor(pct))}>
-                      {pct.toFixed(0)}%
-                    </span>
+                    <div className="relative" title={`${pct.toFixed(0)}% usado`}>
+                      <MiniRing pct={pct} size={36} />
+                      {/* Numeric label overlaid in centre (rotated back upright) */}
+                      <span className={cn(
+                        "absolute inset-0 flex items-center justify-center text-[9px] font-bold tabular-nums leading-none",
+                        getPctColor(pct),
+                      )}>
+                        {pct.toFixed(0)}
+                      </span>
+                    </div>
                   )}
                   <button
                     onClick={() => startEdit(cat.id)}
