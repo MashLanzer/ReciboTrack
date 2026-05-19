@@ -1,7 +1,12 @@
 import { GoogleGenerativeAI } from "@google/generative-ai"
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { requireAuth } from "@/lib/api-auth"
+import { OcrSchema } from "@/lib/api-schemas"
 
 const MODEL = "gemini-2.0-flash"
+
+// Max base64 payload size: ~13.5 MB (≈ 10 MB decoded image)
+const MAX_BASE64_BYTES = 13_500_000
 
 const PROMPT = `Eres un experto en extracción de datos de documentos financieros: recibos físicos, facturas electrónicas, comprobantes de pago online, tickets, y cualquier tipo de documento de gasto. Especializados en Latinoamérica pero manejas documentos de cualquier país.
 
@@ -82,46 +87,105 @@ otros: todo lo que no encaje arriba
 
 Si no puedes determinar un campo con certeza razonable → null (nunca inventes).`
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, "ocr")
+  if (auth instanceof NextResponse) return auth
+
   try {
-    const apiKey = process.env.GEMINI_API_KEY
-    if (!apiKey) {
-      return NextResponse.json({ error: "GEMINI_API_KEY no configurada" }, { status: 500 })
-    }
-
-    const { base64, mediaType } = await req.json() as { base64: string; mediaType: string }
-
-    if (!base64 || !mediaType) {
+    const rawBody = await req.json()
+    const ocrParsed = OcrSchema.safeParse(rawBody)
+    if (!ocrParsed.success) {
       return NextResponse.json({ error: "Faltan parámetros: base64 y mediaType" }, { status: 400 })
+    }
+    const { base64, mediaType, provider = "gemini" } = ocrParsed.data
+
+    // S4: Limit payload size
+    if (base64.length > MAX_BASE64_BYTES) {
+      return NextResponse.json(
+        { error: "La imagen es demasiado grande. Máximo 10 MB." },
+        { status: 413 }
+      )
     }
 
     const validTypes = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]
     const safeType = validTypes.includes(mediaType) ? mediaType : "image/jpeg"
 
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({
-      model: MODEL,
-      generationConfig: {
-        temperature: 0.1,      // Baja temperatura = más preciso, menos creativo
-        topP: 0.8,
-        maxOutputTokens: 2048,
-      },
-    })
+    let cleanText = ""
 
-    const result = await model.generateContent([
-      PROMPT,
-      {
-        inlineData: {
-          mimeType: safeType as "image/jpeg" | "image/png" | "image/webp" | "image/heic" | "image/heif",
-          data: base64,
+    if (provider === "groq") {
+      const groqKey = process.env.GROQ_API_KEY
+      if (!groqKey) {
+        return NextResponse.json({ error: "GROQ_API_KEY no configurada" }, { status: 500 })
+      }
+
+      // Usar el modelo de visión de Groq (Llama 3.2 11B Vision)
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${groqKey}`,
+          "Content-Type": "application/json",
         },
-      },
-    ])
+        body: JSON.stringify({
+          model: "llama-3.2-11b-vision-preview",
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: PROMPT },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:${safeType};base64,${base64}`,
+                  },
+                },
+              ],
+            },
+          ],
+          temperature: 0.1,
+          max_tokens: 2048,
+          response_format: { type: "json_object" },
+        }),
+      })
 
-    const text = result.response.text().trim()
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(`Groq API error: ${res.status} ${JSON.stringify(errData)}`)
+      }
 
-    // Limpiar posibles bloques de markdown que Gemini a veces añade
-    const clean = text
+      const data = await res.json()
+      cleanText = data.choices[0]?.message?.content || ""
+    } else {
+      // Gemini (default)
+      const geminiKey = process.env.GEMINI_API_KEY
+      if (!geminiKey) {
+        return NextResponse.json({ error: "GEMINI_API_KEY no configurada" }, { status: 500 })
+      }
+
+      const genAI = new GoogleGenerativeAI(geminiKey)
+      const model = genAI.getGenerativeModel({
+        model: MODEL,
+        generationConfig: {
+          temperature: 0.1,
+          topP: 0.8,
+          maxOutputTokens: 2048,
+        },
+      })
+
+      const result = await model.generateContent([
+        PROMPT,
+        {
+          inlineData: {
+            mimeType: safeType as "image/jpeg" | "image/png" | "image/webp" | "image/heic" | "image/heif",
+            data: base64,
+          },
+        },
+      ])
+
+      cleanText = result.response.text().trim()
+    }
+
+    // Limpiar posibles bloques de markdown
+    const clean = cleanText
       .replace(/^```json\s*/i, "")
       .replace(/^```\s*/i, "")
       .replace(/\s*```$/i, "")
@@ -131,7 +195,7 @@ export async function POST(req: Request) {
     try {
       parsed = JSON.parse(clean) as Record<string, unknown>
     } catch {
-      console.error("[OCR] JSON parse failed, raw response:", clean.slice(0, 200))
+      console.error(`[OCR] JSON parse failed (${provider}), raw response:`, clean.slice(0, 200))
       return NextResponse.json({
         merchant: null, date: null, total: null, subtotal: null,
         tax: null, currency: "USD", paymentMethod: null, reference: null,
@@ -139,14 +203,12 @@ export async function POST(req: Request) {
       })
     }
 
-    // Post-procesado: validar y sanear datos antes de devolver
     const sanitized = sanitizeOcrResult(parsed)
     return NextResponse.json(sanitized)
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Error interno"
 
-    // Quota excedida → el cliente hará fallback a Tesseract
     if (message.includes("429") || message.includes("quota") || message.includes("RESOURCE_EXHAUSTED")) {
       return NextResponse.json({ error: "quota_exceeded" }, { status: 429 })
     }

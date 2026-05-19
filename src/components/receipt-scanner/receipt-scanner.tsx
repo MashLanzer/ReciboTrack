@@ -18,6 +18,8 @@ import { useDeleteExpense } from "@/hooks/use-expenses"
 import { addMonths, addWeeks, addYears } from "date-fns"
 import { useTemplates, useAddTemplate, useDeleteTemplate, useIncrementTemplateUse } from "@/hooks/use-templates"
 import { PAYMENT_METHODS, CURRENCIES } from "@/lib/constants"
+import { getLastCurrency, getLastPaymentMethod, setLastCurrency, setLastPaymentMethod } from "@/lib/last-used"
+import { authFetch } from "@/lib/client-fetch"
 import type { OcrResultInput } from "@/lib/firebase/schemas"
 import type { ReceiptItem, RecurringFrequency } from "@/types"
 import { runReceiptOcr as runTesseract } from "@/lib/ocr/tesseract"
@@ -80,12 +82,12 @@ export function ReceiptScanner() {
   const [allItems, setAllItems] = useState<ReceiptItem[]>([])
   const [scanCount, setScanCount] = useState(0)
   const [ocrProgress, setOcrProgress] = useState(0)
-  const [ocrEngine, setOcrEngine] = useState<"gemini" | "tesseract" | null>(null)  // #21
+  const [ocrEngine, setOcrEngine] = useState<"gemini" | "groq" | "tesseract" | null>(null)  // #21
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(["basic"]))
   const [tagInput, setTagInput] = useState("")
   const [form, setForm] = useState<FormData>({
     merchant: "", date: "", total: "", subtotal: "", tax: "",
-    category: "otros", paymentMethod: "", currency: "USD",
+    category: "otros", paymentMethod: getLastPaymentMethod(), currency: getLastCurrency(),
     reference: "", notes: "", tags: [], isRecurring: false,
     recurringFrequency: "monthly",
   })
@@ -280,9 +282,8 @@ export function ReceiptScanner() {
         setImageUrl(previewUrl)
       }
 
-      // Gemini primero (soporta imágenes Y PDFs nativamente)
-      // Fallback a Tesseract solo si no hay internet o quota excedida
-      const data = await runGeminiOcr(fileToProcess as File)
+      // Gemini primero -> Groq segundo -> Tesseract último
+      const data = await runApiOcr(fileToProcess as File)
 
       populateForm(data, isAdditional)
       // Start wizard from step 1 on a fresh scan; keep current step on additional scans
@@ -297,9 +298,9 @@ export function ReceiptScanner() {
     }
   }
 
-  // Llama al API route de Gemini con fallback a Tesseract
+  // Llama al API route de Gemini/Groq con fallback a Tesseract
   // Siempre recibe una imagen (los PDFs ya fueron convertidos antes de llegar aquí)
-  async function runGeminiOcr(file: File): Promise<OcrResultInput> {
+  async function runApiOcr(file: File): Promise<OcrResultInput> {
     const base64 = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader()
       reader.onloadend = () => {
@@ -317,24 +318,30 @@ export function ReceiptScanner() {
     const timeout = setTimeout(() => controller.abort(), 35_000)
 
     try {
-      const res = await fetch("/api/ocr", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ base64, mediaType }),
-        signal: controller.signal,
-      })
-
-      if (res.status === 429 || !res.ok) {
-        if (res.status !== 429) toast.info("Gemini no disponible, usando OCR local...")
-        setOcrEngine("tesseract")  // #21
-        return runTesseract(file, setOcrProgress)
+      // 1. Intentar con Gemini
+      try {
+        const res = await authFetch("/api/ocr", { base64, mediaType, provider: "gemini" }, { signal: controller.signal })
+        if (res.ok) {
+          setOcrEngine("gemini")
+          return await res.json() as OcrResultInput
+        }
+      } catch (err) {
+        console.warn("Gemini falló, intentando Groq...", err)
       }
 
-      setOcrEngine("gemini")  // #21
-      return await res.json() as OcrResultInput
-    } catch {
-      toast.info("Sin conexión, usando OCR local...")
-      setOcrEngine("tesseract")  // #21
+      // 2. Intentar con Groq (Llama 3.2 Vision)
+      try {
+        const res = await authFetch("/api/ocr", { base64, mediaType, provider: "groq" }, { signal: controller.signal })
+        if (res.ok) {
+          setOcrEngine("groq")
+          return await res.json() as OcrResultInput
+        }
+      } catch (err) {
+        console.warn("Groq falló, usando Tesseract...", err)
+      }
+
+      // 3. Fallback final a Tesseract (Local)
+      setOcrEngine("tesseract")
       return runTesseract(file, setOcrProgress)
     } finally {
       clearTimeout(timeout)
@@ -479,6 +486,8 @@ export function ReceiptScanner() {
 
   /** Core save — shared by normal confirm and "save anyway" after dup warning. */
   async function saveExpense(expenseData: Parameters<typeof addExpense.mutateAsync>[0]) {
+    setLastCurrency(form.currency)
+    setLastPaymentMethod(form.paymentMethod)
     await addExpense.mutateAsync(expenseData)
 
     if (form.isRecurring) {
@@ -670,7 +679,9 @@ export function ReceiptScanner() {
                   ? `Extrayendo texto con OCR local... ${ocrProgress}%`
                   : ocrEngine === "tesseract"
                   ? "Procesando con Tesseract OCR..."
-                  : "Procesando con Gemini 2.0 Flash..."}
+                  : ocrEngine === "groq"
+                  ? "Procesando con Groq Llama 3.2..."
+                  : "Procesando con IA (Gemini/Groq)..."}
               </span>
             </div>
             {ocrProgress > 0 && (
@@ -904,8 +915,8 @@ export function ReceiptScanner() {
                         const populated = [form.merchant, form.date, form.total, form.category, form.currency].filter(Boolean).length
                         const pct = populated / 5
                         const totalNum = parseFloat(form.total) || 0
-                        const isHighConf = ocrEngine === "gemini" && pct === 1 && totalNum > 0
-                        const isMedConf  = ocrEngine === "gemini" && pct < 1
+                        const isHighConf = (ocrEngine === "gemini" || ocrEngine === "groq") && pct === 1 && totalNum > 0
+                        const isMedConf  = (ocrEngine === "gemini" || ocrEngine === "groq") && pct < 1
                         const confidence = isHighConf
                           ? { icon: "🟢", label: "Alta confianza", color: "text-green-700 dark:text-green-400" }
                           : isMedConf
@@ -917,9 +928,11 @@ export function ReceiptScanner() {
                               "inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted font-mono border",
                               ocrEngine === "gemini"
                                 ? "border-green-500/20 text-green-700 dark:text-green-400"
+                                : ocrEngine === "groq"
+                                ? "border-orange-500/20 text-orange-700 dark:text-orange-400"
                                 : "border-amber-500/20 text-amber-700 dark:text-amber-400"
                             )}>
-                              {ocrEngine === "gemini" ? "✨ Gemini 2.0 Flash" : "🔤 Tesseract OCR"}
+                              {ocrEngine === "gemini" ? "✨ Gemini 2.0 Flash" : ocrEngine === "groq" ? "🚀 Groq Llama 3.2" : "🔤 Tesseract OCR"}
                             </span>
                             <span className={cn("font-medium", confidence.color)}>
                               {confidence.icon} {confidence.label}
