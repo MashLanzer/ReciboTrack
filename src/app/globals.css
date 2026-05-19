@@ -145,6 +145,14 @@ body {
 }
 .hint-fade-out { animation: hintFadeOut 1s ease-out 3.5s forwards; }
 
+/* ── Urgency pulse ring — gentle glow for critical due badges ────────────── */
+@keyframes urgency-ring {
+  0%   { box-shadow: 0 0 0 0   hsl(0 84.2% 60.2% / 0.40); }
+  65%  { box-shadow: 0 0 0 5px hsl(0 84.2% 60.2% / 0);    }
+  100% { box-shadow: 0 0 0 0   hsl(0 84.2% 60.2% / 0);    }
+}
+.urgency-pulse { animation: urgency-ring 2.2s ease-out infinite; }
+
 /* ── Swipe hint — brief left-peek and snap back ──────────────────────────── */
 @keyframes swipe-hint {
   0%   { transform: translateX(0); }

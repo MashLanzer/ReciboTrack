@@ -49,7 +49,7 @@ import {
   ChevronUp,
   History,
 } from "lucide-react"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, cn } from "@/lib/utils"
 import { useUIStore } from "@/stores/ui-store"
 import { addDays, addWeeks, addMonths, addYears, startOfDay, format, isSameDay, isToday, isTomorrow } from "date-fns"
 import { es } from "date-fns/locale"
@@ -98,23 +98,28 @@ const EMPTY_FORM: RecurringForm = {
   nextDueDate: new Date().toISOString().split("T")[0],
 }
 
+type DueUrgency = "overdue" | "critical" | "warning" | "safe"
+
 function getDueStatus(nextDueDate: Timestamp): {
   label: string
   variant: "destructive" | "warning" | "secondary" | "outline"
   daysUntil: number
+  urgency: DueUrgency
 } {
   const now = new Date()
   const due = nextDueDate.toDate()
   const diff = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
-  if (diff < 0) return { label: `Vencido hace ${Math.abs(diff)}d`, variant: "destructive", daysUntil: diff }
-  if (diff === 0) return { label: "Vence hoy", variant: "warning", daysUntil: 0 }
-  if (diff === 1) return { label: "Mañana", variant: "warning", daysUntil: 1 }
-  if (diff <= 7) return { label: `En ${diff} días`, variant: "secondary", daysUntil: diff }
+  if (diff < 0)  return { label: `Vencido hace ${Math.abs(diff)}d`, variant: "destructive", daysUntil: diff, urgency: "overdue" }
+  if (diff === 0) return { label: "Vence hoy",  variant: "warning",     daysUntil: 0,    urgency: "critical" }
+  if (diff === 1) return { label: "Mañana",     variant: "warning",     daysUntil: 1,    urgency: "critical" }
+  if (diff <= 2)  return { label: `En ${diff} días`, variant: "warning", daysUntil: diff, urgency: "critical" }
+  if (diff <= 7)  return { label: `En ${diff} días`, variant: "secondary", daysUntil: diff, urgency: "warning" }
   return {
     label: due.toLocaleDateString("es", { day: "2-digit", month: "short" }),
     variant: "outline",
     daysUntil: diff,
+    urgency: "safe",
   }
 }
 
@@ -958,14 +963,17 @@ function RecurringItem({
             <span className="text-sm font-semibold tabular-nums">
               {t.currency} {t.total.toFixed(2)}
             </span>
-            <Badge
-              variant={status.variant === "warning" ? "secondary" : status.variant}
-              className={`text-[10px] px-1.5 py-0 ${
-                status.variant === "warning" ? "bg-amber-500/10 text-amber-600 border-amber-500/30" : ""
-              }`}
-            >
+            <span className={cn(
+              "inline-flex items-center rounded-full border px-1.5 py-0 text-[10px] font-medium shrink-0 leading-5",
+              (status.urgency === "overdue" || status.urgency === "critical") &&
+                "bg-destructive/10 text-destructive border-destructive/30 urgency-pulse",
+              status.urgency === "warning" &&
+                "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
+              status.urgency === "safe" &&
+                "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
+            )}>
               {status.label}
-            </Badge>
+            </span>
           </div>
         </div>
 
