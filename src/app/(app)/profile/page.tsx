@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { useUserSettings, useUpdateUserSettings } from "@/hooks/use-user-settings"
+import { useWebhookSettings } from "@/hooks/use-webhook-settings"
 import { useExpensesPeriod } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
 import { useRecurring } from "@/hooks/use-recurring"
@@ -188,13 +189,16 @@ export default function ProfilePage() {
 
   // Integrations
   const [sheetsLoading, setSheetsLoading] = useState(false)
-  const [webhookUrl, setWebhookUrl] = useState<string>(() => {
-    try { return localStorage.getItem("rt-webhook-url") ?? "" } catch { return "" }
-  })
-  const [webhookEvents, setWebhookEvents] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem("rt-webhook-events") ?? '["new_expense"]') } catch { return ["new_expense"] }
-  })
+  const { settings: webhookConfig, save: saveWebhookToFirestore, remove: removeWebhookFromFirestore } = useWebhookSettings()
+  const [webhookUrl, setWebhookUrl] = useState("")
+  const [webhookEvents, setWebhookEvents] = useState<string[]>(["new_expense"])
   const [webhookTesting, setWebhookTesting] = useState(false)
+
+  // Sync local state from Firestore when it loads
+  useEffect(() => {
+    setWebhookUrl(webhookConfig.webhookUrl)
+    setWebhookEvents(webhookConfig.webhookEvents)
+  }, [webhookConfig.webhookUrl, webhookConfig.webhookEvents])
 
   // Portals (Compartir tab)
   const { data: portals = [], isLoading: portalsLoading } = usePortals()
@@ -346,10 +350,20 @@ export default function ProfilePage() {
   }
 
   // ── Webhook ───────────────────────────────────────────────────────────────
-  function saveWebhook() {
+  async function saveWebhook() {
+    // C5: Validate URL before saving
+    if (webhookUrl) {
+      try {
+        const parsed = new URL(webhookUrl)
+        if (!["http:", "https:"].includes(parsed.protocol)) {
+          toast.error("La URL debe usar http:// o https://"); return
+        }
+      } catch {
+        toast.error("URL del webhook inválida"); return
+      }
+    }
     try {
-      localStorage.setItem("rt-webhook-url", webhookUrl)
-      localStorage.setItem("rt-webhook-events", JSON.stringify(webhookEvents))
+      await saveWebhookToFirestore(webhookUrl, webhookEvents)
       toast.success("Webhook guardado")
     } catch { toast.error("Error al guardar") }
   }
@@ -468,14 +482,14 @@ export default function ProfilePage() {
                     >
                       <p className="font-semibold flex items-center gap-1.5 group-hover:underline underline-offset-2">
                         {user.displayName ?? "Sin nombre"}
-                        <span className="text-[10px] text-muted-foreground font-normal opacity-0 group-hover:opacity-100 transition-opacity">editar</span>
+                        <span className="text-[11px] text-muted-foreground font-normal opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity">editar</span>
                       </p>
                     </button>
                   )}
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">{user.email}</p>
                   <div className="flex items-center gap-2 mt-1.5">
-                    <Badge variant="outline" className="text-[10px]">{isGoogleUser ? "Google" : "Email"}</Badge>
-                    <p className="text-[10px] text-muted-foreground">Miembro desde {memberSince}</p>
+                    <Badge variant="outline" className="text-[11px]">{isGoogleUser ? "Google" : "Email"}</Badge>
+                    <p className="text-[11px] text-muted-foreground">Miembro desde {memberSince}</p>
                   </div>
                 </div>
               </div>
@@ -723,6 +737,25 @@ export default function ProfilePage() {
                 </div>
               </CollapsibleSectionCard>
 
+              {/* ── Presentación / onboarding ── */}
+              <SectionCard>
+                <div className="px-4 py-3 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">Presentación de la app</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Vuelve a ver el tour de bienvenida y la página de permisos</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 h-8 text-xs gap-1.5"
+                    onClick={() => save({ onboardingCompleted: false })}
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                    Ver tour
+                  </Button>
+                </div>
+              </SectionCard>
+
               {/* ── Categorías visibles ── */}
               <CollapsibleSectionCard title="Categorías visibles" description="Oculta las que no usas en los formularios">
                 <div className="p-4 space-y-3">
@@ -751,7 +784,7 @@ export default function ProfilePage() {
                   {(settings?.hiddenDefaultCategories?.length ?? 0) > 0 && (
                     <button
                       onClick={() => save({ hiddenDefaultCategories: [] })}
-                      className="text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+                      className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
                     >
                       Mostrar todas
                     </button>
@@ -789,7 +822,7 @@ export default function ProfilePage() {
                 >
                   <Download className="h-4 w-4" /> Exportar CSV genérico
                 </Button>
-                <p className="text-[10px] text-muted-foreground mt-1 pl-1">
+                <p className="text-[11px] text-muted-foreground mt-1 pl-1">
                   Columnas: fecha, comercio, categoría, total, moneda, notas. Compatible con Excel, Numbers y cualquier hoja de cálculo.
                 </p>
               </div>
@@ -806,7 +839,7 @@ export default function ProfilePage() {
                 >
                   <Download className="h-4 w-4" /> Exportar para Holded
                 </Button>
-                <p className="text-[10px] text-muted-foreground mt-1 pl-1">
+                <p className="text-[11px] text-muted-foreground mt-1 pl-1">
                   Formato Holded ERP: importa tus gastos directamente como facturas recibidas en tu cuenta de Holded.
                 </p>
               </div>
@@ -823,7 +856,7 @@ export default function ProfilePage() {
                 >
                   <Download className="h-4 w-4" /> Exportar para Contasimple
                 </Button>
-                <p className="text-[10px] text-muted-foreground mt-1 pl-1">
+                <p className="text-[11px] text-muted-foreground mt-1 pl-1">
                   Formato Contasimple: columnas adaptadas al ERP español para importar gastos como apuntes contables.
                 </p>
               </div>
@@ -846,7 +879,7 @@ export default function ProfilePage() {
                   <p className="text-sm font-semibold">Google Sheets</p>
                 </div>
                 <span className={cn(
-                  "text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full",
+                  "text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full",
                   settings?.sheetsLastUrl ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"
                 )}>
                   {settings?.sheetsLastUrl ? "Sincronizado" : "Sin conectar"}
@@ -891,7 +924,7 @@ export default function ProfilePage() {
                   <p className="text-sm font-semibold">Webhook personal</p>
                 </div>
                 <span className={cn(
-                  "text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full",
+                  "text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full",
                   webhookUrl ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"
                 )}>
                   {webhookUrl ? "Activo" : "Inactivo"}
@@ -936,14 +969,14 @@ export default function ProfilePage() {
                 </Button>
                 {webhookUrl && (
                   <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-destructive"
-                    onClick={() => { setWebhookUrl(""); try { localStorage.removeItem("rt-webhook-url") } catch {} }}>
+                    onClick={() => { setWebhookUrl(""); void removeWebhookFromFirestore() }}>
                     <Link2Off className="h-3.5 w-3.5" />
                   </Button>
                 )}
               </div>
 
               {webhookUrl && (
-                <div className="rounded-lg bg-muted/40 border px-3 py-2 text-[10px] font-mono text-muted-foreground break-all">
+                <div className="rounded-lg bg-muted/40 border px-3 py-2 text-[11px] font-mono text-muted-foreground break-all">
                   POST → {webhookUrl}
                 </div>
               )}
@@ -1056,15 +1089,15 @@ export default function ProfilePage() {
             <div className="p-4">
               <div className="grid grid-cols-3 gap-3">
                 <div className="text-center rounded-xl border bg-muted/20 p-3">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Miembro desde</p>
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Miembro desde</p>
                   <p className="text-sm font-bold mt-1">{memberSince}</p>
                 </div>
                 <div className="text-center rounded-xl border bg-muted/20 p-3">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Recurrentes</p>
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Recurrentes</p>
                   <p className="text-lg font-bold mt-0.5">{recurringData.length}</p>
                 </div>
                 <div className="text-center rounded-xl border bg-muted/20 p-3">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Metas</p>
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Metas</p>
                   <p className="text-lg font-bold mt-0.5">{goals.length}</p>
                 </div>
               </div>

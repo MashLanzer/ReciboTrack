@@ -8,6 +8,7 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  getDoc,
   Timestamp,
   serverTimestamp,
   where,
@@ -21,6 +22,7 @@ import type { Expense, ExpenseInput } from "@/types"
 import { EXPENSES_PER_PAGE } from "@/lib/constants"
 import { fireWebhook, buildExpensePayload } from "@/lib/webhook"
 import { toast } from "sonner"
+import { stripUndefined } from "@/lib/utils"
 import { format } from "date-fns"
 import type { CategoryBudget } from "./use-category-budgets"
 
@@ -29,6 +31,66 @@ function expensesCollection(uid: string) {
 }
 
 export type ExpenseSort = "date_desc" | "date_asc" | "amount_desc" | "amount_asc" | "merchant_asc" | "merchant_desc" | "category_asc"
+
+export type ExpenseFilters = {
+  category?: string
+  startDate?: Date
+  endDate?: Date
+  search?: string
+  tags?: string[]
+  page?: number
+  sort?: ExpenseSort
+  account?: "personal" | "business" | "all"
+}
+
+async function fetchExpenses(
+  uid: string,
+  filters: ExpenseFilters | undefined,
+  page: number
+): Promise<{ expenses: Expense[]; total: number; allTags: string[] }> {
+  const col = expensesCollection(uid)
+  let q = query(col, orderBy("date", "desc"))
+  if (filters?.category) q = query(q, where("category", "==", filters.category))
+  if (filters?.startDate) q = query(q, where("date", ">=", Timestamp.fromDate(filters.startDate)))
+  if (filters?.endDate) q = query(q, where("date", "<=", Timestamp.fromDate(filters.endDate)))
+  const snapshot = await getDocs(q)
+  let expenses = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
+  // account filter
+  if (filters?.account && filters.account !== "all") {
+    expenses = filters.account === "business"
+      ? expenses.filter(e => e.account === "business")
+      : expenses.filter(e => !e.account || e.account === "personal")
+  }
+  // search filter
+  if (filters?.search) {
+    const s = filters.search.toLowerCase()
+    expenses = expenses.filter(e =>
+      e.merchant.toLowerCase().includes(s) ||
+      (e.reference?.toLowerCase().includes(s) ?? false) ||
+      (e.notes?.toLowerCase().includes(s) ?? false) ||
+      (e.project?.toLowerCase().includes(s) ?? false) ||
+      (e.tags?.some((t) => t.toLowerCase().includes(s)) ?? false) ||
+      (e.items?.some((it) => it.name.toLowerCase().includes(s)) ?? false)
+    )
+  }
+  // tag filter
+  if (filters?.tags && filters.tags.length > 0) {
+    const ft = filters.tags.map(t => t.toLowerCase())
+    expenses = expenses.filter(e => ft.some(f => e.tags?.some(et => et.toLowerCase() === f)))
+  }
+  const allTags = [...new Set(expenses.flatMap(e => e.tags ?? []).map(t => t.toLowerCase()))].sort()
+  // sort
+  const sort = filters?.sort ?? "date_desc"
+  if (sort === "date_asc") expenses = [...expenses].reverse()
+  else if (sort === "amount_desc") expenses = [...expenses].sort((a, b) => b.total - a.total)
+  else if (sort === "amount_asc") expenses = [...expenses].sort((a, b) => a.total - b.total)
+  else if (sort === "merchant_asc") expenses = [...expenses].sort((a, b) => a.merchant.localeCompare(b.merchant))
+  else if (sort === "merchant_desc") expenses = [...expenses].sort((a, b) => b.merchant.localeCompare(a.merchant))
+  else if (sort === "category_asc") expenses = [...expenses].sort((a, b) => a.category.localeCompare(b.category))
+  const total = expenses.length
+  const paginated = expenses.slice((page - 1) * EXPENSES_PER_PAGE, page * EXPENSES_PER_PAGE)
+  return { expenses: paginated, total, allTags }
+}
 
 export function useExpenses(filters?: {
   category?: string
@@ -52,80 +114,7 @@ export function useExpenses(filters?: {
     staleTime: 60_000,  // #23 — 1 minute stale time to avoid immediate refetch on back-nav
     queryFn: async () => {
       if (!uid) return { expenses: [], total: 0, allTags: [] as string[] }
-
-      const col = expensesCollection(uid)
-      let q = query(col, orderBy("date", "desc"))
-
-      if (filters?.category) {
-        q = query(q, where("category", "==", filters.category))
-      }
-      if (filters?.startDate) {
-        q = query(q, where("date", ">=", Timestamp.fromDate(filters.startDate)))
-      }
-      if (filters?.endDate) {
-        q = query(q, where("date", "<=", Timestamp.fromDate(filters.endDate)))
-      }
-
-      const snapshot = await getDocs(q)
-      let expenses = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
-
-      // Account filter (client-side for backwards compatibility with legacy docs)
-      if (filters?.account && filters.account !== "all") {
-        if (filters.account === "business") {
-          expenses = expenses.filter(e => e.account === "business")
-        } else {
-          // personal: show docs without account field, or account === "personal"
-          expenses = expenses.filter(e => !e.account || e.account === "personal")
-        }
-      }
-
-      if (filters?.search) {
-        const s = filters.search.toLowerCase()
-        expenses = expenses.filter(
-          (e) =>
-            e.merchant.toLowerCase().includes(s) ||
-            (e.reference?.toLowerCase().includes(s) ?? false) ||
-            (e.notes?.toLowerCase().includes(s) ?? false) ||
-            (e.project?.toLowerCase().includes(s) ?? false) ||
-            (e.tags?.some((t) => t.toLowerCase().includes(s)) ?? false) ||
-            (e.items?.some((it) => it.name.toLowerCase().includes(s)) ?? false)
-        )
-      }
-
-      // Tag filter — applied before pagination so results are always consistent.
-      // Comparison is case-insensitive so legacy mixed-case tags still match.
-      if (filters?.tags && filters.tags.length > 0) {
-        const filterTags = filters.tags.map(t => t.toLowerCase())
-        expenses = expenses.filter(e =>
-          filterTags.some(ft => e.tags?.some(et => et.toLowerCase() === ft))
-        )
-      }
-
-      // Collect all unique tags before pagination so the filter dropdown is complete
-      const allTags = [...new Set(expenses.flatMap((e) => e.tags ?? []).map(t => t.toLowerCase()))].sort()
-
-      // Sort (Firestore returns date_desc by default; other sorts done client-side)
-      const sort = filters?.sort ?? "date_desc"
-      if (sort === "date_asc") {
-        expenses = [...expenses].reverse()
-      } else if (sort === "amount_desc") {
-        expenses = [...expenses].sort((a, b) => b.total - a.total)
-      } else if (sort === "amount_asc") {
-        expenses = [...expenses].sort((a, b) => a.total - b.total)
-      } else if (sort === "merchant_asc") {
-        expenses = [...expenses].sort((a, b) => a.merchant.localeCompare(b.merchant))
-      } else if (sort === "merchant_desc") {
-        expenses = [...expenses].sort((a, b) => b.merchant.localeCompare(a.merchant))
-      } else if (sort === "category_asc") {
-        expenses = [...expenses].sort((a, b) => a.category.localeCompare(b.category))
-      }
-      // date_desc: already ordered by Firestore
-
-      const total = expenses.length
-      const page = filters?.page ?? 1
-      const paginated = expenses.slice((page - 1) * EXPENSES_PER_PAGE, page * EXPENSES_PER_PAGE)
-
-      return { expenses: paginated, total, allTags }
+      return fetchExpenses(uid, filters, filters?.page ?? 1)
     },
   })
 
@@ -140,36 +129,7 @@ export function useExpenses(filters?: {
     queryClient.prefetchQuery({
       queryKey: ["expenses", uid, nextFilters],
       staleTime: 30_000,
-      queryFn: async () => {
-        const col = expensesCollection(uid)
-        let q = query(col, orderBy("date", "desc"))
-        if (nextFilters.category) q = query(q, where("category", "==", nextFilters.category))
-        if (nextFilters.startDate) q = query(q, where("date", ">=", Timestamp.fromDate(nextFilters.startDate)))
-        if (nextFilters.endDate) q = query(q, where("date", "<=", Timestamp.fromDate(nextFilters.endDate)))
-        const snapshot = await getDocs(q)
-        let expenses = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
-        if (nextFilters.account && nextFilters.account !== "all") {
-          expenses = nextFilters.account === "business"
-            ? expenses.filter(e => e.account === "business")
-            : expenses.filter(e => !e.account || e.account === "personal")
-        }
-        if (nextFilters.search) {
-          const s = nextFilters.search.toLowerCase()
-          expenses = expenses.filter(e =>
-            e.merchant.toLowerCase().includes(s) ||
-            (e.reference?.toLowerCase().includes(s) ?? false) ||
-            (e.notes?.toLowerCase().includes(s) ?? false)
-          )
-        }
-        if (nextFilters.tags && nextFilters.tags.length > 0) {
-          const ft = nextFilters.tags.map(t => t.toLowerCase())
-          expenses = expenses.filter(e => ft.some(f => e.tags?.some(et => et.toLowerCase() === f)))
-        }
-        const allTags = [...new Set(expenses.flatMap(e => e.tags ?? []).map(t => t.toLowerCase()))].sort()
-        const total = expenses.length
-        const paginated = expenses.slice((page) * EXPENSES_PER_PAGE, (page + 1) * EXPENSES_PER_PAGE)
-        return { expenses: paginated, total, allTags }
-      },
+      queryFn: () => fetchExpenses(uid, nextFilters, page + 1),
     }).catch(() => {/* ignore prefetch errors */})
   }, [uid, page, data?.total]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -229,12 +189,13 @@ export function useAddExpense() {
       if (!user) throw new Error("No autenticado")
       const col = expensesCollection(user.uid)
       const now = Timestamp.now()
-      const data = {
+      // stripUndefined — Firestore rejects `undefined` (optional fields: account, project, privacy…)
+      const data = stripUndefined({
         ...input,
         date: Timestamp.fromDate(input.date),
         createdAt: now,
         updatedAt: now,
-      }
+      }) as Record<string, unknown>
       // addDoc resolves immediately when offline (Firebase queues it locally)
       const ref = await addDoc(col, data)
       const expenseId = ref.id
@@ -299,15 +260,19 @@ export function useAddExpense() {
       void ctx
 
       // Fire personal webhook if configured and event is enabled
-      try {
-        const webhookUrl   = localStorage.getItem("rt-webhook-url")
-        const webhookEvents = JSON.parse(localStorage.getItem("rt-webhook-events") ?? "[]") as string[]
-        if (webhookUrl && webhookEvents.includes("new_expense")) {
-          void fireWebhook(webhookUrl, buildExpensePayload({
-            id, ...input, date: { toDate: () => input.date },
-          }))
-        }
-      } catch { /* ignore */ }
+      if (user?.uid) {
+        try {
+          const userSnap = await getDoc(doc(getFirebaseDb(), "users", user.uid))
+          const userData = userSnap.data() ?? {}
+          const webhookUrl    = typeof userData.webhookUrl === "string" ? userData.webhookUrl : ""
+          const webhookEvents = Array.isArray(userData.webhookEvents) ? userData.webhookEvents as string[] : []
+          if (webhookUrl && webhookEvents.includes("new_expense")) {
+            void fireWebhook(webhookUrl, buildExpensePayload({
+              id, ...input, date: { toDate: () => input.date },
+            }))
+          }
+        } catch { /* ignore */ }
+      }
 
       // ── Feature 2: Budget alert ─────────────────────────────────────────
       // Only for personal expenses (not group expenses)
@@ -356,10 +321,20 @@ export function useAddExpense() {
         if (totalSpent >= budget) {
           toast.error("Presupuesto superado", {
             description: `Categoría: ${input.category} · ${formatAmt(totalSpent)} de ${formatAmt(budget)} gastado (${pct}%)`,
+            duration: 8000,
+            action: {
+              label: "Ver presupuestos",
+              onClick: () => { window.location.href = "/budgets" },
+            },
           })
         } else if (totalSpent >= budget * 0.8) {
           toast.warning(`Presupuesto al ${pct}%`, {
             description: `Categoría: ${input.category} · ${formatAmt(totalSpent)} de ${formatAmt(budget)} gastado`,
+            duration: 8000,
+            action: {
+              label: "Ver presupuestos",
+              onClick: () => { window.location.href = "/budgets" },
+            },
           })
         }
       } catch { /* ignore — budget check is best-effort */ }

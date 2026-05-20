@@ -16,11 +16,7 @@ import { Fingerprint, Smartphone, Lock } from "lucide-react"
 import { hasStoredPasskey, verifyPasskey } from "@/hooks/use-passkey"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-
-// Vuelve a bloquear si la app estuvo en 2º plano más de este tiempo (ms)
-const LOCK_AFTER_BG_MS = 30_000 // 30 segundos
-
-const SESSION_KEY = "rbt_app_unlocked"
+import { LOCK_AFTER_BG_MS, APP_LOCK_SESSION_KEY } from "@/lib/constants"
 
 function isNativeApp(): boolean {
   if (typeof window === "undefined") return false
@@ -59,7 +55,7 @@ export function AppLock({ children }: { children: React.ReactNode }) {
 
   // ── Desbloquear ────────────────────────────────────────────────────────────
   const unlock = useCallback(() => {
-    try { sessionStorage.setItem(SESSION_KEY, "1") } catch { /* Safari privado */ }
+    try { sessionStorage.setItem(APP_LOCK_SESSION_KEY, "1") } catch { /* Safari privado */ }
     setLocked(false)
   }, [])
 
@@ -100,7 +96,7 @@ export function AppLock({ children }: { children: React.ReactNode }) {
 
     // Ya desbloqueado en esta sesión del navegador
     try {
-      if (sessionStorage.getItem(SESSION_KEY)) {
+      if (sessionStorage.getItem(APP_LOCK_SESSION_KEY)) {
         setLocked(false)
         return
       }
@@ -135,7 +131,7 @@ export function AppLock({ children }: { children: React.ReactNode }) {
           const elapsed = Date.now() - bgAtRef.current
           bgAtRef.current = null
           if (elapsed > LOCK_AFTER_BG_MS && hasStoredPasskey()) {
-            try { sessionStorage.removeItem(SESSION_KEY) } catch { /* noop */ }
+            try { sessionStorage.removeItem(APP_LOCK_SESSION_KEY) } catch { /* noop */ }
             setLocked(true)
           }
         }
@@ -206,7 +202,7 @@ export function AppLock({ children }: { children: React.ReactNode }) {
       <button
         className="text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
         onClick={() => {
-          try { sessionStorage.removeItem(SESSION_KEY) } catch { /* noop */ }
+          try { sessionStorage.removeItem(APP_LOCK_SESSION_KEY) } catch { /* noop */ }
           window.location.href = "/login"
         }}
       >

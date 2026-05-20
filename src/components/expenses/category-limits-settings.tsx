@@ -127,7 +127,7 @@ export function CategoryLimitsSettings() {
                       value={pct}
                       className={`h-1.5 ${isOver ? "[&>div]:bg-destructive" : isWarning ? "[&>div]:bg-amber-500" : ""}`}
                     />
-                    <div className="flex items-center justify-between text-[10px] tabular-nums text-muted-foreground">
+                    <div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
                       <span className={isOver ? "text-destructive font-medium" : isWarning ? "text-amber-600 font-medium" : ""}>
                         {formatCurrency(spent)} gastado
                       </span>

@@ -124,7 +124,7 @@ function ChecklistCard({
                 {item.text}
               </span>
               {item.done && item.doneByName && (
-                <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
+                <span className="text-[11px] text-muted-foreground ml-auto shrink-0">
                   {item.doneByName}
                 </span>
               )}
@@ -214,7 +214,7 @@ export function GroupChecklists({ groupId }: GroupChecklistsProps) {
       </div>
 
       {checklists.length === 0 ? (
-        <div className="rounded-xl border border-dashed p-6 text-center">
+        <div className="rounded-xl border border-border/50 bg-muted/20 p-6 text-center">
           <CheckSquare className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-30" />
           <p className="text-sm text-muted-foreground">Sin checklists todavía</p>
           <p className="text-xs text-muted-foreground mt-1">

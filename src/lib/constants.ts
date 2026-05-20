@@ -28,3 +28,15 @@ export const CURRENCIES = ["USD", "EUR", "MXN", "COP", "ARS", "CLP", "PEN", "BRL
 export const DEFAULT_CURRENCY = "USD"
 
 export const EXPENSES_PER_PAGE = 10
+
+// Rate limits (deben coincidir con src/lib/api-auth.ts)
+export const AI_RATE_LIMIT_PER_MIN  = 20
+export const OCR_RATE_LIMIT_PER_MIN = 10
+export const PAY_RATE_LIMIT_PER_MIN = 30
+
+// Recurring page
+export const LATER_PAGE_SIZE = 20
+
+// App lock
+export const LOCK_AFTER_BG_MS = 30_000 // 30 segundos
+export const APP_LOCK_SESSION_KEY = "rbt_app_unlocked"

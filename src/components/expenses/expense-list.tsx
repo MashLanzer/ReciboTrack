@@ -680,75 +680,27 @@ export function ExpenseList() {
 
       {expenses.length === 0 ? (
         hasActiveFilters ? (
-          /* ── Filtered to zero — help user understand which filters are active ── */
-          <div className="flex flex-col items-center justify-center py-16 gap-4 text-center
-            animate-[fadeSlideUp_0.2s_ease-out_both]">
-            <div className="h-14 w-14 rounded-2xl bg-amber-500/10 flex items-center justify-center">
-              <Filter className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-sm font-semibold">Sin resultados para estos filtros</p>
-              <p className="text-xs text-muted-foreground max-w-[240px] leading-relaxed">
-                Ningún gasto coincide con la combinación de filtros activos. Prueba a ampliar el rango o quitar algún filtro.
-              </p>
-            </div>
-            {/* Active filter chips */}
-            <div className="flex flex-wrap justify-center gap-1.5 max-w-[280px]">
-              {search && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-medium text-muted-foreground border">
-                  🔍 &ldquo;{search}&rdquo;
-                </span>
-              )}
-              {category && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-medium text-muted-foreground border">
-                  🏷 {category}
-                </span>
-              )}
-              {activeTags.map((tag) => (
-                <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-medium text-muted-foreground border">
-                  # {tag}
-                </span>
-              ))}
-              {(fromStr || toStr) && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-medium text-muted-foreground border">
-                  📅 {fromStr}{fromStr && toStr ? " → " : ""}{toStr}
-                </span>
-              )}
-            </div>
-            <Button size="sm" variant="outline" onClick={() => router.replace(pathname)}
-              className="gap-1.5">
-              <X className="h-3.5 w-3.5" />
-              Limpiar todos los filtros
+          /* ── Filtered to zero ── */
+          <div className="text-center py-12 space-y-3">
+            <p className="text-4xl">🔍</p>
+            <p className="font-semibold text-base">Sin resultados</p>
+            <p className="text-sm text-muted-foreground">
+              Ningún gasto coincide con los filtros actuales
+            </p>
+            <Button variant="outline" size="sm" onClick={() => {
+              router.push(pathname)  // clear all filters
+            }}>
+              Quitar filtros
             </Button>
           </div>
         ) : (
-          /* ── No expenses at all — first-time user onboarding ── */
-          <div className="flex flex-col items-center justify-center py-20 gap-5 text-center
-            animate-[fadeSlideUp_0.25s_ease-out_both]">
-            <div className="relative">
-              <div className="h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center">
-                <Receipt className="h-8 w-8 text-primary" />
-              </div>
-              {/* Decorative dot rings */}
-              <div className="absolute -inset-3 rounded-full border border-primary/10" />
-              <div className="absolute -inset-6 rounded-full border border-primary/5" />
-            </div>
-            <div className="space-y-1.5 max-w-[260px]">
-              <p className="font-semibold text-base">Tu historial está vacío</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Todavía no has registrado ningún gasto. Escanea tu primer recibo o añádelo manualmente para empezar.
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 w-40">
-              <Button size="sm" className="gap-2 w-full" onClick={() => setScannerOpen(true)}>
-                <Upload className="h-3.5 w-3.5" />
-                Escanear recibo
-              </Button>
-              <Button size="sm" variant="outline" className="gap-2 w-full" onClick={() => setQuickAddOpen(true)}>
-                <Receipt className="h-3.5 w-3.5" />
-                Añadir manual
-              </Button>
-            </div>
+          /* ── No expenses at all ── */
+          <div className="text-center py-12 space-y-3">
+            <p className="text-4xl">🧾</p>
+            <p className="font-semibold text-base">Sin gastos registrados</p>
+            <p className="text-sm text-muted-foreground">
+              Escanea un recibo o añade tu primer gasto manualmente
+            </p>
           </div>
         )
       ) : (
@@ -784,10 +736,10 @@ export function ExpenseList() {
                     {groupCat && (
                       <span className="text-sm">{groupCat.icon}</span>
                     )}
-                    <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                       {groupCat ? groupCat.name : groupKey}
                     </p>
-                    <span className="text-[10px] text-muted-foreground/60 font-normal normal-case tracking-normal">
+                    <span className="text-[11px] text-muted-foreground/60 font-normal normal-case tracking-normal">
                       {items.length} gasto{items.length !== 1 ? "s" : ""}
                     </span>
                   </div>
@@ -859,21 +811,21 @@ export function ExpenseList() {
                                 <button
                                   key={tag}
                                   onClick={(e) => { e.stopPropagation(); toggleTag(tag) }}
-                                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium transition-colors ${activeTags.includes(tag) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"}`}
+                                  className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium transition-colors ${activeTags.includes(tag) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"}`}
                                 >
                                   #{tag}
                                 </button>
                               ))}
                               {expense.recurringId && (
                                 <span
-                                  className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary"
+                                  className="text-[11px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary"
                                   title="Gasto recurrente"
                                 >
                                   🔄
                                 </span>
                               )}
                               {(expense.items?.length ?? 0) > 0 && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
                                   {expense.items.length} art.
                                 </span>
                               )}
@@ -890,7 +842,7 @@ export function ExpenseList() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="h-8 w-8 opacity-40 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <MoreHorizontal className="h-4 w-4" />
@@ -898,7 +850,7 @@ export function ExpenseList() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => setDetailExpense(expense)}>
-                                <Edit className="h-4 w-4" />
+                                <Receipt className="h-4 w-4" />
                                 Ver detalle
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => setEditExpense(expense)}>
@@ -986,28 +938,28 @@ export function ExpenseList() {
       {/* ── Sticky bulk action bar ── */}
       {selectMode && selectedIds.size > 0 && (
         <div className="fixed bottom-16 md:bottom-4 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
-          <div className="slide-up-fade pointer-events-auto flex items-center gap-2 bg-foreground text-background rounded-2xl px-4 py-3 shadow-2xl border border-foreground/10">
-            <span className="text-sm font-medium tabular-nums">
-              {selectedIds.size} seleccionado{selectedIds.size !== 1 ? "s" : ""}
+          <div className="slide-up-fade pointer-events-auto flex items-center gap-2 bg-foreground text-background rounded-2xl px-3 py-2.5 shadow-2xl border border-foreground/10 max-w-[calc(100vw-2rem)] overflow-x-auto">
+            <span className="text-sm font-medium tabular-nums shrink-0">
+              {selectedIds.size} sel.
             </span>
-            <span className="text-foreground/30 select-none">·</span>
-            <span className="text-sm font-semibold tabular-nums">
+            <span className="text-foreground/30 select-none shrink-0">·</span>
+            <span className="text-sm font-semibold tabular-nums shrink-0">
               {formatCurrency(selectedExpenses.reduce((s, e) => s + e.total, 0))}
             </span>
-            <div className="flex gap-1.5 ml-1">
+            <div className="flex gap-1.5 ml-1 shrink-0">
               <Button
                 size="sm"
                 variant="secondary"
-                className="h-8 text-xs gap-1.5 bg-background/15 hover:bg-background/25 text-background border-0"
+                className="h-8 text-xs gap-1 bg-background/15 hover:bg-background/25 text-background border-0 shrink-0"
                 onClick={() => setBulkCatOpen(true)}
               >
                 <Tag className="h-3.5 w-3.5" />
-                Categoría
+                <span className="hidden sm:inline">Categoría</span>
               </Button>
               <Button
                 size="sm"
                 variant="secondary"
-                className="h-8 text-xs gap-1.5 bg-background/15 hover:bg-background/25 text-background border-0"
+                className="h-8 text-xs gap-1 bg-background/15 hover:bg-background/25 text-background border-0 shrink-0"
                 onClick={async () => {
                   const tid = toast.loading("Generando CSV...")
                   await new Promise(r => setTimeout(r, 30))
@@ -1021,7 +973,7 @@ export function ExpenseList() {
               <Button
                 size="sm"
                 variant="secondary"
-                className="h-8 text-xs gap-1.5 bg-background/15 hover:bg-background/25 text-background border-0"
+                className="h-8 text-xs gap-1 bg-background/15 hover:bg-background/25 text-background border-0 shrink-0"
                 onClick={async () => {
                   const tid = toast.loading("Generando PDF...")
                   await exportToPDF(selectedExpenses, categories, { start: startDate, end: endDate })
@@ -1034,11 +986,11 @@ export function ExpenseList() {
               <Button
                 size="sm"
                 variant="secondary"
-                className="h-8 text-xs gap-1.5 bg-destructive/80 hover:bg-destructive text-white border-0"
+                className="h-8 text-xs gap-1 bg-destructive/80 hover:bg-destructive text-white border-0 shrink-0"
                 onClick={handleBulkDelete}
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                Eliminar
+                <span className="hidden sm:inline">Eliminar</span>
               </Button>
             </div>
           </div>

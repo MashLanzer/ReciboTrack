@@ -144,7 +144,7 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
             <div className="flex items-center gap-2 flex-wrap">
               <p className="font-semibold truncate">{goal.name}</p>
               <span className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+                "text-[11px] px-1.5 py-0.5 rounded-full font-medium",
                 goal.type === "saving"
                   ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
                   : "bg-orange-500/15 text-orange-600 dark:text-orange-400"
@@ -267,26 +267,77 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
             </div>
 
             {aportMode === "single" && (
-              <div className="flex gap-2 items-center">
-                <Input
-                  type="number"
-                  step="0.01"
-                  min={0}
-                  placeholder="0.00"
-                  value={aportarAmount}
-                  onChange={e => setAportarAmount(e.target.value)}
-                  className="h-8 text-sm tabular-nums flex-1"
-                  autoFocus
-                  onKeyDown={e => { if (e.key === "Enter") handleAportar() }}
-                />
-                <Button
-                  size="sm"
-                  className="h-8 text-xs"
-                  onClick={handleAportar}
-                  disabled={updateProgress.isPending}
-                >
-                  {updateProgress.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Añadir"}
-                </Button>
+              <div className="space-y-2">
+                {/* Quick preset buttons */}
+                {(() => {
+                  const remaining = Math.max(goal.targetAmount - goal.currentAmount, 0)
+                  const presets = [10, 50, 100, 500].filter(p => p <= remaining * 1.5)
+                  if (presets.length === 0 && remaining > 0) presets.push(Math.round(remaining))
+                  return presets.length > 0 ? (
+                    <div className="flex gap-1.5 flex-wrap">
+                      {presets.map(p => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setAportarAmount(String(p))}
+                          className={cn(
+                            "px-2.5 py-1 rounded-lg border text-xs font-semibold tabular-nums transition-colors",
+                            aportarAmount === String(p)
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-muted/50 text-muted-foreground hover:text-foreground hover:border-foreground/30"
+                          )}
+                        >
+                          +{p}
+                        </button>
+                      ))}
+                      {remaining > 0 && !presets.includes(Math.round(remaining)) && (
+                        <button
+                          type="button"
+                          onClick={() => setAportarAmount(String(remaining.toFixed(2)))}
+                          className={cn(
+                            "px-2.5 py-1 rounded-lg border text-xs font-semibold tabular-nums transition-colors",
+                            aportarAmount === String(remaining.toFixed(2))
+                              ? "bg-emerald-500 text-white border-emerald-500"
+                              : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
+                          )}
+                        >
+                          +{formatCurrency(remaining, goal.currency)} ✓
+                        </button>
+                      )}
+                    </div>
+                  ) : null
+                })()}
+
+                <div className="flex gap-2 items-center">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    placeholder="0.00"
+                    value={aportarAmount}
+                    onChange={e => setAportarAmount(e.target.value)}
+                    className="h-8 text-sm tabular-nums flex-1"
+                    autoFocus
+                    onKeyDown={e => { if (e.key === "Enter") handleAportar() }}
+                  />
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={handleAportar}
+                    disabled={updateProgress.isPending || !aportarAmount}
+                  >
+                    {updateProgress.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Añadir"}
+                  </Button>
+                </div>
+                {aportarAmount && parseFloat(aportarAmount) > 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Nuevo total:{" "}
+                    <span className="font-semibold text-foreground">
+                      {formatCurrency(goal.currentAmount + parseFloat(aportarAmount), goal.currency)}
+                    </span>
+                    {" "}de {formatCurrency(goal.targetAmount, goal.currency)}
+                  </p>
+                )}
               </div>
             )}
 
@@ -482,7 +533,7 @@ export function GoalsClient() {
 
       {/* Active goals */}
       {active.length === 0 && completed.length === 0 ? (
-        <div className="rounded-2xl border border-dashed bg-card p-12 text-center space-y-3">
+        <div className="rounded-2xl border border-border/50 bg-muted/20 p-12 text-center space-y-3">
           <Trophy className="h-12 w-12 mx-auto text-muted-foreground opacity-30" />
           <div>
             <p className="font-semibold">Sin metas todavía</p>

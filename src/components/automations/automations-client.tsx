@@ -101,7 +101,7 @@ function RuleCard({
             → <span className="font-medium text-foreground">{ACTION_LABELS[rule.action]}</span>
           </p>
           {rule.actionValue && (
-            <p className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">
+            <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
               {rule.actionValue}
             </p>
           )}
@@ -122,7 +122,7 @@ function RuleCard({
       </div>
 
       {rule.lastFiredAt && (
-        <p className="text-[10px] text-muted-foreground pl-11">
+        <p className="text-[11px] text-muted-foreground pl-11">
           Última ejecución:{" "}
           {rule.lastFiredAt.toDate().toLocaleDateString("es", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
         </p>
@@ -348,7 +348,7 @@ export function AutomationsClient() {
           {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
       ) : rules.length === 0 ? (
-        <div className="rounded-2xl border border-dashed p-12 text-center space-y-3">
+        <div className="rounded-2xl border border-border/50 bg-muted/20 p-12 text-center space-y-3">
           <Zap className="h-12 w-12 mx-auto text-muted-foreground opacity-30" />
           <div>
             <p className="font-semibold">Sin automatizaciones</p>

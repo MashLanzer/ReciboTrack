@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireAuth } from "@/lib/api-auth"
+import { AskFinanceSchema } from "@/lib/api-schemas"
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 const MODEL    = "llama-3.3-70b-versatile"
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, "ai")
+  if (auth instanceof NextResponse) return auth
+
   try {
-    const { question, context } = await req.json()
+    const body = await req.json()
+    const parsed = AskFinanceSchema.safeParse(body)
+    if (!parsed.success) return NextResponse.json({ error: "Datos inválidos" }, { status: 400 })
+    const { question, context } = parsed.data
 
     const apiKey = process.env.GROQ_API_KEY
     if (!apiKey) return NextResponse.json({ error: "GROQ_API_KEY no configurada" }, { status: 500 })
-
-    if (!question || typeof question !== "string") {
-      return NextResponse.json({ error: "Pregunta inválida" }, { status: 400 })
-    }
 
     const systemPrompt = `Eres un asesor financiero personal experto, amigable y directo.
 Respondes en español, de forma concisa (máximo 120 palabras) y accionable.

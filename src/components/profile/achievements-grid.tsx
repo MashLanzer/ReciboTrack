@@ -43,7 +43,7 @@ export function AchievementsGrid({ input }: AchievementsGridProps) {
               <span className="text-2xl leading-none shrink-0">{a.emoji}</span>
               <div className="min-w-0">
                 <p className="text-xs font-semibold truncate">{a.title}</p>
-                <p className="text-[10px] text-muted-foreground leading-tight">{a.description}</p>
+                <p className="text-[11px] text-muted-foreground leading-tight">{a.description}</p>
               </div>
             </div>
           ))}
@@ -53,7 +53,7 @@ export function AchievementsGrid({ input }: AchievementsGridProps) {
       {/* Locked */}
       {locked.length > 0 && (
         <>
-          <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Por desbloquear
           </p>
           <div className="grid grid-cols-2 gap-2">
@@ -65,7 +65,7 @@ export function AchievementsGrid({ input }: AchievementsGridProps) {
                 <span className="text-2xl leading-none shrink-0 grayscale">{a.emoji}</span>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold truncate">{a.title}</p>
-                  <p className="text-[10px] text-muted-foreground leading-tight">{a.description}</p>
+                  <p className="text-[11px] text-muted-foreground leading-tight">{a.description}</p>
                 </div>
               </div>
             ))}

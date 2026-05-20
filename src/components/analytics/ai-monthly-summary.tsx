@@ -6,6 +6,7 @@ import { Button }   from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Sparkles, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
+import { authFetch } from "@/lib/client-fetch"
 
 interface Props {
   expenses: { total: number; merchant: string; category: string }[]
@@ -49,11 +50,7 @@ export function AiMonthlySummary({ expenses, categoryBreakdown, month }: Props) 
     setLoading(true)
     setGenerated(false)   // reset so fade-in fires again on regeneration
     try {
-      const res  = await fetch("/api/ai-summary", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expenses, categories: categoryBreakdown, month }),
-      })
+      const res  = await authFetch("/api/ai-summary", { expenses, categories: categoryBreakdown, month })
       const data = await res.json()
       if (data.error)   throw new Error(data.error)
       if (!data.summary) throw new Error("Respuesta vacía")

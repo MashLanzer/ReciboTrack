@@ -106,7 +106,7 @@ export function TopCategoriesCard() {
         {topCats.map((cat, i) => {
           const isStarred = starredCats.includes(cat.id)
           return (
-          <div key={cat.id} className="space-y-1.5">
+          <div key={cat.id} className="group space-y-1.5">
             <div className="flex items-center gap-2">
               <span className={cn(
                 "h-6 w-6 rounded-lg text-xs flex items-center justify-center shrink-0",
@@ -118,11 +118,13 @@ export function TopCategoriesCard() {
                 {cat.label}
                 {isStarred && <span className="ml-1 text-amber-500">⭐</span>}
               </span>
-              <StarButton
-                isStarred={isStarred}
-                onToggle={() => toggleStar.mutate({ categoryId: cat.id, isStarred })}
-                size="sm"
-              />
+              <span className={cn("transition-opacity", !isStarred && "opacity-0 group-hover:opacity-40")}>
+                <StarButton
+                  isStarred={isStarred}
+                  onToggle={() => toggleStar.mutate({ categoryId: cat.id, isStarred })}
+                  size="sm"
+                />
+              </span>
               <span className="text-xs tabular-nums font-bold shrink-0">{formatCurrency(cat.amount)}</span>
               <span className="text-[10px] text-muted-foreground tabular-nums shrink-0 w-8 text-right">
                 {cat.pct.toFixed(0)}%

@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { MapPin, Loader2, X } from "lucide-react"
+import { MapPin, Loader2, X, ShieldOff, WifiOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { requestGeolocation, reverseGeocode, type GeoCoords } from "@/lib/geocoding"
+import { requestGeolocation, reverseGeocode } from "@/lib/geocoding"
 import { toast } from "sonner"
 
 export interface GeoPickerValue {
@@ -21,15 +21,49 @@ interface Props {
   compact?: boolean
 }
 
+// Detect platform for OS-specific instructions
+function getPermissionHint(): string {
+  if (typeof navigator === "undefined") return ""
+  const ua = navigator.userAgent
+  if (/iPhone|iPad|iPod/.test(ua)) {
+    return "Ajustes → Privacidad y seguridad → Localización → Safari/Chrome → Mientras uso la app"
+  }
+  if (/Android/.test(ua)) {
+    return "Toca el candado 🔒 en la barra de dirección → Permisos → Ubicación → Permitir"
+  }
+  return "Haz clic en el candado 🔒 en la barra de dirección → Permisos del sitio → Ubicación → Permitir"
+}
+
 export function GeoPicker({ value, onChange, compact }: Props) {
   const [loading, setLoading] = useState(false)
 
   async function capture() {
     setLoading(true)
     try {
-      const coords = await requestGeolocation()
+      const { coords, error } = await requestGeolocation()
+
       if (!coords) {
-        toast.error("Permiso de ubicación denegado")
+        if (error === "denied") {
+          toast.error("Permiso de ubicación bloqueado", {
+            description: getPermissionHint(),
+            duration: 7000,
+          })
+        } else if (error === "timeout") {
+          toast.warning("Ubicación tardó demasiado", {
+            description: "Intenta de nuevo en un lugar con mejor señal GPS.",
+            duration: 4000,
+          })
+        } else if (error === "unsupported") {
+          toast.info("Ubicación no disponible", {
+            description: "Tu navegador no soporta geolocalización.",
+            duration: 4000,
+          })
+        } else {
+          toast.warning("No se pudo detectar la ubicación", {
+            description: "Verifica que el GPS esté activo en tu dispositivo.",
+            duration: 4000,
+          })
+        }
         return
       }
 

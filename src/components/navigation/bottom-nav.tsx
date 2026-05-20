@@ -214,7 +214,7 @@ export function BottomNav() {
           {quickExpenses.length > 0 && (
             <>
               <div className="px-4 pt-2 pb-1">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
                   <Zap className="h-3 w-3" /> Accesos rápidos
                 </p>
                 <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1">
@@ -230,8 +230,8 @@ export function BottomNav() {
                       )}
                     >
                       <span className="text-xl leading-none">{q.icon}</span>
-                      <span className="text-[9px] font-medium truncate w-full text-center px-1 leading-tight">{q.label}</span>
-                      <span className="text-[9px] text-muted-foreground font-mono">{formatCurrency(q.amount, q.currency)}</span>
+                      <span className="text-[10px] font-medium truncate w-full text-center px-1 leading-tight">{q.label}</span>
+                      <span className="text-[10px] text-muted-foreground tabular-nums">{formatCurrency(q.amount, q.currency)}</span>
                     </button>
                   ))}
                 </div>
@@ -244,7 +244,7 @@ export function BottomNav() {
           <div className="px-2 pt-1 space-y-2 pb-1">
             {MORE_GROUPS.map((group) => (
               <div key={group.label}>
-                <p className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground px-1 mb-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground px-1 mb-1">
                   {group.label}
                 </p>
                 <div className="grid grid-cols-5 gap-1">
@@ -273,7 +273,7 @@ export function BottomNav() {
                           </span>
                         )}
                         <Icon className={cn("h-[18px] w-[18px]", active && "stroke-[2.5]")} />
-                        <span className="text-[9px] font-medium text-center leading-tight line-clamp-1">{label}</span>
+                        <span className="text-[10px] font-medium text-center leading-tight line-clamp-1">{label}</span>
                       </Link>
                     )
                   })}
@@ -302,7 +302,7 @@ export function BottomNav() {
               </Avatar>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold truncate leading-tight">{user?.displayName ?? "Perfil"}</p>
-                <p className="text-[10px] text-muted-foreground truncate leading-tight">{user?.email}</p>
+                <p className="text-[11px] text-muted-foreground truncate leading-tight">{user?.email}</p>
               </div>
             </Link>
           </div>
@@ -310,7 +310,7 @@ export function BottomNav() {
           {/* Account switcher + Buscar */}
           <div className="px-2 pb-1">
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/40">
-              <span className="text-[10px] font-medium text-muted-foreground shrink-0">Cuenta</span>
+              <span className="text-[11px] font-medium text-muted-foreground shrink-0">Cuenta</span>
               <div className="flex-1 flex justify-center">
                 <AccountSwitcher />
               </div>
@@ -337,14 +337,14 @@ export function BottomNav() {
               )}
             >
               <Users className="h-[18px] w-[18px]" />
-              <span className="text-[10px] font-medium">Grupos</span>
+              <span className="text-[11px] font-medium">Grupos</span>
             </Link>
             <button
               onClick={() => { setMoreOpen(false); setSplitOpen(true) }}
               className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
               <ArrowLeftRight className="h-[18px] w-[18px]" />
-              <span className="text-[10px] font-medium">Dividir</span>
+              <span className="text-[11px] font-medium">Dividir</span>
             </button>
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -352,14 +352,14 @@ export function BottomNav() {
             >
               <Sun className="h-[18px] w-[18px] dark:hidden" />
               <Moon className="h-[18px] w-[18px] hidden dark:block" />
-              <span className="text-[10px] font-medium">Tema</span>
+              <span className="text-[11px] font-medium">Tema</span>
             </button>
             <button
               onClick={handleSignOut}
               className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             >
               <LogOut className="h-[18px] w-[18px]" />
-              <span className="text-[10px] font-medium">Salir</span>
+              <span className="text-[11px] font-medium">Salir</span>
             </button>
           </div>
         </div>
@@ -389,7 +389,7 @@ export function BottomNav() {
                     justActivated && "nav-icon-pop"
                   )} />
                   <span className={cn(
-                    "text-[10px] font-medium",
+                    "text-[11px] font-medium",
                     justActivated && "nav-label-in"
                   )}>{label}</span>
                   {/* Active indicator dot */}
@@ -442,7 +442,7 @@ export function BottomNav() {
                     justActivated && "nav-icon-pop"
                   )} />
                   <span className={cn(
-                    "text-[10px] font-medium",
+                    "text-[11px] font-medium",
                     justActivated && "nav-label-in"
                   )}>{label}</span>
                   {active && (
@@ -481,7 +481,7 @@ export function BottomNav() {
                 (moreOpen || moreActive) && "stroke-[2.5]",
                 moreOpen && "rotate-90"
               )} />
-              <span className="text-[10px] font-medium">Más</span>
+              <span className="text-[11px] font-medium">Más</span>
               {/* Active dot for Más when a "more" route is active */}
               {moreActive && !moreOpen && totalAlerts === 0 && (
                 <span className="absolute bottom-0.5 h-[3px] w-4 rounded-full bg-foreground origin-center" />

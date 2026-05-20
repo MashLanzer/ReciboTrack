@@ -15,6 +15,7 @@ import { formatCurrency, toDate } from "@/lib/utils"
 import { format, startOfMonth, endOfMonth, subMonths, isSameMonth } from "date-fns"
 import { es } from "date-fns/locale"
 import { PAYMENT_METHODS, CURRENCIES, DEFAULT_CATEGORIES } from "@/lib/constants"
+import { authFetch } from "@/lib/client-fetch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -69,7 +70,7 @@ function GroupTypeBadge({ type }: { type?: GroupType }) {
   const meta = GROUP_TYPES.find((t) => t.value === type)
   if (!meta) return null
   return (
-    <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+    <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
       {meta.emoji} {meta.label}
     </span>
   )
@@ -88,7 +89,7 @@ function GroupBalanceBadge({ groupId, members, currentUid }: {
   if (Math.abs(balance) < 0.01) return null
   return (
     <span className={cn(
-      "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums shrink-0",
+      "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums shrink-0",
       balance > 0 ? "bg-green-500/15 text-green-700 dark:text-green-400" : "bg-destructive/15 text-destructive"
     )}>
       {balance > 0 ? "+" : ""}{balance > 0 ? `te deben ${formatCurrency(balance)}` : `debes ${formatCurrency(Math.abs(balance))}`}
@@ -407,7 +408,7 @@ function ExpenseForm({
                         className="w-16 h-7 text-xs tabular-nums text-right" placeholder="0" />
                       <span className="text-[11px] text-muted-foreground">%</span>
                       {totalAmt > 0 && pct > 0 && (
-                        <span className="text-[10px] text-muted-foreground tabular-nums w-14 text-right">
+                        <span className="text-[11px] text-muted-foreground tabular-nums w-14 text-right">
                           {formatCurrency(pctAmount, form.currency)}
                         </span>
                       )}
@@ -560,7 +561,7 @@ function StatsTab({
           { label: "Mayor gasto", value: formatCurrency(maxExpense) },
         ].map(({ label, value }) => (
           <div key={label} className="rounded-xl border bg-card px-4 py-3">
-            <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">{label}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
             <p className="text-lg font-bold tabular-nums mt-0.5">{value}</p>
           </div>
         ))}
@@ -632,10 +633,10 @@ function StatsTab({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-4 py-2">Categoría</th>
-                  <th className="text-right text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-2 py-2">Txns</th>
-                  <th className="text-right text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-2 py-2">%</th>
-                  <th className="text-right text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-4 py-2">Total</th>
+                  <th className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-4 py-2">Categoría</th>
+                  <th className="text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-2 py-2">Txns</th>
+                  <th className="text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-2 py-2">%</th>
+                  <th className="text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-4 py-2">Total</th>
                 </tr>
               </thead>
               <tbody>
@@ -791,7 +792,7 @@ function BalanceTab({
       {/* Per-person debts */}
       {group.members.filter((m) => m.uid !== currentUid).length > 0 && (
         <div className="space-y-2">
-          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground px-0.5">Por persona</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-0.5">Por persona</p>
           {group.members.filter((m) => m.uid !== currentUid).map((m) => {
             const balance = balances[m.uid] ?? 0
             const iOweM = balance < 0
@@ -933,7 +934,7 @@ function BalanceTab({
                     <p className="text-xs font-medium truncate">
                       {getName(s.fromUid)} → {getName(s.toUid)}
                     </p>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-[11px] text-muted-foreground">
                       {format(s.date.toDate(), "d MMM yyyy", { locale: es })}
                       {s.note ? ` · ${s.note}` : ""}
                     </p>
@@ -944,7 +945,7 @@ function BalanceTab({
                   {(s.fromUid === currentUid || s.toUid === currentUid) && (
                     <button
                       onClick={() => deleteSettlement.mutateAsync({ groupId: group.id, settlementId: s.id })}
-                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+                      className="md:opacity-0 md:group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -978,7 +979,7 @@ function BalanceTab({
               <div className="space-y-4 mt-1">
                 {/* Period summary */}
                 <div className="rounded-lg bg-muted/40 p-3 space-y-1.5">
-                  <p className="text-[10px] text-muted-foreground font-mono uppercase">Resumen del período</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Resumen del período</p>
                   <div className="flex justify-between text-xs">
                     <span>Total gastado</span>
                     <span className="font-semibold tabular-nums">{formatCurrency(totalSpent)}</span>
@@ -1024,17 +1025,13 @@ function BalanceTab({
                             title="Copiar enlace de pago"
                             onClick={async () => {
                               try {
-                                const res = await fetch("/api/pay-link", {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({
+                                const res = await authFetch("/api/pay-link", {
                                     from: getName(t.from),
                                     to: getName(t.to),
                                     amount: t.amount,
                                     concept: `Deuda del grupo "${group.name}"`,
                                     currency: "EUR",
-                                  }),
-                                })
+                                  })
                                 const { token } = await res.json()
                                 const url = `${window.location.origin}/pay/${token}`
                                 await navigator.clipboard.writeText(url)
@@ -1514,7 +1511,7 @@ function GroupDetail({
               style={{ width: `${Math.min((totalSpent / group.budget) * 100, 100)}%` }}
             />
           </div>
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground">
             {totalSpent > group.budget
               ? `Superado por ${formatCurrency(totalSpent - group.budget)}`
               : `Quedan ${formatCurrency(group.budget - totalSpent)}`}
@@ -1553,7 +1550,7 @@ function GroupDetail({
             key={key}
             onClick={() => { setTab(key); if (key !== "mas") setExtraTab(null) }}
             className={cn(
-              "flex-1 flex flex-col items-center gap-0.5 rounded-lg py-2 text-[10px] font-medium transition-colors",
+              "flex-1 flex flex-col items-center gap-0.5 rounded-lg py-2 text-[11px] font-medium transition-colors",
               tab === key ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -1573,15 +1570,15 @@ function GroupDetail({
           <div className="flex gap-3">
             <div className="flex-1 rounded-xl bg-muted/50 px-3 py-2 text-center">
               <p className="text-sm font-semibold tabular-nums">{formatCurrency(monthlyStats.totalThisMonth)}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Total este mes</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Total este mes</p>
             </div>
             <div className="flex-1 rounded-xl bg-muted/50 px-3 py-2 text-center">
               <p className="text-sm font-semibold tabular-nums">{monthlyStats.countThisMonth}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Gastos este mes</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Gastos este mes</p>
             </div>
             <div className="flex-1 rounded-xl bg-muted/50 px-3 py-2 text-center">
               <p className="text-sm font-semibold tabular-nums">{formatCurrency(monthlyStats.myShareThisMonth)}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Mi parte</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Mi parte</p>
             </div>
           </div>
 
@@ -1709,9 +1706,9 @@ function GroupDetail({
                         {isMyExpense ? "Tú" : e.paidByName}
                       </span>
                       {splitLabel && (
-                        <Badge variant="secondary" className="text-[10px] h-4 px-1.5 font-mono">{splitLabel}</Badge>
+                        <Badge variant="secondary" className="text-[11px] h-4 px-1.5">{splitLabel}</Badge>
                       )}
-                      <span className="text-[10px] text-muted-foreground/60">·</span>
+                      <span className="text-[11px] text-muted-foreground/60">·</span>
                       <span className="text-[11px] text-muted-foreground capitalize">
                         {format(toDate(e.date), "d MMM", { locale: es })}
                       </span>
@@ -1723,7 +1720,7 @@ function GroupDetail({
                     <div className="text-right mr-1">
                       <p className="tabular-nums text-sm font-bold">{formatCurrency(e.total, e.currency)}</p>
                       {e.splitType !== "full" && e.splitWith.length > 1 && (
-                        <p className="text-[10px] text-muted-foreground tabular-nums">
+                        <p className="text-[11px] text-muted-foreground tabular-nums">
                           {isMyExpense
                             ? `+${formatCurrency(e.total - myShare, e.currency)}`
                             : `tu parte ${formatCurrency(myShare, e.currency)}`}
@@ -1835,7 +1832,7 @@ function GroupDetail({
                     }`}>
                       {Math.abs(balance) < 0.01 ? "—" : `${balance > 0 ? "+" : ""}${formatCurrency(balance)}`}
                     </p>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-[11px] text-muted-foreground">
                       {Math.abs(balance) < 0.01 ? "en cero" : balance > 0 ? "le deben" : "debe"}
                     </p>
                   </div>
@@ -1847,7 +1844,7 @@ function GroupDetail({
           {/* Invite code */}
           <Card>
             <CardContent className="pt-4 pb-4 space-y-3">
-              <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Código de invitación</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Código de invitación</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 font-mono text-xl font-bold tracking-widest text-center py-2.5 bg-muted rounded-xl">
                   {inviteCode}
@@ -2187,12 +2184,6 @@ export default function GroupsPage() {
         </div>
       </div>
 
-      {/* GroupFolders at top of list */}
-      {activeGroups.length > 0 && (
-        <div className="rounded-2xl border bg-card overflow-hidden">
-          <GroupFolders groupId="__list__" />
-        </div>
-      )}
 
       {isLoading ? (
         <div className="space-y-3">
@@ -2261,7 +2252,7 @@ export default function GroupsPage() {
                 Archivados ({archivedGroups.length})
               </button>
               {showArchived && archivedGroups.map((group) => (
-                <div key={group.id} className="flex items-center gap-3 p-4 rounded-xl border border-dashed bg-muted/30 mb-2">
+                <div key={group.id} className="flex items-center gap-3 p-4 rounded-xl border border-border/50 bg-muted/20 mb-2">
                   <span className="text-2xl opacity-50">{group.emoji}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm text-muted-foreground truncate">{group.name}</p>
@@ -2332,7 +2323,7 @@ export default function GroupsPage() {
                       }`}
                     >
                       <span className="text-lg">{t.emoji}</span>
-                      <span className="text-[10px]">{t.label}</span>
+                      <span className="text-[11px]">{t.label}</span>
                     </button>
                   ))}
                 </div>

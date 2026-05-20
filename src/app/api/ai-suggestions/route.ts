@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requireAuth } from "@/lib/api-auth"
+import { AiSuggestionsSchema } from "@/lib/api-schemas"
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 const MODEL    = "llama-3.3-70b-versatile"
@@ -11,8 +13,14 @@ interface RawExpense {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, "ai")
+  if (auth instanceof NextResponse) return auth
+
   try {
-    const { expenses } = await req.json() as { expenses: RawExpense[] }
+    const body = await req.json()
+    const parsed = AiSuggestionsSchema.safeParse(body)
+    if (!parsed.success) return NextResponse.json({ error: "Datos inválidos" }, { status: 400 })
+    const { expenses } = parsed.data as { expenses: RawExpense[] }
 
     const apiKey = process.env.GROQ_API_KEY
     if (!apiKey) return NextResponse.json({ error: "GROQ_API_KEY no configurada" }, { status: 500 })

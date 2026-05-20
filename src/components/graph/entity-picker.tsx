@@ -119,7 +119,7 @@ export function EntityPicker({
             >
               <span>{entity.emoji}</span>
               <span className="flex-1 text-left">{entity.name}</span>
-              <span className="text-[10px] text-muted-foreground capitalize">{TYPE_LABEL[entity.type]}</span>
+              <span className="text-[11px] text-muted-foreground capitalize">{TYPE_LABEL[entity.type]}</span>
               {selected.includes(entity.id) && <X className="h-3 w-3 text-muted-foreground" />}
             </button>
           ))}

@@ -58,9 +58,9 @@ export function PortalCard({ portal }: Props) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-semibold truncate">{portal.name}</p>
-            {isActive   && <Badge variant="secondary" className="text-[10px] bg-green-500/10 text-green-700 dark:text-green-400">Activo</Badge>}
-            {isRevoked  && <Badge variant="secondary" className="text-[10px] bg-orange-500/10 text-orange-700 dark:text-orange-400">Revocado</Badge>}
-            {isExpired  && <Badge variant="secondary" className="text-[10px] bg-red-500/10 text-red-700 dark:text-red-400">Expirado</Badge>}
+            {isActive   && <Badge variant="secondary" className="text-[11px] bg-green-500/10 text-green-700 dark:text-green-400">Activo</Badge>}
+            {isRevoked  && <Badge variant="secondary" className="text-[11px] bg-orange-500/10 text-orange-700 dark:text-orange-400">Revocado</Badge>}
+            {isExpired  && <Badge variant="secondary" className="text-[11px] bg-red-500/10 text-red-700 dark:text-red-400">Expirado</Badge>}
           </div>
           {portal.targetLabel && (
             <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
@@ -151,7 +151,7 @@ export function PortalCard({ portal }: Props) {
 
 function PermBadge({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+    <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
       {label}
     </span>
   )

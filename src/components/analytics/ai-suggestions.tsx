@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Sparkles, Loader2, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
+import { authFetch } from "@/lib/client-fetch"
 
 interface Suggestion {
   titulo: string
@@ -24,11 +25,7 @@ export function AiSuggestions({ expenses3months }: Props) {
   async function generate() {
     setLoading(true)
     try {
-      const res = await fetch("/api/ai-suggestions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expenses: expenses3months }),
-      })
+      const res = await authFetch("/api/ai-suggestions", { expenses: expenses3months })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       setSuggestions(data.suggestions ?? [])
@@ -78,7 +75,7 @@ export function AiSuggestions({ expenses3months }: Props) {
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-xs font-bold leading-snug">💡 {s.titulo}</p>
                   {s.ahorroEstimado != null && s.ahorroEstimado > 0 && (
-                    <span className="shrink-0 inline-flex items-center rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold text-green-700 dark:text-green-400 whitespace-nowrap">
+                    <span className="shrink-0 inline-flex items-center rounded-full bg-green-500/15 px-2 py-0.5 text-[11px] font-semibold text-green-700 dark:text-green-400 whitespace-nowrap">
                       Ahorra ~{s.ahorroEstimado}€/mes
                     </span>
                   )}

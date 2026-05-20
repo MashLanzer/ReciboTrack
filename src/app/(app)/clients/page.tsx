@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { toast } from "sonner"
 import { Plus, Pencil, Trash2, UserCheck, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -59,6 +60,7 @@ export default function ClientsPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<ClientForm>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Client | null>(null)
 
   function openCreate() {
     setEditingId(null)
@@ -121,9 +123,13 @@ export default function ClientsPage() {
   }
 
   async function handleDelete(c: Client) {
-    if (!window.confirm(`¿Eliminar a "${c.name}"?`)) return
+    setDeleteTarget(c)
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
     try {
-      await deleteClient.mutateAsync(c.id)
+      await deleteClient.mutateAsync(deleteTarget.id)
       toast.success("Cliente eliminado")
     } catch {
       toast.error("Error al eliminar")
@@ -132,6 +138,15 @@ export default function ClientsPage() {
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        title={`¿Eliminar a "${deleteTarget?.name}"?`}
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={confirmDelete}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -197,7 +212,7 @@ export default function ClientsPage() {
                 <div className="flex items-center gap-2">
                   <p className="font-semibold truncate">{c.name}</p>
                   {!c.isActive && (
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border rounded px-1">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground border rounded px-1">
                       inactivo
                     </span>
                   )}

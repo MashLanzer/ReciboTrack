@@ -48,6 +48,18 @@ export function toDate(value: Date | Timestamp): Date {
   return value instanceof Timestamp ? value.toDate() : value
 }
 
+/**
+ * Strips keys whose value is `undefined` before writing to Firestore.
+ * Firestore rejects documents that contain `undefined` — this prevents
+ * "Unsupported field value: undefined" errors when optional form fields
+ * are left blank and passed through as `undefined`.
+ */
+export function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>
+}
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()

@@ -102,7 +102,7 @@ export function GeolocationWatcher({
       <span>
         {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
       </span>
-      <span className="text-[10px] opacity-60">±{Math.round(coords.accuracy)}m</span>
+      <span className="text-[11px] opacity-60">±{Math.round(coords.accuracy)}m</span>
       <button
         onClick={() => setDismissed(true)}
         className="ml-1 text-muted-foreground hover:text-foreground transition-colors"

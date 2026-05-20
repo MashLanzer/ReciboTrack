@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Sparkles, Loader2, SendHorizonal, X } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { authFetch } from "@/lib/client-fetch"
 
 interface Message {
   role: "user" | "assistant"
@@ -45,11 +46,7 @@ export function AskFinance({ context }: AskFinanceProps) {
     setLoading(true)
 
     try {
-      const res = await fetch("/api/ask-finance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, context }),
-      })
+      const res = await authFetch("/api/ask-finance", { question, context })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       setMessages((prev) => [...prev, { role: "assistant", text: data.answer ?? "Sin respuesta" }])
@@ -122,7 +119,7 @@ export function AskFinance({ context }: AskFinanceProps) {
         {messages.length > 0 && (
           <button
             onClick={() => setMessages([])}
-            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-destructive transition-colors"
           >
             <X className="h-3 w-3" /> Limpiar conversación
           </button>

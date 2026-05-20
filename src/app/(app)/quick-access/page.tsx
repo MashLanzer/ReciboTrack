@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { toast } from "sonner"
 import { Plus, Pencil, Trash2, Zap, Loader2 } from "lucide-react"
 import type { QuickExpense, QuickExpenseInput } from "@/types"
@@ -66,6 +67,7 @@ export default function QuickAccessPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<QuickForm>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<QuickExpense | null>(null)
 
   const allCategories = categories.length > 0 ? categories : DEFAULT_CATEGORIES
 
@@ -128,10 +130,14 @@ export default function QuickAccessPage() {
     }
   }
 
-  async function handleDelete(q: QuickExpense) {
-    if (!window.confirm(`¿Eliminar "${q.label}"?`)) return
+  function handleDelete(q: QuickExpense) {
+    setDeleteTarget(q)
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
     try {
-      await deleteQuick.mutateAsync(q.id)
+      await deleteQuick.mutateAsync(deleteTarget.id)
       toast.success("Eliminado")
     } catch {
       toast.error("Error al eliminar")
@@ -140,6 +146,15 @@ export default function QuickAccessPage() {
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        title={`¿Eliminar "${deleteTarget?.label}"?`}
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={confirmDelete}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -204,7 +219,7 @@ export default function QuickAccessPage() {
                       {formatCurrency(q.amount, q.currency)}
                     </span>
                     {cat && (
-                      <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                         {cat.icon} {cat.name}
                       </span>
                     )}

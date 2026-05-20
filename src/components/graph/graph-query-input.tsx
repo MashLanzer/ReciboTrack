@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Loader2, Search, Sparkles, X } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { authFetch } from "@/lib/client-fetch"
 import type { Expense } from "@/types"
 import type { Entity } from "@/hooks/use-entities"
 
@@ -63,11 +64,7 @@ export function GraphQueryInput({ expenses, entities, onResults }: Props) {
         name: en.name,
       }))
 
-      const res = await fetch("/api/graph-query", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ question: searchQuery, expenses: expenseData, entities: entityData }),
-      })
+      const res = await authFetch("/api/graph-query", { question: searchQuery, expenses: expenseData, entities: entityData })
 
       if (!res.ok) throw new Error("Error en la consulta")
 

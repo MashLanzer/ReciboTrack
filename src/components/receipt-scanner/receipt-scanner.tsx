@@ -325,8 +325,21 @@ export function ReceiptScanner() {
           setOcrEngine("gemini")
           return await res.json() as OcrResultInput
         }
+        // Log actual API error for debugging
+        const errBody = await res.json().catch(() => ({})) as Record<string, unknown>
+        console.warn(`[OCR] Gemini ${res.status}:`, errBody)
+        // Quota exceeded → skip Groq too (likely same key family)
+        if (res.status === 429 || String(errBody?.error).includes("quota")) {
+          throw new Error("quota_exceeded")
+        }
       } catch (err) {
-        console.warn("Gemini falló, intentando Groq...", err)
+        const msg = err instanceof Error ? err.message : String(err)
+        if (msg === "quota_exceeded") {
+          console.warn("[OCR] Quota excedida — usando Tesseract")
+          setOcrEngine("tesseract")
+          return runTesseract(file, setOcrProgress)
+        }
+        console.warn("[OCR] Gemini falló (red/auth), intentando Groq...", err)
       }
 
       // 2. Intentar con Groq (Llama 3.2 Vision)
@@ -336,8 +349,10 @@ export function ReceiptScanner() {
           setOcrEngine("groq")
           return await res.json() as OcrResultInput
         }
+        const errBody = await res.json().catch(() => ({}))
+        console.warn(`[OCR] Groq ${res.status}:`, errBody)
       } catch (err) {
-        console.warn("Groq falló, usando Tesseract...", err)
+        console.warn("[OCR] Groq falló (red/auth), usando Tesseract...", err)
       }
 
       // 3. Fallback final a Tesseract (Local)

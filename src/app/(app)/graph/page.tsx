@@ -130,7 +130,7 @@ export default function GraphPage() {
   }, [highlightIds])
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-4rem)] max-w-6xl mx-auto px-4 py-4 gap-4">
+    <div className="flex flex-col md:h-[calc(100dvh-4rem)] max-w-6xl mx-auto px-4 py-4 gap-4">
 
       {/* ── Header ── */}
       <div className="flex items-center gap-3 shrink-0">
@@ -154,13 +154,13 @@ export default function GraphPage() {
         />
       </div>
 
-      {/* ── Main layout ── */}
-      <div className="flex gap-4 flex-1 min-h-0">
+      {/* ── Main layout — vertical on mobile, horizontal on desktop ── */}
+      <div className="flex flex-col md:flex-row gap-4 md:flex-1 md:min-h-0">
 
         {/* Graph canvas */}
-        <div className="flex-1 min-h-0 flex flex-col gap-2">
-          {/* Filter bar */}
-          <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex flex-col gap-2 md:flex-1 md:min-h-0">
+          {/* Filter bar — wraps on small screens */}
+          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
             <Filter className="h-3.5 w-3.5 text-muted-foreground" />
             {(["all", "person", "project", "place", "intent", "warranty"] as const).map((type) => {
               const Icon = type === "all" ? Network : (TYPE_ICONS[type as EntityType] ?? Network)
@@ -182,8 +182,8 @@ export default function GraphPage() {
             })}
           </div>
 
-          {/* Canvas */}
-          <div ref={containerRef} className="flex-1 rounded-2xl border bg-card overflow-hidden relative">
+          {/* Canvas — fixed height on mobile, fills remaining space on desktop */}
+          <div ref={containerRef} className="h-72 sm:h-80 md:h-auto md:flex-1 md:min-h-0 rounded-2xl border bg-card overflow-hidden relative">
             {isLoading ? (
               <GraphLoadingState />
             ) : graphData.nodes.length === 0 ? (
@@ -209,8 +209,8 @@ export default function GraphPage() {
           </div>
         </div>
 
-        {/* Sidebar — entity panel or entity list */}
-        <div className="w-72 shrink-0 rounded-2xl border bg-card overflow-hidden flex flex-col">
+        {/* Sidebar — full width on mobile, fixed 288px column on desktop */}
+        <div className="h-64 md:h-auto md:w-72 md:shrink-0 rounded-2xl border bg-card overflow-hidden flex flex-col">
           {selectedEntity ? (
             <EntityPanel
               entity={selectedEntity}

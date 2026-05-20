@@ -34,7 +34,7 @@ export function buildExpensePayload(expense: {
   paymentMethod?: string | null
   date:          { toDate(): Date } | Date
 }): WebhookPayload {
-  const date = typeof (expense.date as any).toDate === "function"
+  const date = typeof (expense.date as { toDate?: () => Date }).toDate === "function"
     ? (expense.date as { toDate(): Date }).toDate()
     : expense.date as Date
 

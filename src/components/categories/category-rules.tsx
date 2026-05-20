@@ -343,7 +343,7 @@ export function CategoryRules() {
           Cargando reglas...
         </div>
       ) : rules.length === 0 ? (
-        <div className="rounded-2xl border border-dashed bg-card p-6 text-center">
+        <div className="rounded-2xl border border-border/50 bg-muted/20 p-6 text-center">
           <Zap className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-40" />
           <p className="text-sm text-muted-foreground">Sin reglas aún</p>
           <p className="text-xs text-muted-foreground mt-1">

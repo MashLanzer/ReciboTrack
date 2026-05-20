@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useSearchParams } from "next/navigation"
-import { ScanLine, Plus, BarChart2, Search } from "lucide-react"
+import { ScanLine, Plus, BarChart2, Search, LayoutDashboard, Zap } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -70,7 +70,7 @@ function QuickBtn({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground px-0.5">
+    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70 px-0.5">
       {children}
     </p>
   )
@@ -140,7 +140,8 @@ export default function DashboardPage() {
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          Vista normal
+          <LayoutDashboard className="h-3.5 w-3.5" />
+          Normal
         </button>
         <button
           onClick={() => setDashMode("quick")}
@@ -151,7 +152,8 @@ export default function DashboardPage() {
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          Vista rápida
+          <Zap className="h-3.5 w-3.5" />
+          Rápida
         </button>
       </div>
 
@@ -180,7 +182,7 @@ export default function DashboardPage() {
       {/* ── Monthly recap (collapsible) ───────────────────────────────── */}
       <button
         onClick={() => setShowRecap(s => !s)}
-        className="w-full flex items-center justify-between rounded-2xl border border-dashed border-border px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-border/80 hover:bg-accent/30 transition-all"
+        className="w-full flex items-center justify-between rounded-2xl border border-border/50 bg-muted/30 px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
       >
         <span>Resumen del mes</span>
         <CollapsibleChevron open={showRecap} />
@@ -236,7 +238,7 @@ export default function DashboardPage() {
       {/* ── 📅 Recuerdos y logros (collapsible) ─────────────────────────── */}
       <button
         onClick={() => setShowMemories(s => !s)}
-        className="w-full flex items-center justify-between rounded-2xl border border-dashed border-border px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-border/80 hover:bg-accent/30 transition-all"
+        className="w-full flex items-center justify-between rounded-2xl border border-border/50 bg-muted/30 px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
       >
         <span>Recuerdos y logros</span>
         <CollapsibleChevron open={showMemories} />
@@ -259,11 +261,13 @@ export default function DashboardPage() {
       {/* ── Analytics toggle ──────────────────────────────────────────── */}
       <button
         onClick={() => setShowAnalytics(s => !s)}
-        className="w-full flex items-center justify-center gap-2 rounded-2xl border border-dashed border-border py-3.5 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-border/80 hover:bg-accent/30 transition-all"
+        className="w-full flex items-center justify-between rounded-2xl border border-border/50 bg-muted/30 px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
       >
-        <BarChart2 className="h-4 w-4" />
-        {showAnalytics ? "Ocultar análisis" : "Ver análisis completo"}
-        <CollapsibleChevron open={showAnalytics} className="ml-auto" />
+        <div className="flex items-center gap-2">
+          <BarChart2 className="h-4 w-4" />
+          {showAnalytics ? "Ocultar análisis" : "Ver análisis completo"}
+        </div>
+        <CollapsibleChevron open={showAnalytics} />
       </button>
 
       <CollapsibleContent open={showAnalytics} className="space-y-2">
@@ -292,7 +296,7 @@ function AccountBadge() {
       )}
     >
       <span className={cn(
-        "h-1.5 w-1.5 rounded-full",
+        "h-2 w-2 rounded-full",
         activeAccount === "business" ? "bg-violet-500" : "bg-primary"
       )} />
       {activeAccount === "business" ? "Negocio" : "Personal"}

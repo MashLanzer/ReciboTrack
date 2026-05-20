@@ -116,7 +116,7 @@ export default function MapPage() {
           >
             <Lightbulb className="h-3.5 w-3.5" /> Patrones
             {insights.length > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-bold">
+              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold">
                 {insights.length}
               </span>
             )}
@@ -241,7 +241,7 @@ function GeoPermissionDenied() {
         </p>
       </div>
       <div className="rounded-xl border bg-muted/40 px-4 py-3 text-left space-y-1 w-full">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           Cómo volver a activarla
         </p>
         <p className="text-xs text-foreground/80 leading-relaxed">{hint}</p>

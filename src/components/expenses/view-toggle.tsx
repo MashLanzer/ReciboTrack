@@ -33,7 +33,7 @@ export function ViewToggle({ current, onChange }: ViewToggleProps) {
           )}
         >
           {v.icon}
-          <span className="hidden sm:inline">{v.label}</span>
+          {current === v.id && <span className="text-xs">{v.label}</span>}
         </button>
       ))}
     </div>

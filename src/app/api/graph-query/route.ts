@@ -4,11 +4,15 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
+import { requireAuth } from "@/lib/api-auth"
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 const MODEL    = "llama-3.3-70b-versatile"
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, "ai")
+  if (auth instanceof NextResponse) return auth
+
   try {
     const body = await req.json() as {
       question: string
@@ -31,14 +35,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "GROQ_API_KEY no configurada" }, { status: 500 })
     }
 
-    // Build compact data summary
-    const expenseSummary = expenses.slice(0, 200).map((e) => (
-      `[${e.id}] ${e.date.slice(0, 10)} | ${e.merchant} | ${e.category} | ${e.total} ${e.currency}` +
-      (e.notes ? ` | notas: ${e.notes}` : "") +
-      (e.tags?.length ? ` | tags: ${e.tags.join(",")}` : "") +
-      (e.project ? ` | proyecto: ${e.project}` : "") +
-      (e.persons?.length ? ` | con: ${e.persons.join(",")}` : "")
-    )).join("\n")
+    // Build compact data summary — truncate free-text fields to avoid sending
+    // excessive PII to the LLM and to keep token usage low.
+    const expenseSummary = expenses.slice(0, 200).map((e) => {
+      // Merchant: trim to 40 chars (enough to identify, less to expose)
+      const merchant = (e.merchant ?? "").slice(0, 40)
+      // Notes: first 60 chars only (context for queries, not full content)
+      const notesPart = e.notes ? ` | notas: ${e.notes.slice(0, 60)}` : ""
+      // Tags: max 5 tags, each max 20 chars
+      const tagsPart = e.tags?.length
+        ? ` | tags: ${e.tags.slice(0, 5).map(t => t.slice(0, 20)).join(",")}`
+        : ""
+      // Project label (no ID, just name)
+      const projectPart = e.project ? ` | proyecto: ${String(e.project).slice(0, 30)}` : ""
+      // Persons: first names only, max 5
+      const personsPart = e.persons?.length
+        ? ` | con: ${e.persons.slice(0, 5).map(p => String(p).split(" ")[0]).join(",")}`
+        : ""
+      return `[${e.id}] ${e.date.slice(0, 10)} | ${merchant} | ${e.category} | ${e.total} ${e.currency}` +
+        notesPart + tagsPart + projectPart + personsPart
+    }).join("\n")
 
     const entitySummary = entities.map((e) => `[${e.id}] ${e.type}: ${e.name}`).join("\n")
 

@@ -72,7 +72,7 @@ export function WeekSparkCard() {
 
   if (thisTotal === 0 && lastTotal === 0) {
     return (
-      <div className="rounded-2xl border border-dashed bg-card/50 p-8 text-center space-y-2">
+      <div className="rounded-2xl border border-border/50 bg-muted/20 p-8 text-center space-y-2">
         <p className="text-2xl">🌱</p>
         <p className="text-sm font-semibold">Sin gastos esta semana</p>
         <p className="text-xs text-muted-foreground">¡Lleva un registro de tus gastos diarios!</p>
@@ -101,7 +101,7 @@ export function WeekSparkCard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Semana actual</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Semana actual</p>
           <p className="text-xl font-black tabular-nums mt-0.5">{formatCurrency(thisTotal)}</p>
         </div>
         {lastTotal > 0 && (
@@ -142,13 +142,13 @@ export function WeekSparkCard() {
         {days.map((d) => (
           <div key={d.dayNum} className="flex-1 flex flex-col items-center gap-0.5">
             <span className={cn(
-              "text-[9px] font-mono font-bold",
+              "text-[10px] font-bold",
               d.isToday ? "text-primary" : "text-muted-foreground/60"
             )}>
               {d.label}
             </span>
             <div className={cn(
-              "h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold",
+              "h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold",
               d.isToday ? "bg-primary text-primary-foreground" : "text-muted-foreground"
             )}>
               {d.dayNum}
@@ -166,8 +166,8 @@ export function WeekSparkCard() {
                 <ArrowDown className="h-2.5 w-2.5 text-emerald-600" />
               </div>
               <div>
-                <p className="text-[9px] text-muted-foreground">Más económico</p>
-                <p className="text-[10px] font-semibold capitalize">
+                <p className="text-[10px] text-muted-foreground">Más económico</p>
+                <p className="text-[11px] font-semibold capitalize">
                   {format(cheapest.date, "EEEE", { locale: es })} · {formatCurrency(cheapest.total)}
                 </p>
               </div>
@@ -179,8 +179,8 @@ export function WeekSparkCard() {
                 <ArrowUp className="h-2.5 w-2.5 text-destructive" />
               </div>
               <div>
-                <p className="text-[9px] text-muted-foreground">Más caro</p>
-                <p className="text-[10px] font-semibold capitalize">
+                <p className="text-[10px] text-muted-foreground">Más caro</p>
+                <p className="text-[11px] font-semibold capitalize">
                   {format(priciest.date, "EEEE", { locale: es })} · {formatCurrency(priciest.total)}
                 </p>
               </div>

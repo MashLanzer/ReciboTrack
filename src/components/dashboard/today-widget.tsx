@@ -88,7 +88,7 @@ export function TodayWidget() {
           <>
             {dueToShow.length > 0 && (
               <div className="px-4 pb-1">
-                <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1.5 mt-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 mt-1">
                   Pagos pendientes
                 </p>
                 <div className="space-y-1.5">
@@ -131,7 +131,7 @@ export function TodayWidget() {
             {/* Goals with upcoming deadline */}
             {upcomingGoals.length > 0 && (
               <div className="px-4 pt-1">
-                <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
                   Metas próximas
                 </p>
                 <div className="space-y-1.5">

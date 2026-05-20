@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
+import { getFirebaseErrorMessage } from "@/lib/firebase-errors"
 import { Loader2, Receipt, Smartphone, Fingerprint } from "lucide-react"
 import { usePasskeySupport, usePasskeyLogin, migratePasskeyV1ToV2 } from "@/hooks/use-passkey"
 
@@ -44,6 +45,7 @@ function LoginForm() {
   const rawFrom = searchParams.get("from") ?? "/dashboard"
   // Prevent redirect loops: if "from" points back to login, go to dashboard
   const from = rawFrom.startsWith("/login") ? "/dashboard" : rawFrom
+  const sessionExpired = searchParams.get("reason") === "session_expired"
 
   const [mode, setMode] = useState<"login" | "register">("login")
   const [email, setEmail] = useState("")
@@ -59,6 +61,14 @@ function LoginForm() {
 
   // Migrate v1 passkey credentials (base64url → hex) on first render
   useEffect(() => { migratePasskeyV1ToV2() }, [])
+
+  // C4: Show toast if session expired
+  useEffect(() => {
+    if (sessionExpired) {
+      toast.warning("Tu sesión expiró. Vuelve a iniciar sesión para continuar.")
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function setSessionCookie() {
     document.cookie = `session=1; path=/; SameSite=Lax; max-age=${60 * 60 * 24 * 7}`
@@ -159,17 +169,7 @@ function LoginForm() {
       setSessionCookie()
       navigateAfterLogin()
     } catch (err: unknown) {
-      const code = (err as { code?: string }).code
-      const messages: Record<string, string> = {
-        "auth/email-already-in-use": "El email ya está en uso",
-        "auth/wrong-password": "Contraseña incorrecta",
-        "auth/user-not-found": "No existe una cuenta con ese email",
-        "auth/invalid-credential": "Credenciales inválidas",
-        "auth/weak-password": "La contraseña debe tener al menos 6 caracteres",
-        "auth/too-many-requests": "Demasiados intentos. Espera unos minutos e intenta de nuevo.",
-        "auth/network-request-failed": "Error de red. Verifica tu conexión a internet.",
-      }
-      toast.error(code ? (messages[code] ?? `Error (${code})`) : "Error inesperado")
+      toast.error(getFirebaseErrorMessage(err))
     } finally {
       setLoading(false)
     }

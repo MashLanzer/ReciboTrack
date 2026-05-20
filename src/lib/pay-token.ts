@@ -15,7 +15,14 @@ export interface PayData {
   currency: string
 }
 
-const SECRET = process.env.PAY_TOKEN_SECRET ?? "recibotrack-dev-secret-change-in-prod"
+const _secret = process.env.PAY_TOKEN_SECRET
+if (!_secret && process.env.NODE_ENV === "production") {
+  throw new Error(
+    "[pay-token] PAY_TOKEN_SECRET env var is required in production. " +
+    "Set it in your Vercel environment variables."
+  )
+}
+const SECRET = _secret ?? "recibotrack-dev-secret-change-in-prod"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

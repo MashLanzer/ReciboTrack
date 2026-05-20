@@ -85,7 +85,7 @@ export function CategoriesManager() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-3">Predeterminadas</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">Predeterminadas</p>
         <div className="grid gap-2">
           {defaults.map((cat) => (
             <Card key={cat.id}>
@@ -108,7 +108,7 @@ export function CategoriesManager() {
 
       {custom.length > 0 && (
         <div>
-          <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-3">Personalizadas</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">Personalizadas</p>
           <div className="grid gap-2">
             {custom.map((cat) => (
               <Card key={cat.id}>

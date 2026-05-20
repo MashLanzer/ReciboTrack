@@ -130,7 +130,9 @@ export function SwipeableRow({ children, onEdit, onDelete, disabled = false, thr
           willChange: "transform",
         }}
         className={cn(
-          "relative bg-background rounded-xl",
+          // z-10 keeps the card on top of action buttons — no rounded-xl here,
+          // the outer overflow-hidden + rounded-xl handles the border-radius clipping
+          "relative z-10 bg-background",
           revealed && "cursor-pointer select-none",
           // One-shot hint animation only when not dragging and not revealed
           showHint && !disabled && !revealed && offset === 0 && "swipe-hint-anim",

@@ -3,6 +3,7 @@
 import {
   collection,
   getDocs,
+  setDoc,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -15,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
 import type { Client, ClientInput } from "@/types"
+import { stripUndefined } from "@/lib/utils"
 
 function clientsCol(uid: string) {
   return collection(getFirebaseDb(), "users", uid, "clients")
@@ -40,11 +42,14 @@ export function useAddClient() {
   return useMutation({
     mutationFn: async (input: ClientInput) => {
       if (!user) throw new Error("No autenticado")
-      const ref = await addDoc(clientsCol(user.uid), {
+      // Use setDoc+doc() to avoid Firebase v12 internal __list__ bug on new subcollections
+      const newRef = doc(clientsCol(user.uid))
+      // stripUndefined — Firestore rejects `undefined` (optional fields: email, phone, notes)
+      await setDoc(newRef, stripUndefined({
         ...input,
         createdAt: Timestamp.now(),
-      })
-      return ref.id
+      }) as Record<string, unknown>)
+      return newRef.id
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["clients", user?.uid] }),
   })

@@ -15,6 +15,41 @@ const nextConfig: NextConfig = {
             key: "Cross-Origin-Opener-Policy",
             value: "same-origin-allow-popups",
           },
+          // S6 — Security headers
+          // Evita que el browser envíe el referrer completo a sitios externos
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // Impide que la app se incruste en iframes de otros dominios (clickjacking)
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          // Deshabilita MIME type sniffing (protege contra XSS por archivos mal tipados)
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          // Deshabilita la API XSS Auditor obsoleta y potencialmente explotable
+          { key: "X-XSS-Protection", value: "0" },
+          // HSTS: fuerza HTTPS durante 1 año (incluye subdominios)
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000; includeSubDomains",
+          },
+          // Permissions Policy: deshabilita APIs que la app no usa
+          {
+            key: "Permissions-Policy",
+            value: [
+              "camera=(self)",          // Scanner de recibos usa la cámara
+              "geolocation=(self)",     // Mapa usa geolocalización
+              "microphone=()",          // No usa micrófono
+              "payment=()",             // No usa Payment Request API
+              "usb=()",                 // No usa USB
+              "serial=()",              // No usa Serial
+              "bluetooth=()",           // No usa Bluetooth
+            ].join(", "),
+          },
+        ],
+      },
+      // Headers adicionales solo para rutas de API
+      {
+        source: "/api/(.*)",
+        headers: [
+          // Evita que Vercel o proxies cacheen respuestas de API privadas
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate" },
         ],
       },
     ]

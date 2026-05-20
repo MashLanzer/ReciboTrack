@@ -66,14 +66,14 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
           {/* Date + payment method */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
                 <Calendar className="h-3 w-3" /> Fecha
               </p>
               <p className="text-sm font-medium">{formatDate(expense.date.toDate(), "dd MMM yyyy")}</p>
             </div>
             {expense.paymentMethod && (
               <div className="space-y-1">
-                <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
                   <CreditCard className="h-3 w-3" /> Método de pago
                 </p>
                 <p className="text-sm font-medium">{expense.paymentMethod}</p>
@@ -106,7 +106,7 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
           {/* Reference */}
           {expense.reference && (
             <div className="space-y-1">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
                 <Hash className="h-3 w-3" /> Referencia
               </p>
               <p className="text-sm font-mono">{expense.reference}</p>
@@ -116,7 +116,7 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
           {/* Notes */}
           {expense.notes && (
             <div className="space-y-1">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
                 <FileText className="h-3 w-3" /> Notas
               </p>
               <p className="text-sm text-muted-foreground leading-relaxed">{expense.notes}</p>
@@ -126,7 +126,7 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
           {/* Tags */}
           {(expense.tags?.length ?? 0) > 0 && (
             <div className="space-y-1.5">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
                 <Tag className="h-3 w-3" /> Etiquetas
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -140,7 +140,7 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
           {/* Line items */}
           {hasItems && (
             <div className="space-y-1.5">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
                 <ShoppingCart className="h-3 w-3" /> Artículos ({expense.items.length})
               </p>
               <div className="rounded-lg border overflow-hidden divide-y text-xs">
@@ -169,7 +169,7 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
           {/* Receipt image */}
           {expense.receiptImageUrl && (
             <div className="space-y-1.5">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
                 <Receipt className="h-3 w-3" /> Comprobante
               </p>
               <a
@@ -197,7 +197,7 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
           )}
 
           {/* Timestamps */}
-          <div className="pt-1 border-t text-[10px] text-muted-foreground space-y-0.5">
+          <div className="pt-1 border-t text-[11px] text-muted-foreground space-y-0.5">
             <p>Creado {formatDate(expense.createdAt.toDate(), "dd MMM yyyy · HH:mm")}</p>
             {expense.updatedAt && expense.updatedAt.seconds !== expense.createdAt.seconds && (
               <p>Editado {formatDate(expense.updatedAt.toDate(), "dd MMM yyyy · HH:mm")}</p>

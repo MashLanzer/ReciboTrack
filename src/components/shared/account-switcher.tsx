@@ -42,7 +42,7 @@ export function AccountBadge() {
   const { activeAccount } = useUIStore()
   if (activeAccount === "personal") return null
   return (
-    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+    <span className="inline-flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20">
       <Briefcase className="h-2.5 w-2.5" />
       Negocio
     </span>

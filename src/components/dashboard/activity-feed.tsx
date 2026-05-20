@@ -149,7 +149,7 @@ export function ActivityFeed() {
   if (isLoading) return <Skeleton className="h-48 rounded-2xl" />
   if (filtered.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed bg-card/50 p-8 text-center space-y-2">
+      <div className="rounded-2xl border border-border/50 bg-muted/20 p-8 text-center space-y-2">
         <p className="text-2xl">✅</p>
         <p className="text-sm font-semibold">Sin movimientos recientes</p>
         <p className="text-xs text-muted-foreground">Añade tu primer gasto para verlo aquí</p>
@@ -186,22 +186,22 @@ export function ActivityFeed() {
               <span className="text-[10px] shrink-0" title="Sugerido por IA">✨</span>
             )}
           </div>
-          <p className="text-[10px] text-muted-foreground">{catName}</p>
+          <p className="text-[11px] text-muted-foreground">{catName}</p>
         </div>
         <div className="text-right shrink-0">
           <p className="text-sm font-bold tabular-nums text-destructive">
             -{formatCurrency(e.total, e.currency)}
           </p>
-          <p className="text-[10px] text-muted-foreground">{relativeLabel(expDate(e))}</p>
+          <p className="text-[11px] text-muted-foreground">{relativeLabel(expDate(e))}</p>
         </div>
-        {/* Flag button */}
+        {/* Flag button — siempre visible en móvil, hover en desktop */}
         <button
           onClick={() => handleFlag(e)}
           className={cn(
             "h-7 w-7 rounded-lg flex items-center justify-center transition-all shrink-0",
             e.flagged
-              ? "text-amber-500 opacity-100"
-              : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-amber-500 hover:bg-muted"
+              ? "text-amber-500"
+              : "text-muted-foreground/40 hover:text-amber-500 hover:bg-muted md:opacity-0 md:group-hover:opacity-100"
           )}
           aria-label={e.flagged ? "Quitar pendiente" : "Marcar como pendiente"}
         >
@@ -209,10 +209,10 @@ export function ActivityFeed() {
             ? <BookmarkCheck className="h-3.5 w-3.5" />
             : <Bookmark className="h-3.5 w-3.5" />}
         </button>
-        {/* Edit button */}
+        {/* Edit button — siempre visible en móvil, hover en desktop */}
         <button
           onClick={() => setEditExpense(e)}
-          className="opacity-0 group-hover:opacity-100 h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all shrink-0"
+          className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted transition-all shrink-0 md:opacity-0 md:group-hover:opacity-100"
           aria-label="Editar gasto"
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -224,47 +224,44 @@ export function ActivityFeed() {
   return (
     <div className="rounded-2xl border bg-card overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
-        <div>
-          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Actividad</p>
-          <p className="text-sm font-bold mt-0.5">Últimos movimientos</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Feed mode toggle (Feature D) */}
-          <div className="flex items-center gap-0.5 p-0.5 rounded-lg border bg-muted/50 text-xs">
-            <button
-              onClick={() => setFeedMode("recent")}
-              className={cn(
-                "flex items-center gap-1 px-2 py-1 rounded-md font-medium transition-colors",
-                feedMode === "recent"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              )}
-              aria-label="Recientes"
-            >
-              <List className="h-3 w-3" />
-              <span>Recientes</span>
-            </button>
-            <button
-              onClick={() => setFeedMode("smart")}
-              className={cn(
-                "flex items-center gap-1 px-2 py-1 rounded-md font-medium transition-colors",
-                feedMode === "smart"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              )}
-              aria-label="Inteligente"
-            >
-              <Sparkles className="h-3 w-3" />
-              <span>Smart</span>
-            </button>
-          </div>
+      <div className="px-4 pt-3 pb-2.5 border-b border-border/60 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-bold">Actividad reciente</p>
           <Link
             href="/expenses"
             className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
           >
             Ver todos <ArrowRight className="h-3 w-3" />
           </Link>
+        </div>
+        {/* Feed mode toggle */}
+        <div className="flex items-center gap-0.5 p-0.5 rounded-lg border bg-muted/50 text-xs w-fit">
+          <button
+            onClick={() => setFeedMode("recent")}
+            className={cn(
+              "flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-colors",
+              feedMode === "recent"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-muted text-muted-foreground hover:text-foreground"
+            )}
+            aria-label="Recientes"
+          >
+            <List className="h-3 w-3" />
+            <span>Recientes</span>
+          </button>
+          <button
+            onClick={() => setFeedMode("smart")}
+            className={cn(
+              "flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-colors",
+              feedMode === "smart"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-muted text-muted-foreground hover:text-foreground"
+            )}
+            aria-label="Inteligente"
+          >
+            <Sparkles className="h-3 w-3" />
+            <span>Smart</span>
+          </button>
         </div>
       </div>
 
@@ -303,7 +300,7 @@ export function ActivityFeed() {
       {feedMode === "smart" && (
         <div>
           <div className="px-4 py-1.5 bg-amber-500/5 border-b border-amber-500/10">
-            <p className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">
+            <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
               ✨ Modo inteligente — gastos relevantes primero
             </p>
           </div>
@@ -325,12 +322,12 @@ export function ActivityFeed() {
               {/* Day header */}
               <div className="flex items-center justify-between px-4 py-2 bg-muted/30">
                 <p className={cn(
-                  "text-[10px] font-semibold capitalize",
+                  "text-[11px] font-semibold capitalize",
                   group.isToday ? "text-primary" : "text-muted-foreground"
                 )}>
                   {group.label}
                 </p>
-                <p className="text-[10px] font-bold tabular-nums text-muted-foreground">
+                <p className="text-[11px] font-bold tabular-nums text-muted-foreground">
                   {formatCurrency(group.total)}
                 </p>
               </div>

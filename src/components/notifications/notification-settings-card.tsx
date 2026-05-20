@@ -99,7 +99,7 @@ export function NotificationSettingsCard() {
             disabled={!browserSupport || requesting || update.isPending}
           />
           {browserSupport && masterEnabled && Notification.permission === "granted" && (
-            <p className="text-[10px] text-emerald-600 flex items-center gap-1 mt-1.5">
+            <p className="text-[11px] text-emerald-600 flex items-center gap-1 mt-1.5">
               <Check className="h-3 w-3" />
               Permiso concedido
             </p>

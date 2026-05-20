@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { toast } from "sonner"
 import { Plus, Settings2, Trash2, Zap, Loader2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -143,13 +144,20 @@ function ManageDialog({
 
   const [form, setForm] = useState(emptyForm())
   const [tab, setTab] = useState<"list" | "new">("list")
+  const [discardOpen, setDiscardOpen] = useState(false)
 
   function isDirty() {
     return tab === "new" && !!(form.label.trim() || form.merchant.trim() || form.amount)
   }
 
   function handleDialogClose() {
-    if (isDirty() && !window.confirm("¿Descartar los datos del nuevo acceso rápido?")) return
+    if (isDirty()) { setDiscardOpen(true); return }
+    setForm(emptyForm())
+    setTab("list")
+    onClose()
+  }
+
+  function confirmDiscard() {
     setForm(emptyForm())
     setTab("list")
     onClose()
@@ -186,6 +194,16 @@ function ManageDialog({
   }
 
   return (
+    <>
+    <ConfirmDialog
+      open={discardOpen}
+      onOpenChange={setDiscardOpen}
+      title="¿Descartar cambios?"
+      description="Se perderán los datos del nuevo acceso rápido."
+      confirmLabel="Descartar"
+      variant="default"
+      onConfirm={confirmDiscard}
+    />
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleDialogClose() }}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
@@ -370,6 +388,7 @@ function ManageDialog({
         )}
       </DialogContent>
     </Dialog>
+    </>
   )
 }
 

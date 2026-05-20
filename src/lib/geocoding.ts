@@ -49,18 +49,37 @@ export async function reverseGeocode(lat: number, lng: number): Promise<ReverseG
   }
 }
 
-/** Request geolocation from the browser — returns null if denied or unavailable */
-export function requestGeolocation(): Promise<GeoCoords | null> {
-  if (typeof window === "undefined" || !navigator.geolocation) return Promise.resolve(null)
+export type GeoError = "denied" | "unavailable" | "timeout" | "unsupported"
+
+export interface GeoResult {
+  coords: GeoCoords | null
+  error: GeoError | null
+}
+
+/** Request geolocation from the browser — always resolves, never rejects.
+ *  Returns { coords, error } so callers can show specific error messages. */
+export function requestGeolocation(): Promise<GeoResult> {
+  if (typeof window === "undefined" || !navigator.geolocation) {
+    return Promise.resolve({ coords: null, error: "unsupported" })
+  }
 
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({
-        lat:      pos.coords.latitude,
-        lng:      pos.coords.longitude,
-        accuracy: pos.coords.accuracy,
+        coords: {
+          lat:      pos.coords.latitude,
+          lng:      pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        },
+        error: null,
       }),
-      () => resolve(null),
+      (err) => {
+        const error: GeoError =
+          err.code === 1 ? "denied" :
+          err.code === 3 ? "timeout" :
+          "unavailable"
+        resolve({ coords: null, error })
+      },
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
     )
   })

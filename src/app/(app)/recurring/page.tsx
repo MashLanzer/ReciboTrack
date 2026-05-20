@@ -48,6 +48,8 @@ import {
   ChevronDown,
   ChevronUp,
   History,
+  Search,
+  X,
 } from "lucide-react"
 import { formatCurrency, cn } from "@/lib/utils"
 import { useUIStore } from "@/stores/ui-store"
@@ -163,6 +165,7 @@ export default function RecurringPage() {
   const [saving, setSaving] = useState(false)
   const [registeringId, setRegisteringId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list")
+  const [search, setSearch] = useState("")
 
   const allCategories = categories.length > 0 ? categories : DEFAULT_CATEGORIES
 
@@ -298,7 +301,14 @@ export default function RecurringPage() {
     }
   }
 
-  const { overdue, soon, later } = groupByStatus(templates)
+  const filteredTemplates = search.trim()
+    ? templates.filter(t =>
+        t.merchant.toLowerCase().includes(search.toLowerCase()) ||
+        (t.notes?.toLowerCase().includes(search.toLowerCase()) ?? false)
+      )
+    : templates
+
+  const { overdue, soon, later } = groupByStatus(filteredTemplates)
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
@@ -339,6 +349,25 @@ export default function RecurringPage() {
             Nuevo
           </Button>
         </div>
+      </div>
+
+      {/* Buscador */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar recurrentes..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9 h-9"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Summary card */}
@@ -434,6 +463,30 @@ export default function RecurringPage() {
           </div>
         )
       })()}
+
+      {/* Empty state — no results */}
+      {viewMode === "list" && filteredTemplates.length === 0 && !isLoading && (
+        <div className="rounded-2xl border border-dashed bg-card/50 p-8 text-center space-y-2">
+          {search ? (
+            <>
+              <p className="text-2xl">🔍</p>
+              <p className="text-sm font-semibold">Sin resultados para &ldquo;{search}&rdquo;</p>
+              <p className="text-xs text-muted-foreground">Prueba con otro término de búsqueda</p>
+              <Button variant="outline" size="sm" onClick={() => setSearch("")}>Limpiar búsqueda</Button>
+            </>
+          ) : (
+            <>
+              <p className="text-2xl">🔄</p>
+              <p className="text-sm font-semibold">Sin gastos recurrentes</p>
+              <p className="text-xs text-muted-foreground">Añade tus suscripciones y pagos fijos</p>
+              <Button size="sm" onClick={openCreate}>
+                <Plus className="h-4 w-4 mr-1" />
+                Añadir recurrente
+              </Button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* List sections */}
       {!isLoading && viewMode === "list" && (
@@ -620,7 +673,7 @@ export default function RecurringPage() {
                   const y = d.getFullYear()
                   const invalid = isNaN(d.getTime()) || y < 2000 || y > 2030
                   return invalid ? (
-                    <p className="text-[10px] text-destructive">Fecha inválida — debe estar entre 2000 y 2030</p>
+                    <p className="text-[11px] text-destructive">Fecha inválida — debe estar entre 2000 y 2030</p>
                   ) : null
                 })()}
               </div>
@@ -761,12 +814,12 @@ function CalendarView({
         <div className="rounded-xl border bg-card px-4 py-3">
           <p className="text-xs text-muted-foreground">Días con pagos</p>
           <p className="text-xl font-bold tabular-nums">{daysWithPayments}</p>
-          <p className="text-[10px] text-muted-foreground">en los próximos 30 días</p>
+          <p className="text-[11px] text-muted-foreground">en los próximos 30 días</p>
         </div>
         <div className="rounded-xl border bg-card px-4 py-3">
           <p className="text-xs text-muted-foreground">Total estimado</p>
           <p className="text-xl font-bold tabular-nums">${windowTotal.toFixed(2)}</p>
-          <p className="text-[10px] text-muted-foreground">suma de todos los vencimientos</p>
+          <p className="text-[11px] text-muted-foreground">suma de todos los vencimientos</p>
         </div>
       </div>
 
@@ -791,10 +844,10 @@ function CalendarView({
                 }`}>
                   {format(day, "d")}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
+                <p className="text-[11px] text-muted-foreground mt-0.5">
                   {format(day, "MMM", { locale: es })}
                 </p>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[11px] text-muted-foreground">
                   {format(day, "EEE", { locale: es })}
                 </p>
               </div>
@@ -1044,7 +1097,7 @@ function RecurringItem({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium truncate">{t.merchant}</span>
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+            <Badge variant="outline" className="text-[11px] px-1.5 py-0 shrink-0">
               {FREQUENCY_LABELS[t.frequency]}
             </Badge>
           </div>
@@ -1053,7 +1106,7 @@ function RecurringItem({
               {t.currency} {t.total.toFixed(2)}
             </span>
             <span className={cn(
-              "inline-flex items-center rounded-full border px-1.5 py-0 text-[10px] font-medium shrink-0 leading-5",
+              "inline-flex items-center rounded-full border px-1.5 py-0 text-[11px] font-medium shrink-0 leading-5",
               (status.urgency === "overdue" || status.urgency === "critical") &&
                 "bg-destructive/10 text-destructive border-destructive/30 urgency-pulse",
               status.urgency === "warning" &&
@@ -1136,15 +1189,15 @@ function RecurringItem({
               {/* Summary stats */}
               <div className="grid grid-cols-3 gap-2 text-center pb-2 border-b border-border/50">
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Pagos</p>
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Pagos</p>
                   <p className="text-sm font-bold tabular-nums">{history.length}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</p>
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Total</p>
                   <p className="text-sm font-bold tabular-nums">{formatCurrency(historyTotal, t.currency)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Promedio</p>
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Promedio</p>
                   <p className="text-sm font-bold tabular-nums">{formatCurrency(historyAvg, t.currency)}</p>
                 </div>
               </div>
@@ -1164,7 +1217,7 @@ function RecurringItem({
                       </span>
                       <div className="flex items-center gap-2 ml-auto">
                         {delta !== null && (
-                          <span className={`text-[10px] tabular-nums ${delta > 5 ? "text-destructive" : delta < -5 ? "text-green-600" : "text-muted-foreground"}`}>
+                          <span className={`text-[11px] tabular-nums ${delta > 5 ? "text-destructive" : delta < -5 ? "text-green-600" : "text-muted-foreground"}`}>
                             {delta > 0 ? "+" : ""}{delta.toFixed(1)}%
                           </span>
                         )}
@@ -1176,7 +1229,7 @@ function RecurringItem({
                           <button
                             type="button"
                             onClick={() => setEditExpense(matchedExpense)}
-                            className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium shrink-0"
+                            className="text-[11px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium shrink-0"
                           >
                             💳 Ver gasto
                           </button>
