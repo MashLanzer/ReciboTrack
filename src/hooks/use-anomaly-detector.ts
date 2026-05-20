@@ -33,11 +33,12 @@ function sentKey(catId: string): string {
   const now = new Date()
   return `rt-anomaly:${catId}:${now.getFullYear()}-${now.getMonth()}`
 }
+// sessionStorage: alert shows once per browser session but can repeat in future sessions
 function wasSent(key: string) {
-  try { return localStorage.getItem(key) === "1" } catch { return false }
+  try { return sessionStorage.getItem(key) === "1" } catch { return false }
 }
 function markSent(key: string) {
-  try { localStorage.setItem(key, "1") } catch { /**/ }
+  try { sessionStorage.setItem(key, "1") } catch { /**/ }
 }
 
 export function useAnomalyDetector() {

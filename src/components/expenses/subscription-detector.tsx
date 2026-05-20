@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSubscriptionDetector } from "@/hooks/use-subscription-detector"
 import { useAddRecurring } from "@/hooks/use-recurring"
 import { useCategories } from "@/hooks/use-categories"
@@ -100,7 +100,21 @@ export function SubscriptionDetector() {
   const addRecurring = useAddRecurring()
   const [expanded, setExpanded] = useState(false)
   const [addingId, setAddingId] = useState<string | null>(null)
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  const [dismissed, setDismissed] = useState<Set<string>>(() => {
+    // Restore dismissed list from sessionStorage so items don't reappear on navigation
+    try {
+      const stored = sessionStorage.getItem("rt-sub-dismissed")
+      if (stored) return new Set<string>(JSON.parse(stored) as string[])
+    } catch { /* ignore */ }
+    return new Set<string>()
+  })
+
+  // Persist dismissed set to sessionStorage whenever it changes
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("rt-sub-dismissed", JSON.stringify([...dismissed]))
+    } catch { /* ignore */ }
+  }, [dismissed])
 
   const visible = untracked.filter((u) => !dismissed.has(u.merchant))
 
