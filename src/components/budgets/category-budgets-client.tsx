@@ -4,6 +4,7 @@ import { useState, useRef, useMemo, useEffect } from "react"
 import { useCategoryBudgets, useSetCategoryBudget, useDeleteCategoryBudget } from "@/hooks/use-category-budgets"
 import { useCategories } from "@/hooks/use-categories"
 import { useExpensesForMonth } from "@/hooks/use-expenses"
+import { useUserSettings } from "@/hooks/use-user-settings"
 import { useStarred, useToggleStarCategory } from "@/hooks/use-starred"
 import { formatCurrency, cn } from "@/lib/utils"
 import { Progress } from "@/components/ui/progress"
@@ -142,6 +143,8 @@ export function CategoryBudgetsClient() {
 
   const setBudget = useSetCategoryBudget()
   const deleteBudget = useDeleteCategoryBudget()
+  const { data: settings } = useUserSettings()
+  const defaultCurrency = settings?.defaultCurrency ?? "USD"
   const { data: starred } = useStarred()
   const toggleStar = useToggleStarCategory()
 
@@ -214,7 +217,7 @@ export function CategoryBudgetsClient() {
       return
     }
     try {
-      await setBudget.mutateAsync({ categoryId, amount, currency: "USD", month })
+      await setBudget.mutateAsync({ categoryId, amount, currency: defaultCurrency, month })
       toast.success("Presupuesto guardado")
     } catch {
       toast.error("Error al guardar presupuesto")

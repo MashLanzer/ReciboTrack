@@ -40,7 +40,7 @@ function buildFilename(base: string, period: { start?: Date; end?: Date } | unde
   return `${base}-${new Date().toISOString().split("T")[0]}.${ext}`
 }
 
-export async function exportToPDF(expenses: Expense[], categories: CategoryDoc[], period?: { start?: Date; end?: Date }) {
+export async function exportToPDF(expenses: Expense[], categories: CategoryDoc[], period?: { start?: Date; end?: Date }, onSuccess?: () => void) {
   const { default: jsPDF } = await import("jspdf")
   const { default: autoTable } = await import("jspdf-autotable")
 
@@ -72,6 +72,7 @@ export async function exportToPDF(expenses: Expense[], categories: CategoryDoc[]
   })
 
   doc.save(buildFilename("gastos", period, "pdf"))
+  onSuccess?.()
 }
 
 // ─── Monthly PDF report ────────────────────────────────────────────────────────
@@ -80,7 +81,7 @@ export async function exportMonthlyPDF(
   categories: CategoryDoc[],
   monthDate: Date,
   prevTotal: number,
-  options?: { userName?: string; logoUrl?: string }
+  options?: { userName?: string; logoUrl?: string; onSuccess?: () => void }
 ) {
   const { default: jsPDF } = await import("jspdf")
   const { default: autoTable } = await import("jspdf-autotable")
@@ -251,6 +252,7 @@ export async function exportMonthlyPDF(
   })
 
   doc.save(`reporte-${format(monthDate, "yyyy-MM")}.pdf`)
+  options?.onSuccess?.()
 }
 
 // ─── Holded CSV export ────────────────────────────────────────────────────────

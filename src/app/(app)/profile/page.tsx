@@ -39,6 +39,7 @@ import { CollapsibleContent, CollapsibleChevron } from "@/components/ui/collapsi
 import { AccentColorPicker } from "@/components/shared/accent-color-picker"
 import { TrustedCircleCard } from "@/components/profile/trusted-circle-card"
 import { PersonalStats } from "@/components/profile/personal-stats" // #32 — componente extraído
+import { AchievementsGrid } from "@/components/profile/achievements-grid"
 import { PwaInstallButton } from "@/components/shared/pwa-install-button"
 import { PasskeySetupCard } from "@/components/auth/passkey-setup-card"
 import { CreatePortalDialog } from "@/components/portals/create-portal-dialog"
@@ -165,9 +166,7 @@ export default function ProfilePage() {
   // Profile edit
   const [displayName, setDisplayName] = useState("")
   const [editingName, setEditingName] = useState(false)
-  const [handle, setHandle] = useState<string>(() => {
-    try { return localStorage.getItem("rt-handle") ?? "" } catch { return "" }
-  })
+  const [handle, setHandle] = useState<string>("")
   const [editingHandle, setEditingHandle] = useState(false)
   const [handleInput, setHandleInput] = useState("")
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
@@ -199,6 +198,34 @@ export default function ProfilePage() {
     setWebhookUrl(webhookConfig.webhookUrl)
     setWebhookEvents(webhookConfig.webhookEvents)
   }, [webhookConfig.webhookUrl, webhookConfig.webhookEvents])
+
+  // Compute achievement input from available data
+  const achievementInput = useMemo(() => {
+    // Streak: consecutive days ending today that have at least one expense
+    const daySet = new Set(recentExpenses.map((e) => e.date.toDate().toISOString().split("T")[0]))
+    let streakDays = 0
+    const cursor = new Date()
+    while (daySet.has(cursor.toISOString().split("T")[0])) {
+      streakDays++
+      cursor.setDate(cursor.getDate() - 1)
+    }
+    return {
+      totalExpenses: recentExpenses.length,
+      totalGroups: 0,
+      totalGoals: goals.length,
+      completedGoals: goals.filter((g) => g.currentAmount >= g.targetAmount).length,
+      recurringCount: recurringData.length,
+      hasExportedPDF: settings?.hasExportedPDF ?? false,
+      hasWebhook: !!webhookConfig.webhookUrl,
+      hasBudget: (settings?.monthlyBudget ?? 0) > 0,
+      streakDays,
+    }
+  }, [recentExpenses, goals, recurringData, settings, webhookConfig.webhookUrl])
+
+  // Sync handle from Firestore settings (cross-device)
+  useEffect(() => {
+    if (settings?.handle) setHandle(settings.handle)
+  }, [settings?.handle])
 
   // Portals (Compartir tab)
   const { data: portals = [], isLoading: portalsLoading } = usePortals()
@@ -242,12 +269,12 @@ export default function ProfilePage() {
     }
   }
 
-  // ── Handle ($usuario) ─────────────────────────────────────────────────────
-  function handleSaveHandle() {
+  // ── Handle ($usuario) — guardado en Firestore (cross-device) ────────────────
+  async function handleSaveHandle() {
     const cleaned = handleInput.trim().replace(/[^a-z0-9_]/gi, "").toLowerCase()
     if (!cleaned) { toast.error("Handle inválido"); return }
     try {
-      localStorage.setItem("rt-handle", cleaned)
+      await updateSettings.mutateAsync({ handle: cleaned })
       setHandle(cleaned)
       setEditingHandle(false)
       toast.success(`Handle guardado: $${cleaned}`)
@@ -562,6 +589,13 @@ export default function ProfilePage() {
             <SectionHeader title="Mis estadísticas" description="Resumen del año actual" />
             <div className="p-4">
               <PersonalStats />
+            </div>
+          </SectionCard>
+
+          {/* ── Logros ── */}
+          <SectionCard>
+            <div className="p-4">
+              <AchievementsGrid input={achievementInput} />
             </div>
           </SectionCard>
         </div>

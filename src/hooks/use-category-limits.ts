@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect } from "react"
 import { useExpenses } from "./use-expenses"
 import { useCategories } from "./use-categories"
 import { useUserSettings } from "./use-user-settings"
@@ -18,7 +18,13 @@ export function useCategoryLimits() {
     sort: "date_desc",
   })
   const expenses = result?.expenses ?? []
-  const alerted = useRef<Set<string>>(new Set())
+  // Use sessionStorage so dedup persists across component remounts within the same session
+  function isAlerted(key: string): boolean {
+    try { return sessionStorage.getItem(`cat-limit:${key}`) === "1" } catch { return false }
+  }
+  function markAlerted(key: string) {
+    try { sessionStorage.setItem(`cat-limit:${key}`, "1") } catch {}
+  }
 
   useEffect(() => {
     const limits = settings?.categoryLimits ?? {}
@@ -37,14 +43,14 @@ export function useCategoryLimits() {
       const key100 = `limit:100:${catId}:${now.getFullYear()}-${now.getMonth()}`
       const key80 = `limit:80:${catId}:${now.getFullYear()}-${now.getMonth()}`
 
-      if (pct >= 1 && !alerted.current.has(key100)) {
-        alerted.current.add(key100)
+      if (pct >= 1 && !isAlerted(key100)) {
+        markAlerted(key100)
         toast.error(`Límite superado: ${name}`, {
           description: `Llevas ${formatCurrency(spent)} de ${formatCurrency(limit)} permitidos este mes`,
           duration: 8000,
         })
-      } else if (pct >= 0.8 && pct < 1 && !alerted.current.has(key80)) {
-        alerted.current.add(key80)
+      } else if (pct >= 0.8 && pct < 1 && !isAlerted(key80)) {
+        markAlerted(key80)
         toast.warning(`Cerca del límite: ${name}`, {
           description: `Has usado el ${Math.round(pct * 100)}% de tu límite (${formatCurrency(spent)} / ${formatCurrency(limit)})`,
           duration: 6000,

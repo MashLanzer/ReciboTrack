@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { exportToCSV, exportToPDF } from "./export-utils"
+import { useUpdateUserSettings } from "@/hooks/use-user-settings"
 import type { Expense, CategoryDoc } from "@/types"
 
 interface ExportDateRangeDialogProps {
@@ -52,6 +53,7 @@ function getPresetRange(key: PresetKey): { from: string; to: string } | { from: 
 }
 
 export function ExportDateRangeDialog({ open, onClose, expenses, categories }: ExportDateRangeDialogProps) {
+  const updateSettings = useUpdateUserSettings()
   const now = new Date()
   const [from, setFrom] = useState(fmtDate(startOfMonth(now), "yyyy-MM-dd"))
   const [to, setTo] = useState(fmtDate(endOfMonth(now), "yyyy-MM-dd"))
@@ -102,7 +104,7 @@ export function ExportDateRangeDialog({ open, onClose, expenses, categories }: E
     await exportToPDF(filtered, categories, {
       start: from ? new Date(from + "T00:00:00") : undefined,
       end: to ? new Date(to + "T23:59:59") : undefined,
-    })
+    }, () => { void updateSettings.mutate({ hasExportedPDF: true }) })
     toast.dismiss(tid)
     toast.success(`PDF exportado — ${filtered.length} gastos`)
     onClose()

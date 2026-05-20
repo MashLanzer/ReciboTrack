@@ -3,11 +3,12 @@
 import { useState } from "react"
 import { format, differenceInDays } from "date-fns"
 import { es } from "date-fns/locale"
-import { Plus, Trophy, Target, Clock, Users } from "lucide-react"
+import { Plus, Trophy, Target, Clock, Users, CheckCircle2, Loader2 } from "lucide-react"
 import {
   useGroupBets,
   useCreateBet,
   useJoinBet,
+  useResolveBet,
   type GroupBet,
 } from "@/hooks/use-group-bets"
 import { useAuth } from "@/hooks/use-auth"
@@ -33,16 +34,20 @@ function daysLeft(endsAt: { toDate(): Date }): number {
   return Math.max(0, differenceInDays(endsAt.toDate(), new Date()))
 }
 
-function BetCard({ bet, members, onJoin }: {
+function BetCard({ bet, members, onJoin, onResolve }: {
   bet: GroupBet
   members: GroupMember[]
   onJoin: (betId: string) => void
+  onResolve: (betId: string, winnerId: string, winnerName: string) => void
 }) {
   const { user } = useAuth()
   const uid = user?.uid ?? ""
   const isParticipant = bet.participants.includes(uid)
+  const isCreator = uid === bet.creatorId
   const creator = members.find((m) => m.uid === bet.creatorId)
   const remaining = daysLeft(bet.endsAt)
+  const [resolveOpen, setResolveOpen] = useState(false)
+  const [selectedWinnerId, setSelectedWinnerId] = useState("")
 
   const statusColor =
     bet.status === "resolved" ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20" :
@@ -124,7 +129,7 @@ function BetCard({ bet, members, onJoin }: {
       )}
 
       {/* Join button */}
-      {bet.status !== "resolved" && !isParticipant && uid !== bet.creatorId && (
+      {bet.status !== "resolved" && !isParticipant && !isCreator && (
         <Button
           size="sm"
           variant="outline"
@@ -134,6 +139,87 @@ function BetCard({ bet, members, onJoin }: {
           Unirse al reto
         </Button>
       )}
+
+      {/* Resolve button — creator only, for active/open bets */}
+      {bet.status !== "resolved" && isCreator && bet.participants.length >= 2 && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full text-xs h-8 gap-1.5 text-amber-600 border-amber-500/30 hover:bg-amber-500/10"
+          onClick={() => { setSelectedWinnerId(""); setResolveOpen(true) }}
+        >
+          <Trophy className="h-3.5 w-3.5" />
+          Declarar ganador
+        </Button>
+      )}
+
+      {/* Resolve dialog */}
+      {resolveOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setResolveOpen(false)}
+        >
+          <div
+            className="rounded-2xl bg-card border p-5 space-y-4 max-w-xs w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm font-semibold flex items-center gap-2">
+              <Trophy className="h-4 w-4 text-amber-500" />
+              ¿Quién ganó el reto?
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Selecciona al participante que mejor cumplió el objetivo.
+            </p>
+            <div className="space-y-2">
+              {bet.participants.map((pUid) => {
+                const member = members.find((m) => m.uid === pUid)
+                const name = member?.displayName ?? pUid
+                return (
+                  <button
+                    key={pUid}
+                    onClick={() => setSelectedWinnerId(pUid)}
+                    className={`w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-colors ${
+                      selectedWinnerId === pUid
+                        ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                        : "border-border hover:bg-muted/50"
+                    }`}
+                  >
+                    <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-xs font-bold shrink-0">
+                      {name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <span className="flex-1 text-left truncate font-medium">{name}</span>
+                    {selectedWinnerId === pUid && <CheckCircle2 className="h-4 w-4 shrink-0" />}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => setResolveOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1 gap-1.5 bg-amber-500 hover:bg-amber-600 text-white"
+                disabled={!selectedWinnerId}
+                onClick={() => {
+                  const winner = members.find((m) => m.uid === selectedWinnerId)
+                  if (!winner) return
+                  onResolve(bet.id, selectedWinnerId, winner.displayName ?? selectedWinnerId)
+                  setResolveOpen(false)
+                }}
+              >
+                <Trophy className="h-3.5 w-3.5" />
+                Confirmar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -141,8 +227,9 @@ function BetCard({ bet, members, onJoin }: {
 export function GroupBets({ groupId, members }: Props) {
   const { user } = useAuth()
   const { bets, isLoading } = useGroupBets(groupId)
-  const createBet = useCreateBet(groupId)
-  const joinBet   = useJoinBet(groupId)
+  const createBet  = useCreateBet(groupId)
+  const joinBet    = useJoinBet(groupId)
+  const resolveBet = useResolveBet(groupId)
   const { data: categories = [] } = useCategories()
   const [createOpen, setCreateOpen] = useState(false)
 
@@ -197,6 +284,23 @@ export function GroupBets({ groupId, members }: Props) {
     }
   }
 
+  async function handleResolve(betId: string, winnerId: string, winnerName: string) {
+    const bet = bets.find((b) => b.id === betId)
+    if (!bet) return
+    const participantList = members
+      .filter((m) => bet.participants.includes(m.uid))
+      .map((m) => ({ uid: m.uid, displayName: m.displayName ?? m.uid }))
+    // Use 0 as expense amount — winner is manually selected by creator
+    const memberExpenses: Record<string, number> = {}
+    bet.participants.forEach((uid) => { memberExpenses[uid] = uid === winnerId ? 0 : 1 })
+    try {
+      await resolveBet.mutateAsync({ betId, participants: participantList, memberExpenses })
+      toast.success(`🏆 ${winnerName} declarado ganador`)
+    } catch {
+      toast.error("Error al resolver el reto")
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -246,7 +350,7 @@ export function GroupBets({ groupId, members }: Props) {
         <div className="space-y-3">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Activos</p>
           {active.map((bet) => (
-            <BetCard key={bet.id} bet={bet} members={members} onJoin={handleJoin} />
+            <BetCard key={bet.id} bet={bet} members={members} onJoin={handleJoin} onResolve={handleResolve} />
           ))}
         </div>
       )}
@@ -256,7 +360,7 @@ export function GroupBets({ groupId, members }: Props) {
         <div className="space-y-3">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Abiertos</p>
           {open.map((bet) => (
-            <BetCard key={bet.id} bet={bet} members={members} onJoin={handleJoin} />
+            <BetCard key={bet.id} bet={bet} members={members} onJoin={handleJoin} onResolve={handleResolve} />
           ))}
         </div>
       )}
@@ -269,7 +373,7 @@ export function GroupBets({ groupId, members }: Props) {
             Resueltos
           </p>
           {resolved.map((bet) => (
-            <BetCard key={bet.id} bet={bet} members={members} onJoin={handleJoin} />
+            <BetCard key={bet.id} bet={bet} members={members} onJoin={handleJoin} onResolve={handleResolve} />
           ))}
         </div>
       )}

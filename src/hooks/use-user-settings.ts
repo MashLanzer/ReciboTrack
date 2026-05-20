@@ -26,8 +26,10 @@ export interface UserSettings {
   // Integraciones
   sheetsLastUrl:      string | null  // URL de la última hoja de cálculo exportada
   sheetsLastSyncedAt: string | null  // ISO timestamp de la última sincronización
-  webhookUrl:         string | null  // URL del webhook personal
-  webhookEvents:      string[]       // eventos que disparan el webhook: "new_expense" | "budget_alert"
+  // Nota: webhookUrl y webhookEvents se gestionan en use-webhook-settings (path: users/{uid})
+  handle:             string | null  // @handle personal del usuario (cross-device)
+  // Logros
+  hasExportedPDF:     boolean        // true cuando el usuario ha exportado al menos un PDF
 }
 
 const DEFAULTS: UserSettings = {
@@ -50,8 +52,8 @@ const DEFAULTS: UserSettings = {
   hiddenDefaultCategories: [],
   sheetsLastUrl:      null,
   sheetsLastSyncedAt: null,
-  webhookUrl:         null,
-  webhookEvents:      ["new_expense"],
+  handle:             null,
+  hasExportedPDF:     false,
 }
 
 function settingsRef(uid: string) {

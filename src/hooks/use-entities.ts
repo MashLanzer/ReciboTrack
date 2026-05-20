@@ -2,7 +2,7 @@
 
 import {
   collection, doc, getDocs, addDoc, updateDoc, deleteDoc,
-  query, orderBy, where, Timestamp, writeBatch, getFirestore,
+  query, orderBy, where, Timestamp, writeBatch, getFirestore, increment,
 } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getFirebaseDb } from "@/lib/firebase/client"
@@ -205,11 +205,11 @@ export function useLinkEntityToExpense() {
         createdAt: Timestamp.now(),
       })
 
-      // Update entity stats
+      // Update entity stats atomically — safe for concurrent writes
       const entityRef = doc(entitiesCol(user.uid), entityId)
       batch.update(entityRef, {
-        totalSpend:  (0 + amount),  // Will be recalculated on read
-        occurrences: 1,             // Firestore increment would be ideal
+        totalSpend:  increment(amount),
+        occurrences: increment(1),
       })
 
       await batch.commit()

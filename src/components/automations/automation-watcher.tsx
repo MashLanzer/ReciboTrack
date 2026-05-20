@@ -3,7 +3,10 @@
 import { useEffect, useRef } from "react"
 import { useAutomations } from "@/hooks/use-automations"
 import { useUserSettings } from "@/hooks/use-user-settings"
+import { useAuth } from "@/hooks/use-auth"
 import { fireWebhook } from "@/lib/webhook"
+import { doc, updateDoc, arrayUnion } from "firebase/firestore"
+import { getFirebaseDb } from "@/lib/firebase/client"
 import { toast } from "sonner"
 import type { Expense } from "@/types"
 
@@ -20,10 +23,11 @@ interface AutomationWatcherProps {
 export function AutomationWatcher({ latestExpense, monthTotal = 0 }: AutomationWatcherProps) {
   const { data: rules = [] } = useAutomations()
   const { data: settings } = useUserSettings()
+  const { user } = useAuth()
   const processedExpenseId = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!latestExpense) return
+    if (!latestExpense || !user) return
     if (processedExpenseId.current === latestExpense.id) return
     processedExpenseId.current = latestExpense.id
 
@@ -34,6 +38,7 @@ export function AutomationWatcher({ latestExpense, monthTotal = 0 }: AutomationW
         if (latestExpense.total > rule.triggerValue) {
           fireRuleAction(rule.action, rule.actionValue, {
             expense: latestExpense,
+            uid: user.uid,
             message: `Gasto de ${latestExpense.total.toFixed(2)} supera ${rule.triggerValue}`,
           })
         }
@@ -46,12 +51,13 @@ export function AutomationWatcher({ latestExpense, monthTotal = 0 }: AutomationW
         ) {
           fireRuleAction(rule.action, rule.actionValue, {
             expense: latestExpense,
+            uid: user.uid,
             message: `Gasto en "${rule.triggerCategory}" de ${latestExpense.total.toFixed(2)} supera ${rule.triggerValue}`,
           })
         }
       }
     }
-  }, [latestExpense, rules])
+  }, [latestExpense, rules, user])
 
   // Budget percentage watcher
   const lastBudgetPctFired = useRef<number | null>(null)
@@ -81,6 +87,7 @@ export function AutomationWatcher({ latestExpense, monthTotal = 0 }: AutomationW
 
 type FirePayload = {
   expense?: Expense
+  uid?: string
   message?: string
 }
 
@@ -113,12 +120,21 @@ function fireRuleAction(action: string, value: string, payload: FirePayload) {
       }
       break
 
-    case "tag":
-      // Tags are applied client-side — just toast a reminder
-      toast.info(`Etiqueta automática: ${value}`, {
-        description: payload.message,
-        duration: 4000,
-      })
+    case "tag": {
+      // Apply tag directly to the expense document in Firestore
+      const tag = value.trim().toLowerCase()
+      if (tag && payload.expense?.id && payload.uid) {
+        const expenseRef = doc(
+          getFirebaseDb(),
+          "users", payload.uid, "expenses", payload.expense.id
+        )
+        void updateDoc(expenseRef, { tags: arrayUnion(tag) })
+        toast.info(`Etiqueta "${tag}" añadida automáticamente`, {
+          description: payload.message,
+          duration: 4000,
+        })
+      }
       break
+    }
   }
 }

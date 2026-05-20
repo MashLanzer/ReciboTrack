@@ -31,6 +31,7 @@ import { exportToGoogleSheets, SheetsRedirectPending } from "@/lib/google-sheets
 import { SwipeableRow } from "@/components/shared/swipeable-row"
 import { useUIStore } from "@/stores/ui-store"
 import { AccountBadge } from "@/components/shared/account-switcher"
+import { useUserSettings, useUpdateUserSettings } from "@/hooks/use-user-settings"
 
 export function ExpenseList() {
   const router = useRouter()
@@ -83,20 +84,20 @@ export function ExpenseList() {
     } catch { /* ignore */ }
   }, [])
 
-  // ── Compact mode (Feature 9) ─────────────────────────────────────────────
+  // ── Compact mode — sincronizado con Firestore (compactView en UserSettings) ─
+  const { data: settings } = useUserSettings()
+  const updateSettings = useUpdateUserSettings()
   const [compactMode, setCompactMode] = useState(false)
+  // Sync initial value from Firestore settings (cross-device)
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("rbt_expense_compact")
-      if (saved === "true") setCompactMode(true)
-    } catch { /* ignore */ }
-  }, [])
+    if (settings?.compactView !== undefined) {
+      setCompactMode(settings.compactView)
+    }
+  }, [settings?.compactView])
   function toggleCompact() {
-    setCompactMode((prev) => {
-      const next = !prev
-      try { localStorage.setItem("rbt_expense_compact", String(next)) } catch { /* ignore */ }
-      return next
-    })
+    const next = !compactMode
+    setCompactMode(next)
+    void updateSettings.mutate({ compactView: next })
   }
 
   // ── Undo-delete tracking ────────────────────────────────────────────────────
@@ -976,7 +977,7 @@ export function ExpenseList() {
                 className="h-8 text-xs gap-1 bg-background/15 hover:bg-background/25 text-background border-0 shrink-0"
                 onClick={async () => {
                   const tid = toast.loading("Generando PDF...")
-                  await exportToPDF(selectedExpenses, categories, { start: startDate, end: endDate })
+                  await exportToPDF(selectedExpenses, categories, { start: startDate, end: endDate }, () => { void updateSettings.mutate({ hasExportedPDF: true }) })
                   toast.dismiss(tid)
                   toast.success("PDF descargado")
                 }}

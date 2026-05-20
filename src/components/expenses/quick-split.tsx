@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { Plus, X, Copy, Share, Link2, QrCode } from "lucide-react"
+import { Plus, X, Copy, Share, Link2, QrCode, Loader2 } from "lucide-react"
+import { authFetch } from "@/lib/client-fetch"
 
 interface Person {
   name: string
@@ -54,11 +55,18 @@ function QRModal({ url, label, onClose }: { url: string; label: string; onClose:
   )
 }
 
-function generatePayUrl(from: string, to: string, amount: number, concept: string, currency: string): string {
-  const data = { from, to, amount, concept, currency }
-  const token = btoa(JSON.stringify(data))
+/** Generate a cryptographically signed pay URL via the /api/pay-link server route */
+async function fetchSignedPayUrl(from: string, to: string, amount: number, concept: string, currency: string): Promise<string> {
+  try {
+    const res = await authFetch("/api/pay-link", { from, to, amount, concept, currency })
+    if (res.ok) {
+      const data = await res.json() as { url?: string }
+      if (data.url) return data.url
+    }
+  } catch { /* fall through */ }
+  // Fallback: plain btoa (unsigned) so the UI still works offline / if auth fails
   const base = typeof window !== "undefined" ? window.location.origin : ""
-  return `${base}/pay/${token}`
+  return `${base}/pay/${btoa(JSON.stringify({ from, to, amount, concept, currency }))}`
 }
 
 export function QuickSplit({ open, onClose, defaultUserName = "Yo", initialAmount, initialDescription }: Props) {
@@ -70,6 +78,9 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo", initialAmoun
   ])
   const [mode, setMode] = useState<"equal" | "custom">("equal")
   const [qrModal, setQrModal] = useState<{ url: string; label: string } | null>(null)
+  // Cache of signed pay URLs: key = `${debtor}-${amount}` → url
+  const [payUrls, setPayUrls] = useState<Record<string, string>>({})
+  const [generatingUrls, setGeneratingUrls] = useState(false)
 
   const totalNum = Math.round((parseFloat(total) || 0) * 100) / 100
   const activePeople = people.filter((p) => p.name.trim())
@@ -286,29 +297,56 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo", initialAmoun
             </Button>
           )}
 
-          {/* Payment links per debtor */}
+          {/* Payment links per debtor — signed via /api/pay-link */}
           {activePeople.length >= 2 && totalNum > 0 && payer && (
             <div className="border rounded-xl p-3 space-y-2 bg-muted/20">
-              <p className="text-xs font-medium flex items-center gap-1.5">
-                <Link2 className="h-3.5 w-3.5" />
-                Enlace de cobro por persona
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-medium flex items-center gap-1.5">
+                  <Link2 className="h-3.5 w-3.5" />
+                  Enlace de cobro por persona
+                </p>
+                {Object.keys(payUrls).length === 0 && (
+                  <button
+                    onClick={async () => {
+                      setGeneratingUrls(true)
+                      const urls: Record<string, string> = {}
+                      for (const d of debtors.filter((x) => x.name.trim())) {
+                        const amt = mode === "equal"
+                          ? equalShare
+                          : Math.round((parseFloat(people.find(p => p.name === d.name)?.customAmount ?? "0") || 0) * 100) / 100
+                        const key = `${d.name}-${amt}`
+                        urls[key] = await fetchSignedPayUrl(d.name, payer.name, amt, description, "USD")
+                      }
+                      setPayUrls(urls)
+                      setGeneratingUrls(false)
+                    }}
+                    disabled={generatingUrls}
+                    className="text-[10px] text-primary hover:underline flex items-center gap-1 disabled:opacity-50"
+                  >
+                    {generatingUrls ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                    {generatingUrls ? "Generando…" : "Generar links"}
+                  </button>
+                )}
+              </div>
               {debtors.filter(d => d.name.trim()).map((d, i) => {
                 const amount = mode === "equal"
                   ? equalShare
                   : Math.round((parseFloat(people.find(p => p.name === d.name)?.customAmount ?? "0") || 0) * 100) / 100
-                const url = generatePayUrl(d.name, payer.name, amount, description, "USD")
+                const key = `${d.name}-${amount}`
+                const url = payUrls[key]
 
                 const copyPayUrl = async () => {
-                  await navigator.clipboard.writeText(url)
+                  const u = url ?? await fetchSignedPayUrl(d.name, payer.name, amount, description, "USD")
+                  await navigator.clipboard.writeText(u)
                   toast.success(`Enlace de ${d.name} copiado`)
                 }
 
                 const sharePayUrl = async () => {
+                  const u = url ?? await fetchSignedPayUrl(d.name, payer.name, amount, description, "USD")
                   if (navigator.share) {
-                    await navigator.share({ title: `Pago de ${description || "gasto"}`, text: `${d.name} te debe ${amount.toFixed(2)}`, url })
+                    await navigator.share({ title: `Pago de ${description || "gasto"}`, text: `${d.name} te debe ${amount.toFixed(2)}`, url: u })
                   } else {
-                    await navigator.clipboard.writeText(url)
+                    await navigator.clipboard.writeText(u)
                     toast.success("Enlace copiado")
                   }
                 }
@@ -335,14 +373,16 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo", initialAmoun
                       <Share className="h-3 w-3" />
                       Compartir
                     </button>
-                    <button
-                      onClick={() => setQrModal({ url, label: d.name })}
-                      className="text-muted-foreground hover:text-foreground transition-colors shrink-0 flex items-center gap-1 text-[10px]"
-                      title="Ver QR"
-                    >
-                      <QrCode className="h-3 w-3" />
-                      QR
-                    </button>
+                    {url && (
+                      <button
+                        onClick={() => setQrModal({ url, label: d.name })}
+                        className="text-muted-foreground hover:text-foreground transition-colors shrink-0 flex items-center gap-1 text-[10px]"
+                        title="Ver QR"
+                      >
+                        <QrCode className="h-3 w-3" />
+                        QR
+                      </button>
+                    )}
                   </div>
                 )
               })}

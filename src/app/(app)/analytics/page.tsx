@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { TrendingUp, TrendingDown, Minus, Plus, Trash2, Target, AlertTriangle, Check, FileDown, Loader2, BarChart2, Landmark, FileText } from "lucide-react"
 import { exportMonthlyPDF } from "@/components/expenses/export-utils"
+import { useUpdateUserSettings } from "@/hooks/use-user-settings"
 import { ShareSummary } from "@/components/expenses/share-summary"
 import { FinancialHealth } from "@/components/analytics/financial-health"
 import { ErrorBoundary }  from "@/components/ui/error-boundary"
@@ -109,6 +110,7 @@ export default function AnalyticsPage() {
   }, [all6, activeAccount])
 
   const { data: categories = [] } = useCategories()
+  const updateSettings = useUpdateUserSettings()
   const { data: goals = [], isLoading: goalsLoading } = useGoals()
   const addGoal = useAddGoal()
   const updateProgress = useUpdateGoalProgress()
@@ -372,6 +374,7 @@ export default function AnalyticsPage() {
     try {
       await exportMonthlyPDF(selected, categories, selectedMonth, comparedTotal, {
         userName: user?.displayName ?? user?.email ?? undefined,
+        onSuccess: () => { void updateSettings.mutate({ hasExportedPDF: true }) },
       })
       toast.success("Reporte PDF descargado")
     } catch {
