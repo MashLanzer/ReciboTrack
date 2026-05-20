@@ -4,6 +4,7 @@ import { useState, useMemo } from "react"
 import {
   useTravelBudgets,
   useAddTravelBudget,
+  useUpdateTravelBudget,
   useDeleteTravelBudget,
 } from "@/hooks/use-travel-budgets"
 import { useExpenses } from "@/hooks/use-expenses"
@@ -32,6 +33,7 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  Pencil,
 } from "lucide-react"
 import { format, differenceInDays, isWithinInterval } from "date-fns"
 import { es } from "date-fns/locale"
@@ -80,6 +82,17 @@ function StatusBadge({ start, end }: { start: Date; end: Date }) {
 function TripCard({ budget, onDelete }: { budget: TravelBudget; onDelete: () => void }) {
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editForm, setEditForm] = useState({
+    name: budget.name,
+    emoji: budget.emoji,
+    totalLimit: String(budget.totalLimit),
+    currency: budget.currency,
+    startDate: budget.startDate.toDate().toISOString().split("T")[0],
+    endDate: budget.endDate.toDate().toISOString().split("T")[0],
+    tags: budget.tags.join(", "),
+  })
+  const update = useUpdateTravelBudget()
 
   const startDate = toDate(budget.startDate)
   const endDate = toDate(budget.endDate)
@@ -131,6 +144,32 @@ function TripCard({ budget, onDelete }: { budget: TravelBudget; onDelete: () => 
   function handleDelete() {
     if (!confirmDelete) { setConfirmDelete(true); return }
     onDelete()
+  }
+
+  async function handleSaveEdit() {
+    const limit = parseFloat(editForm.totalLimit)
+    if (!editForm.name.trim() || isNaN(limit) || limit <= 0) {
+      toast.error("Revisa nombre y presupuesto")
+      return
+    }
+    try {
+      await update.mutateAsync({
+        id: budget.id,
+        updates: {
+          name:       editForm.name.trim(),
+          emoji:      editForm.emoji,
+          totalLimit: limit,
+          currency:   editForm.currency,
+          startDate:  new Date(editForm.startDate),
+          endDate:    new Date(editForm.endDate),
+          tags:       editForm.tags ? editForm.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
+        },
+      })
+      toast.success("Viaje actualizado")
+      setEditOpen(false)
+    } catch {
+      toast.error("Error al guardar")
+    }
   }
 
   return (
@@ -201,6 +240,15 @@ function TripCard({ budget, onDelete }: { budget: TravelBudget; onDelete: () => 
         <Button
           variant="outline"
           size="sm"
+          className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
+          onClick={() => setEditOpen(true)}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+          Editar
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
           className={cn(
             "h-7 text-xs gap-1",
             confirmDelete ? "text-destructive border-destructive" : "text-muted-foreground hover:text-destructive"
@@ -211,6 +259,92 @@ function TripCard({ budget, onDelete }: { budget: TravelBudget; onDelete: () => 
           {confirmDelete ? "Confirmar" : "Eliminar"}
         </Button>
       </div>
+
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Editar viaje</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            {/* Emoji + name */}
+            <div className="flex gap-2">
+              <Select value={editForm.emoji} onValueChange={(v) => setEditForm(f => ({ ...f, emoji: v }))}>
+                <SelectTrigger className="w-16 shrink-0 text-xl px-2">
+                  <SelectValue>{editForm.emoji}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {TRAVEL_EMOJIS.map(e => (
+                    <SelectItem key={e} value={e}><span className="text-xl">{e}</span></SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                placeholder="Nombre del viaje"
+                value={editForm.name}
+                onChange={(e) => setEditForm(f => ({ ...f, name: e.target.value }))}
+                className="flex-1"
+              />
+            </div>
+            {/* Budget + currency */}
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                placeholder="Presupuesto"
+                value={editForm.totalLimit}
+                onChange={(e) => setEditForm(f => ({ ...f, totalLimit: e.target.value }))}
+                className="flex-1"
+              />
+              <Select value={editForm.currency} onValueChange={(v) => setEditForm(f => ({ ...f, currency: v }))}>
+                <SelectTrigger className="w-24 shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Dates */}
+            <div className="flex gap-2">
+              <div className="flex-1 space-y-1">
+                <Label className="text-xs">Inicio</Label>
+                <Input
+                  type="date"
+                  value={editForm.startDate}
+                  onChange={(e) => setEditForm(f => ({ ...f, startDate: e.target.value }))}
+                />
+              </div>
+              <div className="flex-1 space-y-1">
+                <Label className="text-xs">Fin</Label>
+                <Input
+                  type="date"
+                  value={editForm.endDate}
+                  onChange={(e) => setEditForm(f => ({ ...f, endDate: e.target.value }))}
+                />
+              </div>
+            </div>
+            {/* Tags */}
+            <div className="space-y-1">
+              <Label className="text-xs">Etiquetas (separadas por coma)</Label>
+              <Input
+                placeholder="vacaciones, playa, familia"
+                value={editForm.tags}
+                onChange={(e) => setEditForm(f => ({ ...f, tags: e.target.value }))}
+              />
+            </div>
+            <Button
+              className="w-full gap-2"
+              onClick={handleSaveEdit}
+              disabled={update.isPending}
+            >
+              {update.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Guardar cambios
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Expanded detail */}
       {expanded && (

@@ -4,6 +4,7 @@ import {
   collection, getDocs, addDoc, updateDoc, deleteDoc,
   doc, Timestamp, orderBy, query,
 } from "firebase/firestore"
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
@@ -49,6 +50,21 @@ export function useAddTravelBudget() {
         endDate:   Timestamp.fromDate(input.endDate),
         createdAt: Timestamp.now(),
       })
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["travelBudgets", user?.uid] }),
+  })
+}
+
+export function useUpdateTravelBudget() {
+  const { user } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<TravelBudgetInput> }) => {
+      if (!user) throw new Error("No autenticado")
+      const firestoreUpdates: Record<string, unknown> = { ...updates }
+      if (updates.startDate) firestoreUpdates.startDate = Timestamp.fromDate(updates.startDate)
+      if (updates.endDate)   firestoreUpdates.endDate   = Timestamp.fromDate(updates.endDate)
+      await updateDoc(doc(getFirebaseDb(), "users", user.uid, "travelBudgets", id), firestoreUpdates)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["travelBudgets", user?.uid] }),
   })

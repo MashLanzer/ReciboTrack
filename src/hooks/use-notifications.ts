@@ -6,6 +6,7 @@ import { useBudgets } from "./use-budgets"
 import { useExpensesForMonth } from "./use-expenses"
 import { useCategories } from "./use-categories"
 import { formatCurrency } from "@/lib/utils"
+import { isAlertSnoozed } from "@/lib/alert-snooze"
 
 // ─── Threshold levels ──────────────────────────────────────────────────────
 
@@ -17,7 +18,10 @@ const LEVELS: { level: AlertLevel; pct: number; label: string }[] = [
   { level: "100", pct: 100, label: "100%" },
 ]
 
-// ─── Dedup keys (stored in localStorage per budget × month × level) ────────
+// ─── Dedup keys (stored in sessionStorage per budget × month × level) ─────
+// sessionStorage resets on tab close → alerts reappear in a new session,
+// which is correct: the user should be re-notified each time they open the app
+// if the budget is still over the threshold in the same month.
 
 function sentKey(budgetId: string, level: AlertLevel): string {
   const now = new Date()
@@ -25,29 +29,16 @@ function sentKey(budgetId: string, level: AlertLevel): string {
 }
 
 function wasSent(key: string): boolean {
-  try { return localStorage.getItem(key) === "1" } catch { return false }
+  try { return sessionStorage.getItem(key) === "1" } catch { return false }
 }
 
 function markSent(key: string) {
-  try { localStorage.setItem(key, "1") } catch { /* ignore */ }
+  try { sessionStorage.setItem(key, "1") } catch { /* ignore */ }
 }
 
-// ─── Push notification ─────────────────────────────────────────────────────
-
-function firePush(title: string, body: string, tag: string) {
-  if (!("Notification" in window) || Notification.permission !== "granted") return
-  try {
-    new Notification(title, {
-      body,
-      icon: "/icon-192.png",
-      badge: "/icon-192.png",
-      tag,
-      silent: false,
-    })
-  } catch { /* some browsers block Notification() in certain contexts */ }
-}
-
-// ─── In-app toast fallback ─────────────────────────────────────────────────
+// ─── In-app toast ─────────────────────────────────────────────────────────
+// Note: push notifications for budgets are handled exclusively by BudgetAlertWatcher
+// to avoid duplicates. This hook only fires in-app toasts.
 
 function fireToast(level: AlertLevel, catName: string, spent: number, limit: number, currency: string) {
   const remaining = limit - spent
@@ -96,8 +87,11 @@ export function useBudgetNotifications() {
       const cat = categories.find((c) => c.id === budget.categoryId)
       const catName = cat?.name ?? budget.categoryId
 
+      // Respect snooze set by the user in SnoozeControls (A-3 fix)
+      if (isAlertSnoozed(`budget:${budget.categoryId}`)) continue
+
       // Check from highest threshold down so we only fire the most critical one per load
-      for (const { level, pct: threshold, label } of [...LEVELS].reverse()) {
+      for (const { level, pct: threshold } of [...LEVELS].reverse()) {
         if (pct < threshold) continue
 
         const key = sentKey(budget.id, level)
@@ -108,21 +102,7 @@ export function useBudgetNotifications() {
           if (lPct <= threshold) markSent(sentKey(budget.id, l))
         }
 
-        const remaining = budget.monthlyLimit - spent
-
-        // Push notification (if permission granted)
-        const pushTitle =
-          level === "100"
-            ? "⚠️ Presupuesto agotado"
-            : `💰 Presupuesto al ${label}`
-        const pushBody =
-          level === "100"
-            ? `Has superado el presupuesto en "${catName}". Gastado: ${formatCurrency(spent, budget.currency)}`
-            : `Llevas el ${Math.round(pct)}% en "${catName}". Quedan ${formatCurrency(remaining, budget.currency)}.`
-
-        firePush(pushTitle, pushBody, key)
-
-        // In-app toast (always shown, no permission needed)
+        // In-app toast only — push notifications handled by BudgetAlertWatcher
         fireToast(level, catName, spent, budget.monthlyLimit, budget.currency)
 
         break // only fire the highest matching level
