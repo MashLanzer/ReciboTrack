@@ -103,7 +103,8 @@ export function FinancialHealth() {
 
     // 2. Control de presupuesto (25 pts): meses por debajo del promedio histórico
     const historicalAvg = monthTotals.reduce((a, b) => a + b, 0) / Math.max(monthTotals.filter(t => t > 0).length, 1)
-    const monthsBelowAvg = monthTotals.filter((t, i) => i > 0 && t > 0 && t <= monthTotals[0]).length
+    // Compare each past month (i > 0) against the historical average — not against the current month
+    const monthsBelowAvg = monthTotals.filter((t, i) => i > 0 && t > 0 && t <= historicalAvg).length
     const budgetPts = historicalAvg > 0 ? Math.round((monthsBelowAvg / 2) * 25) : 0
 
     // 3. Sin anomalías (20 pts): sin categorías que superaron 2x su media

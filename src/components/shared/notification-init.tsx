@@ -2,11 +2,14 @@
 
 import { useEffect } from "react"
 import { useBudgetNotifications, requestNotificationPermission } from "@/hooks/use-notifications"
-import { useAnomalyDetector } from "@/hooks/use-anomaly-detector"
+
+// NOTE: useAnomalyDetector is intentionally NOT called here.
+// The layout already mounts <AnomalyDetector /> which runs that hook.
+// Calling it a second time here would create duplicate sessionStorage keys
+// and fire two separate useEffect evaluations on the same data.
 
 export function NotificationInit() {
   useBudgetNotifications()
-  useAnomalyDetector()
 
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {

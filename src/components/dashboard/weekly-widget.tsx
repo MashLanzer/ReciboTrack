@@ -4,7 +4,7 @@ import { useMemo } from "react"
 import { useExpenses } from "@/hooks/use-expenses"
 import { useUIStore } from "@/stores/ui-store"
 import { formatCurrency } from "@/lib/utils"
-import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, parseISO, format } from "date-fns"
+import { startOfWeek, endOfWeek, subWeeks, isWithinInterval, format } from "date-fns"
 import { es } from "date-fns/locale"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -27,7 +27,7 @@ export function WeeklyWidget() {
 
   const expenses = result?.expenses ?? []
 
-  const { thisWeek, lastWeek, delta, deltaLabel, dayBars } = useMemo(() => {
+  const { thisWeek, lastWeek, delta, deltaLabel, dayBars, maxBar } = useMemo(() => {
     const thisWeek = expenses
       .filter((e) => isWithinInterval(e.date.toDate(), { start: thisWeekStart, end: thisWeekEnd }))
       .reduce((s, e) => s + e.total, 0)
@@ -65,8 +65,6 @@ export function WeeklyWidget() {
     const maxBar = Math.max(...dayBars.map((d) => d.total), 1)
     return { thisWeek, lastWeek, delta, deltaLabel, dayBars, maxBar }
   }, [expenses, thisWeekStart, thisWeekEnd, lastWeekStart, lastWeekEnd, now])
-
-  const maxBar = Math.max(...dayBars.map((d) => d.total), 1)
 
   return (
     <div className="rounded-2xl border bg-card px-4 py-4 space-y-3">

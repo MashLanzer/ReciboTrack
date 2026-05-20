@@ -186,7 +186,7 @@ function SankeyDiagram({
   const [hovered, setHovered] = useState<SankeyLink | null>(null)
 
   return (
-    <div className="relative">
+    <div className="relative overflow-hidden">
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
         {/* Links */}
         {links.map((link, i) => {
@@ -242,8 +242,8 @@ function SankeyDiagram({
 
       {/* Hover tooltip */}
       {hovered && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-popover border rounded-lg shadow-lg px-3 py-2 text-xs pointer-events-none z-10">
-          <p className="font-semibold">{hovered.source.label} → {hovered.target.label}</p>
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 max-w-[calc(100%-1rem)] w-max bg-popover border rounded-lg shadow-lg px-3 py-2 text-xs pointer-events-none z-10">
+          <p className="font-semibold truncate">{hovered.source.label} → {hovered.target.label}</p>
           <p className="text-muted-foreground tabular-nums mt-0.5">{formatCurrency(hovered.value)}</p>
         </div>
       )}
