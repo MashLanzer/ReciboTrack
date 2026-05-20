@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useEffect } from "react"
+import { useMemo } from "react"
 import Link from "next/link"
 import {
   isToday, isYesterday, format,
@@ -11,13 +11,12 @@ import { Pencil, ArrowRight, Receipt, Bookmark, BookmarkCheck, List, Sparkles } 
 import { useExpensesPeriod, useFlagExpense } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
 import { useUIStore } from "@/stores/ui-store"
+import { useUIPrefs } from "@/hooks/use-ui-prefs"
 import { formatCurrency, cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import { rankExpenses, type ScoredExpense } from "@/lib/smart-feed"
 import type { Expense } from "@/types"
 import { toast } from "sonner"
-
-type FeedMode = "recent" | "smart"
 
 function expDate(e: Expense): Date {
   return (e.date as { toDate(): Date }).toDate()
@@ -62,38 +61,6 @@ function groupByDay(expenses: Expense[]): DayGroup[] {
   return Array.from(map.values()).slice(0, 5) // last 5 days
 }
 
-// ── Feed mode / filter persistence ───────────────────────────────────────────
-
-function useFeedMode(): [FeedMode, (m: FeedMode) => void] {
-  const [mode, setModeState] = useState<FeedMode>("recent")
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("rbt_feed_mode") as FeedMode | null
-      if (saved === "smart" || saved === "recent") setModeState(saved)
-    } catch { /* ignore */ }
-  }, [])
-  function setMode(m: FeedMode) {
-    setModeState(m)
-    try { localStorage.setItem("rbt_feed_mode", m) } catch { /* ignore */ }
-  }
-  return [mode, setMode]
-}
-
-function useFeedFilter(defaultVal = "todos"): [string, (v: string) => void] {
-  const [filter, setFilterState] = useState(defaultVal)
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("rbt_feed_filter")
-      if (saved) setFilterState(saved)
-    } catch { /* ignore */ }
-  }, [])
-  function setFilter(v: string) {
-    setFilterState(v)
-    try { localStorage.setItem("rbt_feed_filter", v) } catch { /* ignore */ }
-  }
-  return [filter, setFilter]
-}
-
 export function ActivityFeed() {
   const now = useMemo(() => new Date(), [])
   const start14 = useMemo(() => subDays(startOfDay(now), 13), [now])
@@ -101,8 +68,9 @@ export function ActivityFeed() {
   const { data: categories = [] } = useCategories()
   const { setEditExpense, activeAccount } = useUIStore()
   const flagExpense = useFlagExpense()
-  const [feedMode, setFeedMode] = useFeedMode()
-  const [selectedCategory, setSelectedCategory] = useFeedFilter("todos")
+  const { prefs, setPref } = useUIPrefs()
+  const feedMode = prefs.feedMode
+  const selectedCategory = prefs.feedFilter
 
   const filtered = useMemo(() =>
     expenses.filter(e =>
@@ -237,7 +205,7 @@ export function ActivityFeed() {
         {/* Feed mode toggle */}
         <div className="flex items-center gap-0.5 p-0.5 rounded-lg border bg-muted/50 text-xs w-fit">
           <button
-            onClick={() => setFeedMode("recent")}
+            onClick={() => setPref("feedMode", "recent")}
             className={cn(
               "flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-colors",
               feedMode === "recent"
@@ -250,7 +218,7 @@ export function ActivityFeed() {
             <span>Recientes</span>
           </button>
           <button
-            onClick={() => setFeedMode("smart")}
+            onClick={() => setPref("feedMode", "smart")}
             className={cn(
               "flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-colors",
               feedMode === "smart"
@@ -269,7 +237,7 @@ export function ActivityFeed() {
       {recentCategories.length > 1 && (
         <div className="flex items-center gap-1.5 px-4 py-2 overflow-x-auto scrollbar-none border-b border-border/40">
           <button
-            onClick={() => setSelectedCategory("todos")}
+            onClick={() => setPref("feedFilter", "todos")}
             className={cn(
               "shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors",
               selectedCategory === "todos"
@@ -282,7 +250,7 @@ export function ActivityFeed() {
           {recentCategories.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
+              onClick={() => setPref("feedFilter", cat.id)}
               className={cn(
                 "shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors flex items-center gap-1",
                 selectedCategory === cat.id

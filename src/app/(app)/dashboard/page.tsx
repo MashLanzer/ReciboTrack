@@ -27,6 +27,7 @@ import { TodayWidget }        from "@/components/dashboard/today-widget"
 import { CollapsibleContent, CollapsibleChevron } from "@/components/ui/collapsible"
 import { useUIStore }         from "@/stores/ui-store"
 import { useAuth }            from "@/hooks/use-auth"
+import { useUIPrefs }         from "@/hooks/use-ui-prefs"
 import { cn }                 from "@/lib/utils"
 
 // ─── Greeting ─────────────────────────────────────────────────────────────────
@@ -78,21 +79,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-function useDashMode(): ["normal" | "quick", (m: "normal" | "quick") => void] {
-  const [mode, setModeState] = useState<"normal" | "quick">("normal")
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("rbt_dash_mode")
-      if (saved === "normal" || saved === "quick") setModeState(saved)
-    } catch { /* ignore */ }
-  }, [])
-  function setMode(m: "normal" | "quick") {
-    setModeState(m)
-    try { localStorage.setItem("rbt_dash_mode", m) } catch { /* ignore */ }
-  }
-  return [mode, setMode]
-}
-
 export default function DashboardPage() {
   const { user } = useAuth()
   const { setScannerOpen, setQuickAddOpen, setCommandOpen, activeAccount } = useUIStore()
@@ -100,7 +86,9 @@ export default function DashboardPage() {
   const [showAnalytics, setShowAnalytics] = useState(false)
   const [showRecap, setShowRecap] = useState(false)
   const [showMemories, setShowMemories] = useState(false)
-  const [dashMode, setDashMode] = useDashMode()
+  const { prefs, setPref } = useUIPrefs()
+  const dashMode = prefs.dashMode
+  const setDashMode = (m: "normal" | "quick") => setPref("dashMode", m)
   const dateLabel = useMemo(() => format(new Date(), "EEEE d 'de' MMMM", { locale: es }), [])
 
   // #10 — Invalidar queries al cambiar de cuenta personal/negocio

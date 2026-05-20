@@ -11,8 +11,7 @@ import { Skeleton }              from "@/components/ui/skeleton"
 import { ViewToggle, type ViewMode } from "@/components/expenses/view-toggle"
 import { ShareSummary }          from "@/components/expenses/share-summary"
 import { ImportStatementButton } from "@/components/expenses/import-statement-button"
-
-const STORAGE_KEY = "rbt_expenses_view"
+import { useUIPrefs }            from "@/hooks/use-ui-prefs"
 
 function isViewMode(v: unknown): v is ViewMode {
   return v === "list" || v === "cal" || v === "threads" || v === "grid"
@@ -73,19 +72,11 @@ function ViewPanel({ view }: { view: ViewMode }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ExpensesPage() {
-  const [view, setViewState] = useState<ViewMode>("list")
-
-  // Restore persisted view on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (isViewMode(saved)) setViewState(saved)
-    } catch { /* ignore */ }
-  }, [])
+  const { prefs, setPref } = useUIPrefs()
+  const view: ViewMode = isViewMode(prefs.expensesView) ? prefs.expensesView : "list"
 
   function setView(v: ViewMode) {
-    setViewState(v)
-    try { localStorage.setItem(STORAGE_KEY, v) } catch { /* ignore */ }
+    setPref("expensesView", v)
   }
 
   return (

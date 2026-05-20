@@ -32,6 +32,7 @@ import { SwipeableRow } from "@/components/shared/swipeable-row"
 import { useUIStore } from "@/stores/ui-store"
 import { AccountBadge } from "@/components/shared/account-switcher"
 import { useUserSettings, useUpdateUserSettings } from "@/hooks/use-user-settings"
+import { useUIPrefs } from "@/hooks/use-ui-prefs"
 
 export function ExpenseList() {
   const router = useRouter()
@@ -223,16 +224,18 @@ export function ExpenseList() {
     if (activeFilterCount > 0) setFiltersOpen(true)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // #13 — Restore sort from localStorage when not present in URL
+  // ── Restore sort from Firestore uiPrefs when not present in URL ────────────
+  const { prefs: uiPrefs, setPref: setUIPref } = useUIPrefs()
   useEffect(() => {
     if (!searchParams.get("sort")) {
-      const saved = localStorage.getItem("rt-expense-sort") as ExpenseSort | null
+      const saved = uiPrefs.expenseSort as ExpenseSort
       const valid: ExpenseSort[] = ["date_desc", "date_asc", "amount_desc", "amount_asc", "merchant_asc", "merchant_desc", "category_asc"]
       if (saved && valid.includes(saved) && saved !== "date_desc") {
         setParams({ sort: saved })
       }
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uiPrefs.expenseSort])
 
   // ── Bulk selection helpers ────────────────────────────────────────────────
   function toggleSelect(id: string) {
@@ -582,7 +585,7 @@ export function ExpenseList() {
           <Select
             value={sort}
             onValueChange={(v) => {
-              localStorage.setItem("rt-expense-sort", v)  // #13 — persist
+              setUIPref("expenseSort", v)   // C-1: persist en Firestore (cross-device)
               setParams({ sort: v === "date_desc" ? null : v })
             }}
           >
