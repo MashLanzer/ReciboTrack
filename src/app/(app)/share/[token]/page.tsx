@@ -4,10 +4,9 @@ import { useMemo } from "react"
 import { useParams } from "next/navigation"
 import { decodeShareToken } from "@/lib/share-token"
 import { useQuery } from "@tanstack/react-query"
-import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { Timestamp } from "firebase/firestore"
 import { formatCurrency } from "@/lib/utils"
-import { format, startOfMonth, endOfMonth } from "date-fns"
+import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import type { Expense } from "@/types"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -15,25 +14,21 @@ import { AlertTriangle, BarChart3, Receipt } from "lucide-react"
 
 // ─── Data fetching ─────────────────────────────────────────────────────────────
 
-function useSharedExpenses(uid: string | null, period: string | null) {
+function useSharedExpenses(token: string | null) {
   return useQuery({
-    queryKey: ["shared-expenses", uid, period],
-    enabled: !!uid && !!period,
+    queryKey: ["shared-expenses", token],
+    enabled: !!token,
     queryFn: async () => {
-      if (!uid || !period) return []
-      const [year, month] = period.split("-").map(Number)
-      if (!year || !month) return []
-      const start = startOfMonth(new Date(year, month - 1))
-      const end = endOfMonth(new Date(year, month - 1))
-      const col = collection(getFirebaseDb(), "users", uid, "expenses")
-      const q = query(
-        col,
-        where("date", ">=", Timestamp.fromDate(start)),
-        where("date", "<=", Timestamp.fromDate(end)),
-        orderBy("date", "desc")
-      )
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
+      if (!token) return []
+      const res = await fetch(`/api/share/${encodeURIComponent(token)}`)
+      if (!res.ok) return []
+      const rows = await res.json() as Record<string, unknown>[]
+      return rows.map(e => ({
+        ...e,
+        date: e.date && typeof (e.date as { seconds?: number }).seconds === "number"
+          ? new Timestamp((e.date as { seconds: number }).seconds, 0)
+          : Timestamp.now(),
+      })) as unknown as Expense[]
     },
   })
 }
@@ -45,10 +40,7 @@ export default function SharePortalPage() {
   const token = Array.isArray(params.token) ? params.token[0] : (params.token ?? "")
 
   const payload = useMemo(() => decodeShareToken(token), [token])
-  const { data: expenses = [], isLoading } = useSharedExpenses(
-    payload?.uid ?? null,
-    payload?.period ?? null
-  )
+  const { data: expenses = [], isLoading } = useSharedExpenses(token || null)
 
   if (!payload) {
     return (

@@ -12,9 +12,8 @@ import {
 import { useAddExpense } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
 import { useQuery } from "@tanstack/react-query"
-import { collection, query as fbQuery, orderBy, limit, getDocs } from "firebase/firestore"
 import { SubscriptionDetector } from "@/components/expenses/subscription-detector"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -1033,13 +1032,16 @@ function useRecurringHistory(merchant: string, enabled: boolean) {
     staleTime: 1000 * 60 * 5,
     queryFn: async () => {
       if (!user) return []
-      const col = collection(getFirebaseDb(), "users", user.uid, "expenses")
       // Fetch last 50 and filter client-side (case-insensitive)
-      const q = fbQuery(col, orderBy("date", "desc"), limit(50))
-      const snap = await getDocs(q)
+      const res = await apiFetch("/api/expenses?limit=50")
+      if (!res.ok) return []
+      const { expenses } = await res.json() as { expenses: Record<string, unknown>[] }
       const normalized = merchant.toLowerCase()
-      return snap.docs
-        .map((d) => ({ id: d.id, ...d.data() } as Expense))
+      return expenses
+        .map(e => ({
+          ...e,
+          date: Timestamp.fromDate(new Date(e.date as string)),
+        }) as unknown as Expense)
         .filter((e) => e.merchant.toLowerCase() === normalized)
         .slice(0, 12) // Keep last 12 payments
     },

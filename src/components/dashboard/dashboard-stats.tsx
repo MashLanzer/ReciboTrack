@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { Timestamp } from "firebase/firestore"
+import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "@/hooks/use-auth"
 import { useCategories } from "@/hooks/use-categories"
 import { useRecurring } from "@/hooks/use-recurring"
@@ -75,10 +75,13 @@ function use12MonthExpenses() {
     queryFn: async () => {
       if (!user) return []
       const start = startOfMonth(subMonths(new Date(), 11))
-      const col = collection(getFirebaseDb(), "users", user.uid, "expenses")
-      const q = query(col, where("date", ">=", Timestamp.fromDate(start)), orderBy("date", "desc"))
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
+      const res = await apiFetch(`/api/expenses?startDate=${start.toISOString()}&all=true`)
+      if (!res.ok) return []
+      const { expenses } = await res.json() as { expenses: Record<string, unknown>[] }
+      return expenses.map(e => ({
+        ...e,
+        date: Timestamp.fromDate(new Date(e.date as string)),
+      })) as unknown as Expense[]
     },
   })
 }
@@ -91,15 +94,13 @@ function usePrevMonthExpenses() {
     queryFn: async () => {
       if (!user) return []
       const { start, end } = getPreviousMonthRange()
-      const col = collection(getFirebaseDb(), "users", user.uid, "expenses")
-      const q = query(
-        col,
-        where("date", ">=", Timestamp.fromDate(start)),
-        where("date", "<=", Timestamp.fromDate(end)),
-        orderBy("date", "desc")
-      )
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
+      const res = await apiFetch(`/api/expenses?startDate=${start.toISOString()}&endDate=${end.toISOString()}&all=true`)
+      if (!res.ok) return []
+      const { expenses } = await res.json() as { expenses: Record<string, unknown>[] }
+      return expenses.map(e => ({
+        ...e,
+        date: Timestamp.fromDate(new Date(e.date as string)),
+      })) as unknown as Expense[]
     },
   })
 }

@@ -4,12 +4,7 @@ import { useExpensesPeriod } from "./use-expenses"
 import { useAuth } from "./use-auth"
 import { useMemo } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import {
-  writeBatch,
-  doc,
-  Timestamp,
-} from "firebase/firestore"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { apiFetch } from "@/lib/api-client"
 import { startOfMonth, endOfMonth, subMonths } from "date-fns"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -93,7 +88,7 @@ export function useProjects() {
   return { projects, projectNames, expenses }
 }
 
-// ─── Rename project (batch-updates all matching expenses) ─────────────────────
+// ─── Rename project (updates all matching expenses via API) ───────────────────
 
 export function useRenameProject() {
   const { user } = useAuth()
@@ -109,15 +104,19 @@ export function useRenameProject() {
     }) => {
       if (!user) throw new Error("No autenticado")
       if (!newName.trim()) throw new Error("El nombre no puede estar vacío")
-      const db = getFirebaseDb()
-      const CHUNK = 499 // Firestore batch limit
-      for (let i = 0; i < expenseIds.length; i += CHUNK) {
-        const batch = writeBatch(db)
-        expenseIds.slice(i, i + CHUNK).forEach((id) => {
-          const ref = doc(db, "users", user.uid, "expenses", id)
-          batch.update(ref, { project: newName.trim(), updatedAt: Timestamp.now() })
-        })
-        await batch.commit()
+
+      // PATCH en paralelo; para lotes grandes limita la concurrencia a 20 por ronda
+      const CONCURRENCY = 20
+      const trimmed = newName.trim()
+      for (let i = 0; i < expenseIds.length; i += CONCURRENCY) {
+        await Promise.all(
+          expenseIds.slice(i, i + CONCURRENCY).map((id) =>
+            apiFetch(`/api/expenses/${id}`, {
+              method: "PATCH",
+              body: JSON.stringify({ project: trimmed }),
+            })
+          )
+        )
       }
     },
     onSuccess: () => {

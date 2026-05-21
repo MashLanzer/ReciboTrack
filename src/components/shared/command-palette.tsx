@@ -8,8 +8,8 @@ import { useAuth } from "@/hooks/use-auth"
 import { useCategories } from "@/hooks/use-categories"
 import { useTheme } from "next-themes"
 import { useQuery } from "@tanstack/react-query"
-import { collection, query, orderBy, limit, getDocs } from "firebase/firestore"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { Timestamp } from "firebase/firestore"
+import { apiFetch } from "@/lib/api-client"
 import { formatCurrency, toDate } from "@/lib/utils"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -36,10 +36,13 @@ function useSearchExpenses(enabled: boolean) {
     staleTime: 1000 * 60 * 5,
     queryFn: async () => {
       if (!user) return []
-      const col = collection(getFirebaseDb(), "users", user.uid, "expenses")
-      const q = query(col, orderBy("date", "desc"), limit(150))
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
+      const res = await apiFetch("/api/expenses?limit=150")
+      if (!res.ok) return []
+      const { expenses } = await res.json() as { expenses: Record<string, unknown>[] }
+      return expenses.map(e => ({
+        ...e,
+        date: Timestamp.fromDate(new Date(e.date as string)),
+      })) as unknown as Expense[]
     },
   })
 }

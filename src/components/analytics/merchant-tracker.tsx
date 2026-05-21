@@ -2,8 +2,8 @@
 
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { Timestamp } from "firebase/firestore"
+import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "@/hooks/use-auth"
 import { useUIStore } from "@/stores/ui-store"
 import { formatCurrency } from "@/lib/utils"
@@ -30,10 +30,13 @@ function use3MonthExpenses() {
     queryFn: async () => {
       if (!user) return []
       const start = startOfMonth(subMonths(new Date(), 2))
-      const col = collection(getFirebaseDb(), "users", user.uid, "expenses")
-      const q = query(col, where("date", ">=", Timestamp.fromDate(start)), orderBy("date", "asc"))
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
+      const res = await apiFetch(`/api/expenses?startDate=${start.toISOString()}&all=true&sort=date_asc`)
+      if (!res.ok) return []
+      const { expenses } = await res.json() as { expenses: Record<string, unknown>[] }
+      return expenses.map(e => ({
+        ...e,
+        date: Timestamp.fromDate(new Date(e.date as string)),
+      })) as unknown as Expense[]
     },
   })
 }

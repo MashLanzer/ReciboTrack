@@ -7,8 +7,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useExpensesForMonth } from "@/hooks/use-expenses"
 import { useRecurring } from "@/hooks/use-recurring"
 import { fireWebhook } from "@/lib/webhook"
-import { doc, updateDoc, arrayUnion } from "firebase/firestore"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { apiFetch } from "@/lib/api-client"
 import { differenceInDays } from "date-fns"
 import { toast } from "sonner"
 import type { Expense } from "@/types"
@@ -187,11 +186,12 @@ function fireRuleAction(action: string, value: string, payload: FirePayload) {
     case "tag": {
       const tag = value.trim().toLowerCase()
       if (tag && payload.expense?.id && payload.uid) {
-        const expenseRef = doc(
-          getFirebaseDb(),
-          "users", payload.uid, "expenses", payload.expense.id,
-        )
-        void updateDoc(expenseRef, { tags: arrayUnion(tag) })
+        const currentTags = payload.expense.tags ?? []
+        const newTags = [...new Set([...currentTags, tag])]
+        void apiFetch(`/api/expenses/${payload.expense.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ tags: newTags }),
+        })
         toast.info(`Etiqueta "${tag}" añadida automáticamente`, {
           description: payload.message,
           duration: 4000,

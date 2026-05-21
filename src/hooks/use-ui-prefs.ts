@@ -1,21 +1,17 @@
 "use client"
 
 /**
- * useUIPrefs — preferencias de interfaz sincronizadas en Firestore
- *
- * Las preferencias se leen de users/{uid}.uiPrefs y se escriben ahí con
- * dot-notation para evitar sobreescribir otros campos del documento.
+ * useUIPrefs — preferencias de interfaz sincronizadas en Supabase (profiles.ui_prefs)
  *
  * Estrategia:
  *  - Estado local inmediato (sin lag de red) para cada cambio de preferencia
- *  - Escritura a Firestore en segundo plano; falla en silencio si hay sin conexión
+ *  - Escritura a /api/profile en segundo plano; falla en silencio si hay sin conexión
  *  - Migración automática desde localStorage la primera vez que se carga
  *  - Mientras no está autenticado, actúa solo con estado local (degradación elegante)
  */
 
 import { useCallback, useEffect, useState } from "react"
-import { doc, getDoc, updateDoc } from "firebase/firestore"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "./use-auth"
 
 // ── Tipo de preferencias ──────────────────────────────────────────────────────
@@ -57,7 +53,7 @@ function notifyListeners() {
 /**
  * Hook de preferencias de UI.
  * Retorna `{ prefs, setPref, loaded }`.
- * - `loaded` es false hasta que se ha leído Firestore (evita flash de valor por defecto)
+ * - `loaded` es false hasta que se ha leído Supabase (evita flash de valor por defecto)
  * - `setPref(key, value)` actualiza el estado local de inmediato y sincroniza en background
  */
 export function useUIPrefs() {
@@ -72,20 +68,22 @@ export function useUIPrefs() {
     return () => { listeners.delete(update) }
   }, [])
 
-  // Cargar desde Firestore al autenticar
+  // Cargar desde Supabase (vía /api/profile) al autenticar
   useEffect(() => {
     if (!user?.uid) return
     let cancelled = false
 
     async function load() {
-      const ref = doc(getFirebaseDb(), "users", user!.uid)
-      const snap = await getDoc(ref)
+      const res = await apiFetch("/api/profile")
       if (cancelled) return
 
-      const data = snap.data() ?? {}
-      const stored: Partial<UIPrefs> = data.uiPrefs ?? {}
+      let stored: Partial<UIPrefs> = {}
+      if (res.ok) {
+        const data = await res.json() as Record<string, unknown> | null
+        stored = (data?.ui_prefs as Partial<UIPrefs>) ?? {}
+      }
 
-      // Migrar desde localStorage solo si el campo no existe aún en Firestore
+      // Migrar desde localStorage solo si el campo no existe aún en Supabase
       const migrated: Partial<UIPrefs> = {}
       let hasMigration = false
 
@@ -105,8 +103,11 @@ export function useUIPrefs() {
       const merged: UIPrefs = { ...DEFAULTS, ...stored, ...migrated }
 
       if (hasMigration) {
-        // Persistir los valores migrados en Firestore sin bloquear la UI
-        void updateDoc(ref, { uiPrefs: merged }).catch(() => {/* offline */})
+        // Persistir los valores migrados en Supabase sin bloquear la UI
+        void apiFetch("/api/profile", {
+          method: "PATCH",
+          body: JSON.stringify({ uiPrefs: merged }),
+        }).catch(() => {/* offline */})
       }
 
       if (!cancelled) {
@@ -126,9 +127,11 @@ export function useUIPrefs() {
     notifyListeners()
 
     if (!user?.uid) return
-    const ref = doc(getFirebaseDb(), "users", user.uid)
-    // Dot-notation update — solo toca ese campo, no sobreescribe el resto del documento
-    void updateDoc(ref, { [`uiPrefs.${key}`]: value }).catch(() => {/* offline */})
+    // Mandamos el objeto completo porque /api/profile PATCH hace update de la columna entera
+    void apiFetch("/api/profile", {
+      method: "PATCH",
+      body: JSON.stringify({ uiPrefs: globalPrefs }),
+    }).catch(() => {/* offline */})
   }, [user?.uid])
 
   return { prefs, setPref, loaded }

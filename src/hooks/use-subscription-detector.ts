@@ -1,9 +1,9 @@
 "use client"
 
 import { useMemo } from "react"
+import { Timestamp } from "firebase/firestore"
 import { useQuery } from "@tanstack/react-query"
-import { collection, query, orderBy, limit, getDocs } from "firebase/firestore"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "./use-auth"
 import { useRecurring } from "./use-recurring"
 import type { Expense, RecurringFrequency } from "@/types"
@@ -69,10 +69,14 @@ function useRecentExpenses() {
     staleTime: 1000 * 60 * 10, // 10 min cache
     queryFn: async () => {
       if (!user) return []
-      const col = collection(getFirebaseDb(), "users", user.uid, "expenses")
-      const q = query(col, orderBy("date", "desc"), limit(300))
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
+      // limit=300 sin all=true → pagina con tamaño 300 desde página 1
+      const res = await apiFetch("/api/expenses?limit=300")
+      if (!res.ok) return []
+      const { expenses } = await res.json() as { expenses: Record<string, unknown>[] }
+      return expenses.map(e => ({
+        ...e,
+        date: Timestamp.fromDate(new Date(e.date as string)),
+      })) as unknown as Expense[]
     },
   })
 }

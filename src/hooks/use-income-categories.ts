@@ -1,18 +1,8 @@
 "use client"
 
-import {
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  Timestamp,
-  orderBy,
-  query,
-} from "firebase/firestore"
+import { Timestamp } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "./use-auth"
 
 export interface IncomeCategory {
@@ -41,8 +31,16 @@ export const DEFAULT_INCOME_CATEGORIES: Omit<IncomeCategory, "id" | "createdAt">
   { name: "Otro",        emoji: "📦", color: "#6b7280" },
 ]
 
-function incomeCatsCol(uid: string) {
-  return collection(getFirebaseDb(), "users", uid, "incomeCategories")
+function rowToCategory(row: Record<string, unknown>): IncomeCategory {
+  return {
+    id:        row.id as string,
+    name:      row.name as string,
+    emoji:     (row.emoji as string) ?? "",
+    color:     (row.color as string) ?? "",
+    createdAt: row.createdAt
+      ? Timestamp.fromDate(new Date(row.createdAt as string))
+      : Timestamp.now(),
+  }
 }
 
 export function useIncomeCategories() {
@@ -54,9 +52,10 @@ export function useIncomeCategories() {
     staleTime: 5 * 60_000,
     queryFn: async () => {
       if (!user) return [] as IncomeCategory[]
-      const q = query(incomeCatsCol(user.uid), orderBy("createdAt", "asc"))
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as IncomeCategory)
+      const res = await apiFetch("/api/income-categories")
+      if (!res.ok) return [] as IncomeCategory[]
+      const rows = await res.json() as Record<string, unknown>[]
+      return rows.map(rowToCategory)
     },
   })
 }
@@ -68,7 +67,11 @@ export function useAddIncomeCategory() {
   return useMutation({
     mutationFn: async (input: IncomeCategoryInput) => {
       if (!user) throw new Error("No auth")
-      await addDoc(incomeCatsCol(user.uid), { ...input, createdAt: Timestamp.now() })
+      const res = await apiFetch("/api/income-categories", {
+        method: "POST",
+        body: JSON.stringify(input),
+      })
+      if (!res.ok) throw new Error("Error al crear categoría")
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["income-categories", user?.uid] }),
   })
@@ -81,7 +84,11 @@ export function useUpdateIncomeCategory() {
   return useMutation({
     mutationFn: async ({ id, input }: { id: string; input: Partial<IncomeCategoryInput> }) => {
       if (!user) throw new Error("No auth")
-      await updateDoc(doc(getFirebaseDb(), "users", user.uid, "incomeCategories", id), input)
+      const res = await apiFetch(`/api/income-categories/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      })
+      if (!res.ok) throw new Error("Error al actualizar categoría")
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["income-categories", user?.uid] }),
   })
@@ -94,7 +101,8 @@ export function useDeleteIncomeCategory() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error("No auth")
-      await deleteDoc(doc(getFirebaseDb(), "users", user.uid, "incomeCategories", id))
+      const res = await apiFetch(`/api/income-categories/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Error al eliminar categoría")
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["income-categories", user?.uid] }),
   })

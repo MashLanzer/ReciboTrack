@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { Timestamp } from "firebase/firestore"
+import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "@/hooks/use-auth"
 import { useUIStore } from "@/stores/ui-store"
 import { useCategories } from "@/hooks/use-categories"
@@ -29,14 +29,13 @@ function useSankeyData(monthOffset: number) {
       const ref = subMonths(new Date(), monthOffset)
       const start = startOfMonth(ref)
       const end = endOfMonth(ref)
-      const col = collection(getFirebaseDb(), "users", user.uid, "expenses")
-      const q = query(col,
-        where("date", ">=", Timestamp.fromDate(start)),
-        where("date", "<=", Timestamp.fromDate(end)),
-        orderBy("date", "desc")
-      )
-      const snap = await getDocs(q)
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }) as Expense)
+      const res = await apiFetch(`/api/expenses?startDate=${start.toISOString()}&endDate=${end.toISOString()}&all=true`)
+      if (!res.ok) return []
+      const { expenses } = await res.json() as { expenses: Record<string, unknown>[] }
+      return expenses.map(e => ({
+        ...e,
+        date: Timestamp.fromDate(new Date(e.date as string)),
+      })) as unknown as Expense[]
     },
   })
 }

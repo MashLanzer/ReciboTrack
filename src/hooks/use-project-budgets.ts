@@ -1,20 +1,11 @@
 "use client"
 
-import {
-  doc,
-  getDoc,
-  setDoc,
-} from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "./use-auth"
 
 /** Maps project name → budget limit (in user's default currency) */
 export type ProjectBudgets = Record<string, number>
-
-function budgetsDocRef(uid: string) {
-  return doc(getFirebaseDb(), "users", uid, "settings", "projectBudgets")
-}
 
 export function useProjectBudgets() {
   const { user } = useAuth()
@@ -24,8 +15,9 @@ export function useProjectBudgets() {
     staleTime: 60_000,
     queryFn: async () => {
       if (!user) return {} as ProjectBudgets
-      const snap = await getDoc(budgetsDocRef(user.uid))
-      return (snap.exists() ? snap.data() : {}) as ProjectBudgets
+      const res = await apiFetch("/api/project-budgets")
+      if (!res.ok) return {} as ProjectBudgets
+      return await res.json() as ProjectBudgets
     },
   })
 }
@@ -42,15 +34,11 @@ export function useSetProjectBudget() {
       budget: number | null
     }) => {
       if (!user) throw new Error("No autenticado")
-      const ref = budgetsDocRef(user.uid)
-      const snap = await getDoc(ref)
-      const current = (snap.exists() ? snap.data() : {}) as ProjectBudgets
-      if (budget === null) {
-        delete current[projectName]
-      } else {
-        current[projectName] = budget
-      }
-      await setDoc(ref, current)
+      const res = await apiFetch("/api/project-budgets", {
+        method: "PATCH",
+        body: JSON.stringify({ projectName, budget }),
+      })
+      if (!res.ok) throw new Error("Error al guardar presupuesto")
     },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["project-budgets", user?.uid] }),

@@ -10,40 +10,14 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import {
-  collectionGroup,
-  getDocs,
-  query,
-  where,
-  collection,
-  getFirestore,
-  Timestamp,
-  updateDoc,
-  doc,
-  increment,
-} from "firebase/firestore"
-import { initializeApp, getApps } from "firebase/app"
+import { Timestamp } from "firebase/firestore"
+import { getSupabase } from "@/lib/supabase/server"
 import {
   applyPortalPermissions,
   buildPortalSummary,
   type PortalPermissions,
 } from "@/lib/portal-permissions"
 import type { Expense } from "@/types"
-
-// ── Firebase init (server-side uses client SDK with public config) ─────────────
-
-function getServerDb() {
-  const apps = getApps()
-  const app  = apps.find((a) => a.name === "[DEFAULT]") ?? initializeApp({
-    apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain:        process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId:         process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket:     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  })
-  return getFirestore(app)
-}
 
 export async function GET(
   _req: NextRequest,
@@ -56,57 +30,98 @@ export async function GET(
   }
 
   try {
-    const db = getServerDb()
+    const sb = getSupabase()
 
-    // ── Find portal by token across all users ──────────────────────────────
-    // collectionGroup query on "portals" sub-collection
-    const portalsGroup = collectionGroup(db, "portals")
-    const portalQuery  = query(portalsGroup, where("token", "==", token))
-    const portalSnap   = await getDocs(portalQuery)
+    // ── Find portal by token ───────────────────────────────────────────────
+    const { data: portalData, error: portalError } = await sb
+      .from("portals")
+      .select("*")
+      .eq("token", token)
+      .single()
 
-    if (portalSnap.empty) {
+    if (portalError?.code === "PGRST116" || !portalData) {
       return NextResponse.json({ error: "Portal no encontrado" }, { status: 404 })
     }
+    if (portalError) {
+      return NextResponse.json({ error: portalError.message }, { status: 500 })
+    }
 
-    const portalDoc  = portalSnap.docs[0]
-    const portalData = portalDoc.data()
+    const portal = portalData as Record<string, unknown>
 
     // ── Validate portal status ─────────────────────────────────────────────
-    if (portalData.revoked) {
+    if (portal.revoked) {
       return NextResponse.json({ error: "Este portal ha sido revocado" }, { status: 403 })
     }
 
-    if (portalData.expiresAt) {
-      const expiresAt = (portalData.expiresAt as Timestamp).toDate()
+    if (portal.expires_at) {
+      const expiresAt = new Date(portal.expires_at as string)
       if (expiresAt < new Date()) {
         return NextResponse.json({ error: "Este portal ha expirado" }, { status: 403 })
       }
     }
 
-    const ownerUid   = portalData.ownerUid as string
-    const permissions = portalData.permissions as PortalPermissions
+    const ownerUid    = portal.uid as string
+    const permissions = portal.permissions as PortalPermissions
 
     // ── Fetch owner's expenses ─────────────────────────────────────────────
-    const expensesCol = collection(db, "users", ownerUid, "expenses")
-    const expSnap     = await getDocs(expensesCol)
-    const expenses    = expSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Expense[]
+    const { data: expRows, error: expError } = await sb
+      .from("expenses")
+      .select("*")
+      .eq("uid", ownerUid)
+      .eq("archived", false)
+      .order("date", { ascending: false })
+
+    if (expError) {
+      return NextResponse.json({ error: expError.message }, { status: 500 })
+    }
+
+    // Convert ISO dates to Timestamp so portal-permissions logic works unchanged
+    const expenses = (expRows ?? []).map((row: Record<string, unknown>) => ({
+      id:             row.id,
+      account:        row.account,
+      merchant:       row.merchant,
+      date:           row.date ? Timestamp.fromDate(new Date(row.date as string)) : Timestamp.now(),
+      items:          row.items ?? [],
+      subtotal:       Number(row.subtotal),
+      tax:            Number(row.tax),
+      total:          Number(row.total),
+      paymentMethod:  row.payment_method ?? null,
+      reference:      row.reference ?? null,
+      category:       row.category,
+      currency:       row.currency,
+      notes:          row.notes ?? "",
+      tags:           row.tags ?? [],
+      receiptImageUrl: row.receipt_image_url ?? null,
+      project:        row.project ?? null,
+      privacy:        row.privacy ?? "private",
+      archived:       row.archived ?? false,
+      flagged:        row.flagged ?? false,
+      flaggedAt:      row.flagged_at ? Timestamp.fromDate(new Date(row.flagged_at as string)) : undefined,
+      recurringId:    row.recurring_id ?? null,
+      createdAt:      row.created_at ? Timestamp.fromDate(new Date(row.created_at as string)) : Timestamp.now(),
+      updatedAt:      row.updated_at ? Timestamp.fromDate(new Date(row.updated_at as string)) : Timestamp.now(),
+    })) as unknown as Expense[]
 
     // ── Apply permissions (server-side mask) ───────────────────────────────
     const maskedExpenses = applyPortalPermissions(expenses, permissions)
     const summary        = buildPortalSummary(expenses, permissions)
 
     // ── Track access (non-blocking) ────────────────────────────────────────
-    void updateDoc(doc(db, portalDoc.ref.path), {
-      lastAccessedAt: Timestamp.now(),
-      accessCount:    increment(1),
-    }).catch(() => {/* non-critical */})
+    void sb
+      .from("portals")
+      .update({
+        last_accessed_at: new Date().toISOString(),
+        access_count:     Number(portal.access_count ?? 0) + 1,
+      })
+      .eq("id", portal.id)
+      .then(() => {/* non-critical */})
 
     return NextResponse.json({
       expenses:    maskedExpenses,
       summary,
       permissions,
-      portalName:  portalData.name as string,
-      ownerName:   portalData.ownerName as string,
+      portalName:  portal.name as string,
+      ownerName:   portal.owner_name as string,
       generatedAt: new Date().toISOString(),
     })
   } catch (err) {
