@@ -1,18 +1,8 @@
 "use client"
 
-import {
-  collection,
-  doc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  getDocs,
-  query,
-  orderBy,
-  Timestamp,
-} from "firebase/firestore"
+import { Timestamp } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "./use-auth"
 
 export interface GroupFolder {
@@ -25,10 +15,18 @@ export interface GroupFolder {
   createdAt: Timestamp
 }
 
-function foldersCol(groupId: string) {
-  // NOTE: "folders" conflicts with Firebase v12 internal __list__ path.
-  // Using "groupFolders" as the subcollection name avoids this.
-  return collection(getFirebaseDb(), "groups", groupId, "groupFolders")
+function rowToFolder(row: Record<string, unknown>): GroupFolder {
+  return {
+    id:           row.id as string,
+    groupId:      row.groupId as string,
+    name:         row.name as string,
+    emoji:        (row.emoji as string) ?? "📁",
+    description:  (row.description as string) ?? undefined,
+    createdByUid: (row.createdByUid as string) ?? "",
+    createdAt:    row.createdAt
+      ? Timestamp.fromDate(new Date(row.createdAt as string))
+      : Timestamp.now(),
+  }
 }
 
 export function useGroupFolders(groupId: string | null) {
@@ -38,9 +36,10 @@ export function useGroupFolders(groupId: string | null) {
     staleTime: 60_000,
     queryFn: async () => {
       if (!groupId) return []
-      const q = query(foldersCol(groupId), orderBy("createdAt", "asc"))
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, groupId, ...d.data() }) as GroupFolder)
+      const res = await apiFetch(`/api/groups/${groupId}/folders`)
+      if (!res.ok) return []
+      const rows = await res.json() as Record<string, unknown>[]
+      return rows.map(rowToFolder)
     },
   })
 }
@@ -50,28 +49,14 @@ export function useCreateGroupFolder() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({
-      groupId,
-      name,
-      emoji,
-      description,
-    }: {
-      groupId: string
-      name: string
-      emoji: string
-      description?: string
-    }) => {
+      groupId, name, emoji, description,
+    }: { groupId: string; name: string; emoji: string; description?: string }) => {
       if (!user) throw new Error("No autenticado")
-      // Use setDoc+doc() instead of addDoc() to avoid Firebase v12
-      // internal __list__ verification bug on new subcollections
-      const newRef = doc(foldersCol(groupId))
-      await setDoc(newRef, {
-        groupId,
-        name,
-        emoji,
-        ...(description ? { description } : {}),
-        createdByUid: user.uid,
-        createdAt: Timestamp.now(),
+      const res = await apiFetch(`/api/groups/${groupId}/folders`, {
+        method: "POST",
+        body: JSON.stringify({ name, emoji, description }),
       })
+      if (!res.ok) throw new Error("Error al crear carpeta")
     },
     onSuccess: (_, { groupId }) =>
       queryClient.invalidateQueries({ queryKey: ["group-folders", groupId] }),
@@ -82,23 +67,13 @@ export function useUpdateGroupFolder() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({
-      groupId,
-      folderId,
-      name,
-      emoji,
-      description,
-    }: {
-      groupId: string
-      folderId: string
-      name: string
-      emoji: string
-      description?: string
-    }) => {
-      await updateDoc(doc(getFirebaseDb(), "groups", groupId, "folders", folderId), {
-        name,
-        emoji,
-        ...(description !== undefined ? { description } : {}),
+      groupId, folderId, name, emoji, description,
+    }: { groupId: string; folderId: string; name: string; emoji: string; description?: string }) => {
+      const res = await apiFetch(`/api/groups/${groupId}/folders/${folderId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name, emoji, description }),
       })
+      if (!res.ok) throw new Error("Error al actualizar carpeta")
     },
     onSuccess: (_, { groupId }) =>
       queryClient.invalidateQueries({ queryKey: ["group-folders", groupId] }),
@@ -109,7 +84,8 @@ export function useDeleteGroupFolder() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ groupId, folderId }: { groupId: string; folderId: string }) => {
-      await deleteDoc(doc(getFirebaseDb(), "groups", groupId, "folders", folderId))
+      const res = await apiFetch(`/api/groups/${groupId}/folders/${folderId}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Error al eliminar carpeta")
     },
     onSuccess: (_, { groupId }) =>
       queryClient.invalidateQueries({ queryKey: ["group-folders", groupId] }),

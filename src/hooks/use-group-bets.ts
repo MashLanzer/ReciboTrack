@@ -1,21 +1,8 @@
 "use client"
 
-import {
-  collection,
-  addDoc,
-  updateDoc,
-  doc,
-  Timestamp,
-  arrayUnion,
-  onSnapshot,
-  query,
-  orderBy,
-  where,
-  getDocs,
-} from "firebase/firestore"
-import { useEffect, useState } from "react"
-import { useMutation } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { Timestamp } from "firebase/firestore"
+import { useQuery, useMutation } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "./use-auth"
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -52,26 +39,43 @@ export interface GroupBetInput {
 
 // ─── Hooks ─────────────────────────────────────────────────────────────────────
 
-function betsCollection(groupId: string) {
-  return collection(getFirebaseDb(), "groups", groupId, "bets")
+function rowToBet(row: Record<string, unknown>): GroupBet {
+  return {
+    id:           row.id as string,
+    title:        row.title as string,
+    creatorId:    (row.creatorId as string) ?? "",
+    creatorName:  (row.creatorName as string) ?? "",
+    category:     (row.category as string) ?? undefined,
+    targetAmount: Number(row.targetAmount ?? 0),
+    currency:     (row.currency as string) ?? "USD",
+    period:       (row.period as "week" | "month") ?? "month",
+    stake:        (row.stake as string) ?? "",
+    participants: (row.participants as string[]) ?? [],
+    status:       (row.status as "open" | "active" | "resolved") ?? "open",
+    result:       (row.result as GroupBet["result"]) ?? undefined,
+    createdAt:    row.createdAt
+      ? Timestamp.fromDate(new Date(row.createdAt as string))
+      : Timestamp.now(),
+    endsAt:       row.endsAt
+      ? Timestamp.fromDate(new Date(row.endsAt as string))
+      : Timestamp.now(),
+  }
 }
 
 export function useGroupBets(groupId: string) {
-  const [bets, setBets] = useState<GroupBet[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    if (!groupId) return
-    const col = betsCollection(groupId)
-    const q = query(col, orderBy("createdAt", "desc"))
-    const unsub = onSnapshot(q, (snap) => {
-      setBets(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as GroupBet))
-      setIsLoading(false)
-    }, () => setIsLoading(false))
-    return unsub
-  }, [groupId])
-
-  return { bets, isLoading }
+  const query = useQuery({
+    queryKey: ["group-bets", groupId],
+    enabled: !!groupId,
+    refetchInterval: 5000,
+    queryFn: async (): Promise<GroupBet[]> => {
+      if (!groupId) return []
+      const res = await apiFetch(`/api/groups/${groupId}/bets`)
+      if (!res.ok) return []
+      const rows = await res.json() as Record<string, unknown>[]
+      return rows.map(rowToBet)
+    },
+  })
+  return { bets: query.data ?? [], isLoading: query.isLoading }
 }
 
 export function useCreateBet(groupId: string) {
@@ -80,27 +84,20 @@ export function useCreateBet(groupId: string) {
   return useMutation({
     mutationFn: async (input: GroupBetInput) => {
       if (!user) throw new Error("No autenticado")
-      const col = betsCollection(groupId)
-      const now = Timestamp.now()
-      const endsAt = input.period === "week"
-        ? Timestamp.fromMillis(now.toMillis() + 7 * 24 * 60 * 60 * 1000)
-        : Timestamp.fromMillis(now.toMillis() + 30 * 24 * 60 * 60 * 1000)
+      const now = new Date()
+      const endsAt = new Date(now.getTime() + (input.period === "week" ? 7 : 30) * 24 * 60 * 60 * 1000)
 
-      const ref = await addDoc(col, {
-        title: input.title,
-        creatorId: user.uid,
-        creatorName: user.displayName ?? user.email ?? "Usuario",
-        category: input.category ?? null,
-        targetAmount: input.targetAmount,
-        currency: input.currency,
-        period: input.period,
-        stake: input.stake,
-        participants: [user.uid],
-        status: "open",
-        createdAt: now,
-        endsAt,
+      const res = await apiFetch(`/api/groups/${groupId}/bets`, {
+        method: "POST",
+        body: JSON.stringify({
+          ...input,
+          creatorName: user.displayName ?? user.email ?? "Usuario",
+          endsAt:      endsAt.toISOString(),
+        }),
       })
-      return ref.id
+      if (!res.ok) throw new Error("Error al crear apuesta")
+      const data = await res.json() as { id: string }
+      return data.id
     },
   })
 }
@@ -111,18 +108,16 @@ export function useJoinBet(groupId: string) {
   return useMutation({
     mutationFn: async (betId: string) => {
       if (!user) throw new Error("No autenticado")
-      const ref = doc(getFirebaseDb(), "groups", groupId, "bets", betId)
-      await updateDoc(ref, {
-        participants: arrayUnion(user.uid),
-        status: "active",
+      // El servidor lee los participantes actuales y agrega al usuario
+      const res = await apiFetch(`/api/groups/${groupId}/bets/${betId}/join`, {
+        method: "POST",
       })
+      if (!res.ok) throw new Error("Error al unirse a la apuesta")
     },
   })
 }
 
 export function useResolveBet(groupId: string) {
-  const { user } = useAuth()
-
   return useMutation({
     mutationFn: async ({
       betId,
@@ -133,9 +128,6 @@ export function useResolveBet(groupId: string) {
       participants: { uid: string; displayName: string }[]
       memberExpenses: Record<string, number>
     }) => {
-      if (!user) throw new Error("No autenticado")
-
-      // Winner = participant who spent the least (stayed under budget)
       let winnerId = ""
       let winnerName = ""
       let winnerAmount = Infinity
@@ -149,15 +141,14 @@ export function useResolveBet(groupId: string) {
         }
       }
 
-      const ref = doc(getFirebaseDb(), "groups", groupId, "bets", betId)
-      await updateDoc(ref, {
-        status: "resolved",
-        result: {
-          winnerId,
-          winnerName,
-          actualAmount: winnerAmount,
-        },
+      const res = await apiFetch(`/api/groups/${groupId}/bets/${betId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status:     "resolved",
+          resultData: { winnerId, winnerName, actualAmount: winnerAmount },
+        }),
       })
+      if (!res.ok) throw new Error("Error al resolver la apuesta")
     },
   })
 }
@@ -178,22 +169,18 @@ export function useBetParticipantExpenses() {
 
     await Promise.all(
       participantUids.map(async (uid) => {
-        const col = collection(getFirebaseDb(), "users", uid, "expenses")
-        const constraints = [
-          where("date", ">=", Timestamp.fromDate(startDate)),
-          where("date", "<=", Timestamp.fromDate(endDate)),
-          orderBy("date", "desc"),
-        ]
-        const q = query(col, ...constraints)
-        const snap = await getDocs(q)
-        let total = 0
-        snap.docs.forEach((d) => {
-          const data = d.data()
-          if (!category || data.category === category) {
-            total += data.total as number
-          }
+        const params = new URLSearchParams({
+          startDate: startDate.toISOString(),
+          endDate:   endDate.toISOString(),
+          ...(category ? { category } : {}),
+          all:       "true",
         })
-        results[uid] = total
+        const res = await apiFetch(`/api/expenses?${params.toString()}`)
+        if (!res.ok) { results[uid] = 0; return }
+        const expenses = await res.json() as Array<{ total: number; category: string }>
+        results[uid] = expenses
+          .filter((e) => !category || e.category === category)
+          .reduce((s, e) => s + e.total, 0)
       })
     )
 

@@ -1,92 +1,99 @@
 "use client"
 
-import {
-  collection,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  doc,
-  Timestamp,
-  arrayUnion,
-  arrayRemove,
-  query,
-  orderBy,
-} from "firebase/firestore"
-import { useEffect, useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { Timestamp } from "firebase/firestore"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "./use-auth"
 import type { WishlistItem, WishlistItemInput } from "@/types"
 
-function wishlistCollection(groupId: string) {
-  return collection(getFirebaseDb(), "groups", groupId, "wishlist")
+function rowToWishlistItem(row: Record<string, unknown>): WishlistItem {
+  return {
+    id:             row.id as string,
+    title:          row.title as string,
+    url:            (row.url as string) ?? undefined,
+    estimatedPrice: row.estimatedPrice != null ? Number(row.estimatedPrice) : undefined,
+    currency:       (row.currency as string) ?? "USD",
+    addedBy:        row.addedBy as string,
+    likes:          (row.likes as string[]) ?? [],
+    purchased:      Boolean(row.purchased ?? false),
+    purchasedBy:    (row.purchasedBy as string) ?? undefined,
+    purchasedAt:    row.purchasedAt
+      ? Timestamp.fromDate(new Date(row.purchasedAt as string))
+      : undefined,
+    createdAt:      row.createdAt
+      ? Timestamp.fromDate(new Date(row.createdAt as string))
+      : Timestamp.now(),
+  }
 }
 
 export function useGroupWishlist(groupId: string) {
-  const [items, setItems] = useState<WishlistItem[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    if (!groupId) return
-    const col = wishlistCollection(groupId)
-    const q = query(col, orderBy("createdAt", "desc"))
-    const unsub = onSnapshot(q, (snap) => {
-      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as WishlistItem)
-      // Sort by likes count desc client-side
-      data.sort((a, b) => b.likes.length - a.likes.length)
-      setItems(data)
-      setIsLoading(false)
-    })
-    return () => unsub()
-  }, [groupId])
-
-  return { data: items, isLoading }
+  const query = useQuery({
+    queryKey: ["group-wishlist", groupId],
+    enabled: !!groupId,
+    refetchInterval: 5000,
+    queryFn: async (): Promise<WishlistItem[]> => {
+      if (!groupId) return []
+      const res = await apiFetch(`/api/groups/${groupId}/wishlist`)
+      if (!res.ok) return []
+      const rows = await res.json() as Record<string, unknown>[]
+      const items = rows.map(rowToWishlistItem)
+      return items.sort((a, b) => b.likes.length - a.likes.length)
+    },
+  })
+  return { data: query.data ?? [], isLoading: query.isLoading }
 }
 
 export function useAddWishlistItem() {
   const { user } = useAuth()
+  const qc = useQueryClient()
 
   return useMutation({
     mutationFn: async ({ groupId, input }: { groupId: string; input: WishlistItemInput }) => {
       if (!user) throw new Error("No autenticado")
-      const col = wishlistCollection(groupId)
-      await addDoc(col, {
-        ...input,
-        addedBy: user.uid,
-        likes: [],
-        purchased: false,
-        createdAt: Timestamp.now(),
+      const res = await apiFetch(`/api/groups/${groupId}/wishlist`, {
+        method: "POST",
+        body: JSON.stringify(input),
       })
+      if (!res.ok) throw new Error("Error al agregar ítem")
     },
+    onSuccess: (_d, { groupId }) => qc.invalidateQueries({ queryKey: ["group-wishlist", groupId] }),
   })
 }
 
 export function useLikeWishlistItem() {
   const { user } = useAuth()
+  const qc = useQueryClient()
 
   return useMutation({
     mutationFn: async ({ groupId, itemId, liked }: { groupId: string; itemId: string; liked: boolean }) => {
       if (!user) throw new Error("No autenticado")
-      const ref = doc(getFirebaseDb(), "groups", groupId, "wishlist", itemId)
-      await updateDoc(ref, {
-        likes: liked ? arrayUnion(user.uid) : arrayRemove(user.uid),
+      const res = await apiFetch(`/api/groups/${groupId}/wishlist/${itemId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ liked }),
       })
+      if (!res.ok) throw new Error("Error al actualizar like")
     },
+    onSuccess: (_d, { groupId }) => qc.invalidateQueries({ queryKey: ["group-wishlist", groupId] }),
   })
 }
 
 export function useMarkWishlistPurchased() {
   const { user } = useAuth()
+  const qc = useQueryClient()
 
   return useMutation({
     mutationFn: async ({ groupId, itemId }: { groupId: string; itemId: string }) => {
       if (!user) throw new Error("No autenticado")
-      const ref = doc(getFirebaseDb(), "groups", groupId, "wishlist", itemId)
-      await updateDoc(ref, {
-        purchased: true,
-        purchasedBy: user.uid,
-        purchasedAt: Timestamp.now(),
+      const res = await apiFetch(`/api/groups/${groupId}/wishlist/${itemId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          purchased:   true,
+          purchasedBy: user.uid,
+          purchasedAt: new Date().toISOString(),
+        }),
       })
+      if (!res.ok) throw new Error("Error al marcar como comprado")
     },
+    onSuccess: (_d, { groupId }) => qc.invalidateQueries({ queryKey: ["group-wishlist", groupId] }),
   })
 }

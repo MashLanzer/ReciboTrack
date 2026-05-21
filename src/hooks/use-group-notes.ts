@@ -1,58 +1,32 @@
 "use client"
 
-import {
-  collection,
-  onSnapshot,
-  setDoc,
-  deleteDoc,
-  doc,
-  Timestamp,
-} from "firebase/firestore"
-import { useEffect, useState } from "react"
-import { useMutation } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { Timestamp } from "firebase/firestore"
+import { useQuery, useMutation } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "./use-auth"
 import type { GroupNote } from "@/types"
 
-function notesCollection(groupId: string) {
-  return collection(getFirebaseDb(), "groups", groupId, "notes")
-}
-
-const NOTE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
-
 export function useGroupNotes(groupId: string) {
-  const [notes, setNotes] = useState<GroupNote[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    if (!groupId) return
-    const col = notesCollection(groupId)
-    const unsub = onSnapshot(col, async (snap) => {
-      const now = Timestamp.now()
-      const valid: GroupNote[] = []
-      const expiredIds: string[] = []
-
-      for (const d of snap.docs) {
-        const data = { userId: d.id, ...d.data() } as GroupNote
-        if (data.expiresAt.toMillis() > now.toMillis()) {
-          valid.push(data)
-        } else {
-          expiredIds.push(d.id)
-        }
-      }
-
-      // Auto-delete expired notes (fire and forget)
-      for (const id of expiredIds) {
-        void deleteDoc(doc(getFirebaseDb(), "groups", groupId, "notes", id))
-      }
-
-      setNotes(valid)
-      setIsLoading(false)
-    })
-    return () => unsub()
-  }, [groupId])
-
-  return { data: notes, isLoading }
+  const query = useQuery({
+    queryKey: ["group-notes", groupId],
+    enabled: !!groupId,
+    refetchInterval: 5000,
+    queryFn: async (): Promise<GroupNote[]> => {
+      if (!groupId) return []
+      const res = await apiFetch(`/api/groups/${groupId}/notes`)
+      if (!res.ok) return []
+      const rows = await res.json() as Array<{
+        userId: string; text: string; createdAt: string; expiresAt: string
+      }>
+      return rows.map((r) => ({
+        userId:    r.userId,
+        text:      r.text,
+        createdAt: Timestamp.fromDate(new Date(r.createdAt)),
+        expiresAt: Timestamp.fromDate(new Date(r.expiresAt)),
+      }))
+    },
+  })
+  return { data: query.data ?? [], isLoading: query.isLoading }
 }
 
 export function usePostGroupNote() {
@@ -61,14 +35,11 @@ export function usePostGroupNote() {
   return useMutation({
     mutationFn: async ({ groupId, text }: { groupId: string; text: string }) => {
       if (!user) throw new Error("No autenticado")
-      const now = Timestamp.now()
-      const expiresAt = Timestamp.fromMillis(now.toMillis() + NOTE_TTL_MS)
-      // setDoc uses userId as document ID (one doc per user, overwritten)
-      await setDoc(doc(getFirebaseDb(), "groups", groupId, "notes", user.uid), {
-        text,
-        createdAt: now,
-        expiresAt,
+      const res = await apiFetch(`/api/groups/${groupId}/notes`, {
+        method: "POST",
+        body: JSON.stringify({ text }),
       })
+      if (!res.ok) throw new Error("Error al publicar nota")
     },
   })
 }

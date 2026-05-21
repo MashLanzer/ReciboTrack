@@ -1,11 +1,7 @@
 "use client"
 
-import {
-  collection, doc, setDoc, deleteDoc, onSnapshot, Timestamp,
-} from "firebase/firestore"
-import { useEffect, useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "./use-auth"
 
 export interface ReactionEntry {
@@ -15,29 +11,23 @@ export interface ReactionEntry {
 
 /** Returns reactions grouped by emoji: Map<emoji, ReactionEntry[]> */
 export function useGroupReactions(groupId: string, expenseId: string) {
-  const [reactions, setReactions] = useState<Map<string, ReactionEntry[]>>(new Map())
-
-  useEffect(() => {
-    if (!groupId || !expenseId) return
-    const col = collection(
-      getFirebaseDb(),
-      "groups", groupId, "expenses", expenseId, "reactions"
-    )
-    const unsub = onSnapshot(col, (snap) => {
+  const { data } = useQuery({
+    queryKey: ["group-reactions", groupId, expenseId],
+    enabled: !!groupId && !!expenseId,
+    refetchInterval: 5000,
+    queryFn: async (): Promise<Map<string, ReactionEntry[]>> => {
+      if (!groupId || !expenseId) return new Map()
+      const res = await apiFetch(`/api/groups/${groupId}/expenses/${expenseId}/reactions`)
+      if (!res.ok) return new Map()
+      const grouped = await res.json() as Record<string, string[]>
       const map = new Map<string, ReactionEntry[]>()
-      snap.docs.forEach((d) => {
-        const data = d.data() as { emoji: string; updatedAt: Timestamp }
-        const entry: ReactionEntry = { emoji: data.emoji, userId: d.id }
-        const list = map.get(data.emoji) ?? []
-        list.push(entry)
-        map.set(data.emoji, list)
-      })
-      setReactions(map)
-    })
-    return unsub
-  }, [groupId, expenseId])
-
-  return reactions
+      for (const [emoji, userIds] of Object.entries(grouped)) {
+        map.set(emoji, userIds.map((userId) => ({ emoji, userId })))
+      }
+      return map
+    },
+  })
+  return data ?? new Map<string, ReactionEntry[]>()
 }
 
 export function useToggleReaction() {
@@ -49,23 +39,14 @@ export function useToggleReaction() {
       groupId, expenseId, emoji,
     }: { groupId: string; expenseId: string; emoji: string }) => {
       if (!user) throw new Error("No autenticado")
-      const ref = doc(
-        getFirebaseDb(),
-        "groups", groupId, "expenses", expenseId, "reactions", user.uid
-      )
-      const db = getFirebaseDb()
-      // Check if already reacted with same emoji (read from snapshot — handled in component)
-      // setDoc overwrites, deleteDoc removes
-      const { getDoc } = await import("firebase/firestore")
-      const existing = await getDoc(ref)
-      if (existing.exists() && (existing.data() as { emoji: string }).emoji === emoji) {
-        await deleteDoc(ref)
-      } else {
-        await setDoc(ref, { emoji, updatedAt: Timestamp.now() })
-      }
+      const res = await apiFetch(`/api/groups/${groupId}/expenses/${expenseId}/reactions`, {
+        method: "POST",
+        body: JSON.stringify({ emoji }),
+      })
+      if (!res.ok) throw new Error("Error al actualizar reacción")
     },
-    onSuccess: (_d, { groupId }) => {
-      qc.invalidateQueries({ queryKey: ["group-expenses", groupId] })
+    onSuccess: (_d, { groupId, expenseId }) => {
+      qc.invalidateQueries({ queryKey: ["group-reactions", groupId, expenseId] })
     },
   })
 }
