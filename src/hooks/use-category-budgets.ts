@@ -1,17 +1,8 @@
 "use client"
 
-import {
-  collection,
-  getDocs,
-  deleteDoc,
-  doc,
-  query,
-  where,
-  setDoc,
-} from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
+import { apiFetch } from "@/lib/api-client"
 
 export interface CategoryBudget {
   id: string
@@ -28,10 +19,6 @@ export interface CategoryBudgetInput {
   month: string // YYYY-MM
 }
 
-function categoryBudgetsCollection(uid: string) {
-  return collection(getFirebaseDb(), "users", uid, "categoryBudgets")
-}
-
 export function useCategoryBudgets(month: string) {
   const { user } = useAuth()
 
@@ -40,10 +27,9 @@ export function useCategoryBudgets(month: string) {
     enabled: !!user,
     queryFn: async () => {
       if (!user) return [] as CategoryBudget[]
-      const col = categoryBudgetsCollection(user.uid)
-      const q = query(col, where("month", "==", month))
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as CategoryBudget)
+      const res = await apiFetch(`/api/category-budgets?month=${encodeURIComponent(month)}`)
+      if (!res.ok) throw new Error("Error cargando presupuestos por categoría")
+      return res.json() as Promise<CategoryBudget[]>
     },
   })
 }
@@ -55,12 +41,13 @@ export function useSetCategoryBudget() {
   return useMutation({
     mutationFn: async (input: CategoryBudgetInput) => {
       if (!user) throw new Error("No autenticado")
-      const col = categoryBudgetsCollection(user.uid)
-      // Use categoryId + month as the doc ID for natural upsert
-      const docId = `${input.categoryId}_${input.month}`
-      const ref = doc(col, docId)
-      await setDoc(ref, input, { merge: true })
-      return docId
+      const res = await apiFetch("/api/category-budgets", {
+        method: "POST",
+        body: JSON.stringify(input),
+      })
+      if (!res.ok) throw new Error("Error al guardar presupuesto de categoría")
+      const json = await res.json() as { id: string }
+      return json.id
     },
     onSuccess: (_id, input) => {
       queryClient.invalidateQueries({ queryKey: ["category-budgets", user?.uid, input.month] })
@@ -75,7 +62,8 @@ export function useDeleteCategoryBudget() {
   return useMutation({
     mutationFn: async ({ id, month }: { id: string; month: string }) => {
       if (!user) throw new Error("No autenticado")
-      await deleteDoc(doc(getFirebaseDb(), "users", user.uid, "categoryBudgets", id))
+      const res = await apiFetch(`/api/category-budgets/${encodeURIComponent(id)}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Error al eliminar presupuesto de categoría")
       return month
     },
     onSuccess: (_result, { month }) => {

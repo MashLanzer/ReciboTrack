@@ -1,22 +1,11 @@
 "use client"
 
-import {
-  doc,
-  getDoc,
-  setDoc,
-  arrayUnion,
-  arrayRemove,
-} from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
 import type { PinnedItem } from "@/types"
+import { apiFetch } from "@/lib/api-client"
 
 const MAX_PINNED = 3
-
-function pinnedDoc(uid: string) {
-  return doc(getFirebaseDb(), "users", uid, "pinnedItems", "pinned")
-}
 
 export function usePinnedItems() {
   const { user } = useAuth()
@@ -26,10 +15,9 @@ export function usePinnedItems() {
     enabled: !!user,
     queryFn: async () => {
       if (!user) return [] as PinnedItem[]
-      const d = await getDoc(pinnedDoc(user.uid))
-      if (!d.exists()) return [] as PinnedItem[]
-      const data = d.data() as { items?: PinnedItem[] }
-      return data.items ?? []
+      const res = await apiFetch("/api/pinned-items")
+      if (!res.ok) return [] as PinnedItem[]
+      return res.json() as Promise<PinnedItem[]>
     },
   })
 }
@@ -43,12 +31,14 @@ export function usePinItem() {
       if (!user) throw new Error("No autenticado")
       const current = queryClient.getQueryData<PinnedItem[]>(["pinnedItems", user.uid]) ?? []
       if (current.length >= MAX_PINNED) throw new Error("Máximo 3 ítems fijados")
-      const ref = pinnedDoc(user.uid)
-      await setDoc(ref, { items: arrayUnion(item) }, { merge: true })
+      const next = [...current, item]
+      const res = await apiFetch("/api/pinned-items", {
+        method: "PATCH",
+        body: JSON.stringify({ items: next }),
+      })
+      if (!res.ok) throw new Error("Error al fijar ítem")
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pinnedItems", user?.uid] })
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["pinnedItems", user?.uid] }),
   })
 }
 
@@ -59,11 +49,14 @@ export function useUnpinItem() {
   return useMutation({
     mutationFn: async (item: PinnedItem) => {
       if (!user) throw new Error("No autenticado")
-      const ref = pinnedDoc(user.uid)
-      await setDoc(ref, { items: arrayRemove(item) }, { merge: true })
+      const current = queryClient.getQueryData<PinnedItem[]>(["pinnedItems", user.uid]) ?? []
+      const next = current.filter((p) => !(p.type === item.type && p.id === item.id))
+      const res = await apiFetch("/api/pinned-items", {
+        method: "PATCH",
+        body: JSON.stringify({ items: next }),
+      })
+      if (!res.ok) throw new Error("Error al desfijar ítem")
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pinnedItems", user?.uid] })
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["pinnedItems", user?.uid] }),
   })
 }

@@ -1,30 +1,20 @@
 "use client"
 
-import {
-  collection,
-  doc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  getDocs,
-  query,
-  orderBy,
-  Timestamp,
-} from "firebase/firestore"
+import { Timestamp } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
+import { apiFetch } from "@/lib/api-client"
 
 export type AutomationTrigger =
-  | "expense_over"       // total > threshold
-  | "budget_pct"         // monthly budget % exceeded
-  | "category_over"      // category total > threshold
-  | "recurring_due"      // recurring payment due in N days
+  | "expense_over"
+  | "budget_pct"
+  | "category_over"
+  | "recurring_due"
 
 export type AutomationAction =
-  | "webhook"            // POST to URL
-  | "notification"       // in-app push notification
-  | "tag"                // auto-tag the expense
+  | "webhook"
+  | "notification"
+  | "tag"
 
 export interface AutomationRule {
   id: string
@@ -32,16 +22,32 @@ export interface AutomationRule {
   name: string
   enabled: boolean
   trigger: AutomationTrigger
-  triggerValue: number       // threshold / pct / days
-  triggerCategory?: string   // for category_over
+  triggerValue: number
+  triggerCategory?: string
   action: AutomationAction
-  actionValue: string        // webhook URL / tag name / notification message
+  actionValue: string
   lastFiredAt?: Timestamp
   createdAt: Timestamp
 }
 
-function automationsCol(uid: string) {
-  return collection(getFirebaseDb(), "users", uid, "automations")
+function rowToAutomation(row: Record<string, unknown>, uid: string): AutomationRule {
+  return {
+    id:              row.id as string,
+    uid,
+    name:            row.name as string,
+    enabled:         (row.enabled as boolean) ?? true,
+    trigger:         row.trigger as AutomationTrigger,
+    triggerValue:    Number(row.triggerValue ?? 0),
+    triggerCategory: (row.triggerCategory as string) ?? undefined,
+    action:          row.action as AutomationAction,
+    actionValue:     (row.actionValue as string) ?? "",
+    lastFiredAt:     row.lastFiredAt
+      ? Timestamp.fromDate(new Date(row.lastFiredAt as string))
+      : undefined,
+    createdAt: row.createdAt
+      ? Timestamp.fromDate(new Date(row.createdAt as string))
+      : Timestamp.now(),
+  }
 }
 
 export function useAutomations() {
@@ -51,10 +57,11 @@ export function useAutomations() {
     enabled: !!user,
     staleTime: 60_000,
     queryFn: async () => {
-      if (!user) return []
-      const q = query(automationsCol(user.uid), orderBy("createdAt", "desc"))
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, uid: user.uid, ...d.data() }) as AutomationRule)
+      if (!user) return [] as AutomationRule[]
+      const res = await apiFetch("/api/automations")
+      if (!res.ok) throw new Error("Error cargando automatizaciones")
+      const rows = await res.json() as Record<string, unknown>[]
+      return rows.map((r) => rowToAutomation(r, user.uid))
     },
   })
 }
@@ -63,15 +70,10 @@ export function useCreateAutomation() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (
-      rule: Omit<AutomationRule, "id" | "uid" | "createdAt" | "lastFiredAt">
-    ) => {
+    mutationFn: async (rule: Omit<AutomationRule, "id" | "uid" | "createdAt" | "lastFiredAt">) => {
       if (!user) throw new Error("No autenticado")
-      await addDoc(automationsCol(user.uid), {
-        ...rule,
-        uid: user.uid,
-        createdAt: Timestamp.now(),
-      })
+      const res = await apiFetch("/api/automations", { method: "POST", body: JSON.stringify(rule) })
+      if (!res.ok) throw new Error("Error al crear automatización")
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["automations", user?.uid] }),
   })
@@ -81,15 +83,10 @@ export function useUpdateAutomation() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({
-      id,
-      updates,
-    }: {
-      id: string
-      updates: Partial<Omit<AutomationRule, "id" | "uid" | "createdAt">>
-    }) => {
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Omit<AutomationRule, "id" | "uid" | "createdAt">> }) => {
       if (!user) throw new Error("No autenticado")
-      await updateDoc(doc(getFirebaseDb(), "users", user.uid, "automations", id), updates)
+      const res = await apiFetch(`/api/automations/${id}`, { method: "PATCH", body: JSON.stringify(updates) })
+      if (!res.ok) throw new Error("Error al actualizar automatización")
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["automations", user?.uid] }),
   })
@@ -101,7 +98,8 @@ export function useDeleteAutomation() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error("No autenticado")
-      await deleteDoc(doc(getFirebaseDb(), "users", user.uid, "automations", id))
+      const res = await apiFetch(`/api/automations/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Error al eliminar automatización")
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["automations", user?.uid] }),
   })

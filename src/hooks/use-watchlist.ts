@@ -1,22 +1,15 @@
 "use client"
 
-import { doc, getDoc, setDoc } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
+import { apiFetch } from "@/lib/api-client"
 
 export interface WatchlistEntry {
   categoryId: string
   alertThreshold?: number  // monthly spend threshold in user's default currency
 }
 
-const STORAGE_KEY = "rt-category-watchlist"   // legacy key for migration only
-
-function watchlistRef(uid: string) {
-  return doc(getFirebaseDb(), "users", uid, "meta", "watchlist")
-}
-
-/** Persists a category watchlist in Firestore (cross-device) */
+/** Persists a category watchlist in Supabase (cross-device) */
 export function useWatchlist() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -27,34 +20,20 @@ export function useWatchlist() {
     staleTime: 1000 * 60 * 5,
     queryFn: async (): Promise<WatchlistEntry[]> => {
       if (!user) return []
-      const ref = watchlistRef(user.uid)
-      const snap = await getDoc(ref)
-
-      if (snap.exists()) {
-        const data = snap.data()
-        return Array.isArray(data.entries) ? (data.entries as WatchlistEntry[]) : []
-      }
-
-      // ── Migrate from localStorage on first Firestore read ────────────────
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored) {
-          const parsed = JSON.parse(stored) as WatchlistEntry[]
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            await setDoc(ref, { entries: parsed })
-            localStorage.removeItem(STORAGE_KEY)
-            return parsed
-          }
-        }
-      } catch { /* ignore */ }
-
-      return []
+      const res = await apiFetch("/api/watchlist")
+      if (!res.ok) return []
+      const data = await res.json() as WatchlistEntry[]
+      return Array.isArray(data) ? data : []
     },
   })
 
   async function save(next: WatchlistEntry[]) {
     if (!user) return
-    await setDoc(watchlistRef(user.uid), { entries: next })
+    const res = await apiFetch("/api/watchlist", {
+      method: "PATCH",
+      body: JSON.stringify({ entries: next }),
+    })
+    if (!res.ok) throw new Error("Error al guardar watchlist")
     queryClient.setQueryData(["watchlist", user.uid], next)
   }
 

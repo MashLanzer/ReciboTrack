@@ -1,25 +1,22 @@
 "use client"
 
-import {
-  collection,
-  getDocs,
-  setDoc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  orderBy,
-  query,
-  Timestamp,
-} from "firebase/firestore"
+import { Timestamp } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
 import type { Client, ClientInput } from "@/types"
-import { stripUndefined } from "@/lib/utils"
+import { apiFetch } from "@/lib/api-client"
 
-function clientsCol(uid: string) {
-  return collection(getFirebaseDb(), "users", uid, "clients")
+function rowToClient(row: Record<string, unknown>): Client {
+  return {
+    id:        row.id as string,
+    name:      row.name as string,
+    email:     (row.email as string) ?? undefined,
+    phone:     (row.phone as string) ?? undefined,
+    notes:     (row.notes as string) ?? undefined,
+    color:     (row.color as string) ?? "#6b7280",
+    isActive:  (row.isActive as boolean) ?? true,
+    createdAt: row.createdAt ? Timestamp.fromDate(new Date(row.createdAt as string)) : Timestamp.now(),
+  }
 }
 
 export function useClients() {
@@ -28,10 +25,11 @@ export function useClients() {
     queryKey: ["clients", user?.uid],
     enabled: !!user,
     queryFn: async () => {
-      if (!user) return []
-      const q = query(clientsCol(user.uid), orderBy("name", "asc"))
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Client)
+      if (!user) return [] as Client[]
+      const res = await apiFetch("/api/clients")
+      if (!res.ok) throw new Error("Error cargando clientes")
+      const rows = await res.json() as Record<string, unknown>[]
+      return rows.map(rowToClient)
     },
   })
 }
@@ -42,14 +40,10 @@ export function useAddClient() {
   return useMutation({
     mutationFn: async (input: ClientInput) => {
       if (!user) throw new Error("No autenticado")
-      // Use setDoc+doc() to avoid Firebase v12 internal __list__ bug on new subcollections
-      const newRef = doc(clientsCol(user.uid))
-      // stripUndefined — Firestore rejects `undefined` (optional fields: email, phone, notes)
-      await setDoc(newRef, stripUndefined({
-        ...input,
-        createdAt: Timestamp.now(),
-      }) as Record<string, unknown>)
-      return newRef.id
+      const res = await apiFetch("/api/clients", { method: "POST", body: JSON.stringify(input) })
+      if (!res.ok) throw new Error("Error al crear cliente")
+      const json = await res.json() as { id: string }
+      return json.id
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["clients", user?.uid] }),
   })
@@ -61,7 +55,8 @@ export function useUpdateClient() {
   return useMutation({
     mutationFn: async ({ id, input }: { id: string; input: Partial<ClientInput> }) => {
       if (!user) throw new Error("No autenticado")
-      await updateDoc(doc(getFirebaseDb(), "users", user.uid, "clients", id), input)
+      const res = await apiFetch(`/api/clients/${id}`, { method: "PATCH", body: JSON.stringify(input) })
+      if (!res.ok) throw new Error("Error al actualizar cliente")
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["clients", user?.uid] }),
   })
@@ -73,7 +68,8 @@ export function useDeleteClient() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error("No autenticado")
-      await deleteDoc(doc(getFirebaseDb(), "users", user.uid, "clients", id))
+      const res = await apiFetch(`/api/clients/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Error al eliminar cliente")
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["clients", user?.uid] }),
   })

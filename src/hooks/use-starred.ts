@@ -1,9 +1,8 @@
 "use client"
 
-import { doc, getDoc, updateDoc, setDoc, arrayUnion, arrayRemove } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
+import { apiFetch } from "@/lib/api-client"
 
 export interface StarredData {
   categories: string[]
@@ -11,10 +10,6 @@ export interface StarredData {
 }
 
 const EMPTY: StarredData = { categories: [], merchants: [] }
-
-function starredRef(uid: string) {
-  return doc(getFirebaseDb(), "users", uid, "starred", "data")
-}
 
 export function useStarred() {
   const { user } = useAuth()
@@ -24,9 +19,10 @@ export function useStarred() {
     staleTime: 1000 * 60 * 5,
     queryFn: async (): Promise<StarredData> => {
       if (!user) return EMPTY
-      const snap = await getDoc(starredRef(user.uid))
-      if (!snap.exists()) return EMPTY
-      return { ...EMPTY, ...(snap.data() as Partial<StarredData>) }
+      const res = await apiFetch("/api/starred")
+      if (!res.ok) return EMPTY
+      const data = await res.json() as Partial<StarredData>
+      return { ...EMPTY, ...data }
     },
   })
 }
@@ -37,15 +33,15 @@ export function useToggleStarCategory() {
   return useMutation({
     mutationFn: async ({ categoryId, isStarred }: { categoryId: string; isStarred: boolean }) => {
       if (!user) throw new Error("No autenticado")
-      const ref = starredRef(user.uid)
-      const snap = await getDoc(ref)
-      if (!snap.exists()) {
-        await setDoc(ref, { categories: isStarred ? [] : [categoryId], merchants: [] })
-      } else {
-        await updateDoc(ref, {
-          categories: isStarred ? arrayRemove(categoryId) : arrayUnion(categoryId),
-        })
-      }
+      const current = queryClient.getQueryData<StarredData>(["starred", user.uid]) ?? EMPTY
+      const categories = isStarred
+        ? current.categories.filter((c) => c !== categoryId)
+        : [...current.categories, categoryId]
+      const res = await apiFetch("/api/starred", {
+        method: "PATCH",
+        body: JSON.stringify({ categories }),
+      })
+      if (!res.ok) throw new Error("Error al actualizar favoritos")
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["starred", user?.uid] }),
   })
@@ -57,15 +53,15 @@ export function useToggleStarMerchant() {
   return useMutation({
     mutationFn: async ({ merchant, isStarred }: { merchant: string; isStarred: boolean }) => {
       if (!user) throw new Error("No autenticado")
-      const ref = starredRef(user.uid)
-      const snap = await getDoc(ref)
-      if (!snap.exists()) {
-        await setDoc(ref, { categories: [], merchants: isStarred ? [] : [merchant] })
-      } else {
-        await updateDoc(ref, {
-          merchants: isStarred ? arrayRemove(merchant) : arrayUnion(merchant),
-        })
-      }
+      const current = queryClient.getQueryData<StarredData>(["starred", user.uid]) ?? EMPTY
+      const merchants = isStarred
+        ? current.merchants.filter((m) => m !== merchant)
+        : [...current.merchants, merchant]
+      const res = await apiFetch("/api/starred", {
+        method: "PATCH",
+        body: JSON.stringify({ merchants }),
+      })
+      if (!res.ok) throw new Error("Error al actualizar favoritos")
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["starred", user?.uid] }),
   })
