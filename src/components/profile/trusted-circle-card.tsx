@@ -7,11 +7,12 @@ import {
   useRemoveFromTrustedCircle,
   useUpdateTrustedCirclePermissions,
 } from "@/hooks/use-trusted-circle"
+import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Users, Plus, Trash2 } from "lucide-react"
+import { Users, Plus, Trash2, Loader2, CheckCircle, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -33,7 +34,37 @@ function getInitials(name: string): string {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
 }
 
+// ── H-1: Lookup de usuario por email via /api/user-lookup ────────────────────
+
+interface LookupResult {
+  uid: string
+  displayName: string
+  photoURL: string | null
+}
+
+type LookupState = "idle" | "loading" | "found" | "not_found" | "error"
+
+async function lookupUserByEmail(
+  email: string,
+  idToken: string
+): Promise<LookupResult | null> {
+  const res = await fetch("/api/user-lookup", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({ email }),
+  })
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error("Error al buscar usuario")
+  return res.json() as Promise<LookupResult>
+}
+
+// ── Main card ─────────────────────────────────────────────────────────────────
+
 export function TrustedCircleCard() {
+  const { user } = useAuth()
   const { data: members = [], isLoading } = useTrustedCircle()
   const addMember = useAddToTrustedCircle()
   const removeMember = useRemoveFromTrustedCircle()
@@ -41,20 +72,71 @@ export function TrustedCircleCard() {
 
   const [showForm, setShowForm] = useState(false)
   const [emailInput, setEmailInput] = useState("")
-  const [nameInput, setNameInput] = useState("")
+  const [lookupState, setLookupState] = useState<LookupState>("idle")
+  const [lookupResult, setLookupResult] = useState<LookupResult | null>(null)
+
+  async function handleEmailBlur() {
+    const email = emailInput.trim().toLowerCase()
+    if (!email || !email.includes("@")) return
+    if (!user) return
+
+    // No volver a buscar si ya tenemos resultado para este email
+    if (lookupResult && lookupState === "found") return
+
+    setLookupState("loading")
+    setLookupResult(null)
+
+    try {
+      const idToken = await user.getIdToken()
+      const result = await lookupUserByEmail(email, idToken)
+      if (result) {
+        setLookupResult(result)
+        setLookupState("found")
+      } else {
+        setLookupState("not_found")
+      }
+    } catch {
+      setLookupState("error")
+    }
+  }
+
+  function handleEmailChange(v: string) {
+    setEmailInput(v)
+    // Resetear estado si el usuario cambia el email
+    if (lookupState !== "idle") {
+      setLookupState("idle")
+      setLookupResult(null)
+    }
+  }
 
   async function handleAdd() {
-    if (!emailInput.trim() || !nameInput.trim()) return
+    const email = emailInput.trim().toLowerCase()
+    if (!email) return
+
+    // Si el lookup ya encontró al usuario, usar sus datos reales
+    const resolvedUid  = lookupResult?.uid ?? email // fallback al email si no hay UID
+    const resolvedName = lookupResult?.displayName ?? email.split("@")[0]
+    const isLinked     = lookupResult !== null
+
     try {
       await addMember.mutateAsync({
-        userId: emailInput.trim(),
-        displayName: nameInput.trim(),
-        email: emailInput.trim(),
+        userId:        resolvedUid,
+        displayName:   resolvedName,
+        email:         email,
         canSeeFullBudget: false,
+        linked:        isLinked,  // true si hay un UID real en el directorio
       })
-      toast.success(`${nameInput} añadido al círculo`)
+
+      toast.success(
+        isLinked
+          ? `${resolvedName} añadido al círculo`
+          : `${resolvedName} añadido (invitación pendiente — aún no tiene cuenta)`,
+        { duration: 5000 }
+      )
+
       setEmailInput("")
-      setNameInput("")
+      setLookupState("idle")
+      setLookupResult(null)
       setShowForm(false)
     } catch {
       toast.error("Error al añadir persona")
@@ -94,7 +176,14 @@ export function TrustedCircleCard() {
                   {getInitials(member.displayName)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{member.displayName}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold truncate">{member.displayName}</p>
+                    {(member as { linked?: boolean }).linked === false && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                        Pendiente
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[10px] text-muted-foreground truncate">{member.email}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -122,31 +211,53 @@ export function TrustedCircleCard() {
 
         {showForm && (
           <div className="space-y-2 rounded-xl border p-3 bg-muted/20">
-            <Input
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              placeholder="Nombre"
-              className="h-8 text-sm"
-              autoFocus
-            />
-            <Input
-              value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
-              placeholder="Email o ID"
-              className="h-8 text-sm"
-              type="email"
-              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            />
+            <div className="relative">
+              <Input
+                value={emailInput}
+                onChange={(e) => handleEmailChange(e.target.value)}
+                onBlur={handleEmailBlur}
+                placeholder="Email de la persona"
+                className="h-8 text-sm pr-8"
+                type="email"
+                autoFocus
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                {lookupState === "loading" && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                {lookupState === "found"   && <CheckCircle  className="h-3.5 w-3.5 text-green-500" />}
+                {lookupState === "not_found" && <AlertCircle className="h-3.5 w-3.5 text-amber-500" />}
+              </div>
+            </div>
+
+            {/* Feedback del lookup */}
+            {lookupState === "found" && lookupResult && (
+              <p className="text-[11px] text-green-600 dark:text-green-400 flex items-center gap-1">
+                <CheckCircle className="h-3 w-3" />
+                Usuario encontrado: <span className="font-semibold">{lookupResult.displayName}</span>
+              </p>
+            )}
+            {lookupState === "not_found" && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                No tiene cuenta en ReciboTrack — se guardará como invitación pendiente
+              </p>
+            )}
+
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="flex-1 h-7 text-xs" onClick={() => setShowForm(false)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 h-7 text-xs"
+                onClick={() => { setShowForm(false); setEmailInput(""); setLookupState("idle"); setLookupResult(null) }}
+              >
                 Cancelar
               </Button>
               <Button
                 size="sm"
                 className="flex-1 h-7 text-xs"
                 onClick={handleAdd}
-                disabled={!emailInput.trim() || !nameInput.trim() || addMember.isPending}
+                disabled={!emailInput.trim() || addMember.isPending || lookupState === "loading"}
               >
+                {addMember.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
                 Añadir
               </Button>
             </div>

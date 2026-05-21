@@ -212,6 +212,7 @@ export interface TrustedCircleMember {
   email: string
   addedAt: Timestamp
   canSeeFullBudget: boolean
+  linked?: boolean  // true si el miembro tiene un UID real (no es invitación pendiente)
 }
 
 export interface TrustedCircleMemberInput {
@@ -219,6 +220,7 @@ export interface TrustedCircleMemberInput {
   displayName: string
   email: string
   canSeeFullBudget: boolean
+  linked?: boolean  // true si se encontró un UID real via userDirectory lookup
 }
 
 // ─── Pinned Items ─────────────────────────────────────────────────────────────

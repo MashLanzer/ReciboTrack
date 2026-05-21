@@ -82,13 +82,20 @@ function LoginForm() {
   async function initUserProfile(uid: string, displayName: string, email: string) {
     // #7 — try-catch para no dejar usuarios logueados sin perfil en Firestore
     try {
-      const ref = doc(getFirebaseDb(), "users", uid)
-      await setDoc(ref, {
-        displayName,
-        email,
-        photoURL: getFirebaseAuth().currentUser?.photoURL ?? null,
-        defaultCurrency: "USD",
-      }, { merge: true })
+      const db = getFirebaseDb()
+      const photoURL = getFirebaseAuth().currentUser?.photoURL ?? null
+
+      // Perfil privado del usuario
+      const ref = doc(db, "users", uid)
+      await setDoc(ref, { displayName, email, photoURL, defaultCurrency: "USD" }, { merge: true })
+
+      // H-1: directorio público para lookup cross-user (Trusted Circle)
+      // Clave: base64url del email para evitar '/' en el path de Firestore
+      if (email) {
+        const key = btoa(email.toLowerCase()).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+        const dirRef = doc(db, "userDirectory", key)
+        await setDoc(dirRef, { uid, displayName, photoURL, updatedAt: new Date().toISOString() }, { merge: true })
+      }
     } catch (err) {
       // No crítico para el flujo de login, pero lo registramos
       console.error("[initUserProfile] Error al crear perfil de usuario:", err)

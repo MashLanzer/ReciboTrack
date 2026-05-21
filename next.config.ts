@@ -59,6 +59,8 @@ const nextConfig: NextConfig = {
 const withPWAConfig = withPWA({
   dest: "public",
   register: true,
+  // SW custom con manejadores push y notificationclick
+  customWorkerSrc: "src/worker",
   // Service Worker desactivado en dev para no interferir con hot reload
   disable: process.env.NODE_ENV === "development",
   // Elimina el SW anterior automáticamente cuando hay una nueva versión
