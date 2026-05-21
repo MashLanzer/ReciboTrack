@@ -5,21 +5,21 @@
  * Devuelve { uid, displayName, photoURL } si existe, o 404 si no.
  *
  * El directorio se construye automáticamente cuando cada usuario inicia sesión:
- * el cliente escribe su propio documento en userDirectory/{base64email}.
+ * POST /api/profile escribe en profiles + user_directory.
  *
  * Autenticación: requiere ID token válido (el que busca debe estar autenticado).
  */
 
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
-import { getAdminDb } from "@/lib/firebase/admin"
+import { getSupabase } from "@/lib/supabase/server"
 
 interface LookupBody {
   email: string
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req, "ai") // rate-limit moderado
+  const auth = await requireAuth(req, "ai")
   if (auth instanceof NextResponse) return auth
 
   let body: LookupBody
@@ -34,30 +34,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Email inválido" }, { status: 400 })
   }
 
-  // Clave del directorio: base64 del email (para evitar / en el path de Firestore)
-  const key = Buffer.from(email).toString("base64url")
+  const { data, error } = await getSupabase()
+    .from("user_directory")
+    .select("uid, display_name, photo_url")
+    .eq("email", email)
+    .single()
 
-  try {
-    const db = getAdminDb()
-    const snap = await db.doc(`userDirectory/${key}`).get()
-
-    if (!snap.exists) {
-      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
-    }
-
-    const data = snap.data() as {
-      uid: string
-      displayName?: string
-      photoURL?: string
-    }
-
-    return NextResponse.json({
-      uid:         data.uid,
-      displayName: data.displayName ?? email.split("@")[0],
-      photoURL:    data.photoURL ?? null,
-    })
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Error desconocido"
-    return NextResponse.json({ error: msg }, { status: 500 })
+  if (error?.code === "PGRST116") {
+    return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
   }
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({
+    uid:         data.uid,
+    displayName: data.display_name ?? email.split("@")[0],
+    photoURL:    data.photo_url ?? null,
+  })
 }

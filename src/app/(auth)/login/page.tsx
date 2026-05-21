@@ -10,8 +10,7 @@ import {
   updateProfile,
   signInWithCredential,
 } from "firebase/auth"
-import { doc, setDoc } from "firebase/firestore"
-import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client"
+import { getFirebaseAuth } from "@/lib/firebase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -80,25 +79,23 @@ function LoginForm() {
   }
 
   async function initUserProfile(uid: string, displayName: string, email: string) {
-    // #7 — try-catch para no dejar usuarios logueados sin perfil en Firestore
+    // Escribe el perfil en Supabase via API route (server-side)
     try {
-      const db = getFirebaseDb()
       const photoURL = getFirebaseAuth().currentUser?.photoURL ?? null
+      const idToken  = await getFirebaseAuth().currentUser!.getIdToken()
 
-      // Perfil privado del usuario
-      const ref = doc(db, "users", uid)
-      await setDoc(ref, { displayName, email, photoURL, defaultCurrency: "USD" }, { merge: true })
-
-      // H-1: directorio público para lookup cross-user (Trusted Circle)
-      // Clave: base64url del email para evitar '/' en el path de Firestore
-      if (email) {
-        const key = btoa(email.toLowerCase()).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
-        const dirRef = doc(db, "userDirectory", key)
-        await setDoc(dirRef, { uid, displayName, photoURL, updatedAt: new Date().toISOString() }, { merge: true })
-      }
+      // Upsert perfil + user_directory en Supabase
+      await fetch("/api/profile", {
+        method:  "POST",
+        headers: {
+          "Content-Type":  "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ displayName, email, photoURL, defaultCurrency: "USD" }),
+      })
     } catch (err) {
       // No crítico para el flujo de login, pero lo registramos
-      console.error("[initUserProfile] Error al crear perfil de usuario:", err)
+      console.error("[initUserProfile] Error al crear perfil:", err)
     }
   }
 

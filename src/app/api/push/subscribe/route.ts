@@ -1,18 +1,19 @@
 /**
- * POST /api/push/subscribe  — guarda la suscripción push del usuario en Firestore
- * DELETE /api/push/subscribe — elimina la suscripción push
+ * POST   /api/push/subscribe  — guarda la suscripción push en Supabase
+ * DELETE /api/push/subscribe  — elimina la suscripción push
  *
- * La suscripción se guarda en users/{uid}/meta/pushSub
+ * La suscripción se guarda en la tabla push_subscriptions.
  * El cron /api/cron/recurring-reminders la usa para enviar notificaciones.
  */
 
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
-import { getAdminDb } from "@/lib/firebase/admin"
+import { getSupabase } from "@/lib/supabase/server"
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req, "pay") // reuse rate limit group
+  const auth = await requireAuth(req, "pay")
   if (auth instanceof NextResponse) return auth
+  const { uid } = auth
 
   let body: unknown
   try {
@@ -21,35 +22,45 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Body inválido" }, { status: 400 })
   }
 
-  // Validar mínimamente que tiene la forma de una PushSubscription
   const sub = body as Record<string, unknown>
   if (typeof sub.endpoint !== "string" || !sub.endpoint) {
     return NextResponse.json({ error: "Suscripción push inválida" }, { status: 400 })
   }
 
-  try {
-    const db = getAdminDb()
-    await db
-      .doc(`users/${auth.uid}/meta/pushSub`)
-      .set({ ...sub, savedAt: new Date().toISOString() })
+  const keys = sub.keys as Record<string, string> | undefined
 
-    return NextResponse.json({ ok: true })
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Error desconocido"
-    return NextResponse.json({ error: msg }, { status: 500 })
-  }
+  // Primero asegurarse de que el perfil existe (FK constraint)
+  await getSupabase()
+    .from("profiles")
+    .upsert({ uid, updated_at: new Date().toISOString() }, { onConflict: "uid" })
+
+  const { error } = await getSupabase()
+    .from("push_subscriptions")
+    .upsert({
+      uid,
+      endpoint:        sub.endpoint,
+      p256dh:          keys?.p256dh ?? null,
+      auth_key:        keys?.auth ?? null,
+      expiration_time: sub.expirationTime != null ? Number(sub.expirationTime) : null,
+      created_at:      new Date().toISOString(),
+    }, { onConflict: "uid" })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ ok: true })
 }
 
 export async function DELETE(req: NextRequest) {
   const auth = await requireAuth(req, "pay")
   if (auth instanceof NextResponse) return auth
+  const { uid } = auth
 
-  try {
-    const db = getAdminDb()
-    await db.doc(`users/${auth.uid}/meta/pushSub`).delete()
-    return NextResponse.json({ ok: true })
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Error desconocido"
-    return NextResponse.json({ error: msg }, { status: 500 })
-  }
+  const { error } = await getSupabase()
+    .from("push_subscriptions")
+    .delete()
+    .eq("uid", uid)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ ok: true })
 }

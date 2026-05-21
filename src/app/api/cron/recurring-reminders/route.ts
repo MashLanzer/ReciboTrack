@@ -6,22 +6,23 @@
  *   "crons": [{ "path": "/api/cron/recurring-reminders", "schedule": "0 9 * * *" }]
  *
  * Requiere las siguientes variables de entorno en Vercel:
- *   FIREBASE_SERVICE_ACCOUNT_JSON  — JSON completo de la cuenta de servicio de Firebase
- *   VAPID_PUBLIC_KEY               — Clave pública VAPID (generar con: npx web-push generate-vapid-keys)
+ *   SUPABASE_URL                   — URL del proyecto Supabase
+ *   SUPABASE_SERVICE_ROLE_KEY      — Clave de servicio de Supabase
+ *   VAPID_PUBLIC_KEY               — Clave pública VAPID
  *   VAPID_PRIVATE_KEY              — Clave privada VAPID
  *   VAPID_SUBJECT                  — Email de contacto: mailto:tu@email.com
  *   CRON_SECRET                    — Token secreto para verificar que la llamada viene de Vercel
  *
  * Qué hace:
- *   1. Itera todos los usuarios que tienen suscripción push guardada (users/{uid}/meta/pushSub)
- *   2. Para cada usuario, lee sus pagos recurrentes (users/{uid}/recurring)
+ *   1. Lee todos los usuarios con suscripción push guardada (push_subscriptions)
+ *   2. Para cada usuario, lee sus pagos recurrentes (recurring)
  *   3. Encuentra los que vencen en los próximos 2 días
  *   4. Envía una notificación push por cada uno que no haya sido notificado hoy
  */
 
 import { NextRequest, NextResponse } from "next/server"
 import webpush from "web-push"
-import { getAdminDb } from "@/lib/firebase/admin"
+import { getSupabase } from "@/lib/supabase/server"
 
 // ── VAPID setup ───────────────────────────────────────────────────────────────
 
@@ -39,17 +40,11 @@ function setupVapid() {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function daysUntil(ts: unknown): number {
-  let date: Date | null = null
-  if (ts && typeof ts === "object" && "toDate" in ts) {
-    date = (ts as { toDate(): Date }).toDate()
-  } else if (typeof ts === "string") {
-    date = new Date(ts)
-  }
-  if (!date) return Infinity
+function daysUntil(dateStr: string | null | undefined): number {
+  if (!dateStr) return Infinity
   const now = new Date()
   now.setHours(0, 0, 0, 0)
-  const due = new Date(date)
+  const due = new Date(dateStr)
   due.setHours(0, 0, 0, 0)
   return Math.round((due.getTime() - now.getTime()) / 86_400_000)
 }
@@ -61,7 +56,7 @@ function todayKey(): string {
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
-  // Verificar que la llamada viene de Vercel Cron (o es una prueba manual con el secret)
+  // Verificar que la llamada viene de Vercel Cron o tiene el secret correcto
   const authHeader = req.headers.get("authorization") ?? ""
   const cronHeader  = req.headers.get("x-vercel-cron-signature") ?? ""
 
@@ -76,62 +71,58 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 
-  const db = getAdminDb()
+  const sb    = getSupabase()
   const today = todayKey()
 
   let notified = 0
-  let skipped = 0
-  let errors = 0
+  let skipped  = 0
+  let errors   = 0
 
-  // 1. Obtener todos los documentos pushSub (collection group query)
-  const pushSubDocs = await db.collectionGroup("meta").where("endpoint", ">", "").get()
+  // 1. Obtener todas las suscripciones push activas
+  const { data: subs, error: subsError } = await sb
+    .from("push_subscriptions")
+    .select("uid, endpoint, p256dh, auth_key, expiration_time")
 
-  for (const pushDoc of pushSubDocs.docs) {
-    // Solo procesar docs que están en users/{uid}/meta/pushSub
-    const pathParts = pushDoc.ref.path.split("/")
-    if (pathParts.length !== 4 || pathParts[2] !== "meta" || pathParts[3] !== "pushSub") continue
+  if (subsError) {
+    return NextResponse.json({ error: subsError.message }, { status: 500 })
+  }
 
-    const uid = pathParts[1]
-    const subData = pushDoc.data() as {
-      endpoint: string
-      keys?: { p256dh: string; auth: string }
-      expirationTime?: number | null
-    }
-
+  for (const sub of subs ?? []) {
     // Verificar que la suscripción no haya expirado
-    if (subData.expirationTime && Date.now() > subData.expirationTime) {
+    if (sub.expiration_time && Date.now() > Number(sub.expiration_time)) {
       skipped++
       continue
     }
 
     const pushSub: webpush.PushSubscription = {
-      endpoint: subData.endpoint,
-      keys: subData.keys ?? { p256dh: "", auth: "" },
+      endpoint: sub.endpoint,
+      keys: {
+        p256dh: sub.p256dh ?? "",
+        auth:   sub.auth_key ?? "",
+      },
     }
 
-    // 2. Leer los pagos recurrentes del usuario
-    const recurringSnap = await db
-      .collection(`users/${uid}/recurring`)
-      .where("active", "!=", false)
-      .get()
+    // 2. Leer los pagos recurrentes activos del usuario
+    const { data: items, error: itemsError } = await sb
+      .from("recurring")
+      .select("id, merchant, total, currency, next_due_date, notified_on")
+      .eq("uid", sub.uid)
+      .eq("active", true)
 
-    for (const recDoc of recurringSnap.docs) {
-      const item = recDoc.data() as {
-        merchant?: string
-        total?: number
-        currency?: string
-        nextDueDate?: unknown
-        notifiedOn?: string  // ISO date — última vez que se notificó este ítem
-      }
+    if (itemsError) {
+      errors++
+      continue
+    }
 
-      const days = daysUntil(item.nextDueDate)
+    for (const item of items ?? []) {
+      const days = daysUntil(item.next_due_date)
       if (days < 0 || days > 2) continue // Solo los próximos 2 días
 
       // Evitar duplicar la notificación de hoy
-      if (item.notifiedOn === today) { skipped++; continue }
+      if (item.notified_on === today) { skipped++; continue }
 
       const merchant = item.merchant ?? "Pago recurrente"
-      const amount   = item.total?.toFixed(2) ?? "?"
+      const amount   = Number(item.total).toFixed(2)
       const currency = item.currency ?? ""
       const dayLabel = days === 0 ? "hoy" : days === 1 ? "mañana" : `en ${days} días`
 
@@ -139,29 +130,28 @@ export async function GET(req: NextRequest) {
         title: `🔔 Pago recurrente ${dayLabel}: ${merchant}`,
         body:  `Vence ${dayLabel} · ${amount} ${currency}`,
         url:   "/recurring",
-        tag:   `recurring-${recDoc.id}-${today}`,
+        tag:   `recurring-${item.id}-${today}`,
       })
 
       try {
         await webpush.sendNotification(pushSub, payload)
+
         // Marcar como notificado hoy para no repetir
-        await recDoc.ref.update({ notifiedOn: today })
+        await sb
+          .from("recurring")
+          .update({ notified_on: today })
+          .eq("id", item.id)
+
         notified++
       } catch (err) {
         errors++
         // Si el endpoint ya no es válido (410 Gone), limpiar la suscripción
         if (err instanceof webpush.WebPushError && err.statusCode === 410) {
-          await pushDoc.ref.delete()
+          await sb.from("push_subscriptions").delete().eq("uid", sub.uid)
         }
       }
     }
   }
 
-  return NextResponse.json({
-    ok: true,
-    date: today,
-    notified,
-    skipped,
-    errors,
-  })
+  return NextResponse.json({ ok: true, date: today, notified, skipped, errors })
 }
