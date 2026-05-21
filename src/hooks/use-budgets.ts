@@ -1,23 +1,18 @@
 "use client"
 
-import {
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  query,
-  where,
-} from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
 import type { Budget } from "@/types"
 import type { BudgetFormInput } from "@/lib/firebase/schemas"
+import { apiFetch } from "@/lib/api-client"
 
-function budgetsCollection(uid: string) {
-  return collection(getFirebaseDb(), "users", uid, "budgets")
+function rowToBudget(row: Record<string, unknown>): Budget {
+  return {
+    id:           row.id as string,
+    categoryId:   row.categoryId as string,
+    monthlyLimit: Number(row.monthlyLimit),
+    currency:     row.currency as string,
+  }
 }
 
 export function useBudgets() {
@@ -27,9 +22,11 @@ export function useBudgets() {
     queryKey: ["budgets", user?.uid],
     enabled: !!user,
     queryFn: async () => {
-      if (!user) return []
-      const snap = await getDocs(budgetsCollection(user.uid))
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Budget)
+      if (!user) return [] as Budget[]
+      const res = await apiFetch("/api/budgets")
+      if (!res.ok) throw new Error("Error cargando presupuestos")
+      const rows = await res.json() as Record<string, unknown>[]
+      return rows.map(rowToBudget)
     },
   })
 }
@@ -41,23 +38,16 @@ export function useUpsertBudget() {
   return useMutation({
     mutationFn: async (input: BudgetFormInput & { id?: string }) => {
       if (!user) throw new Error("No autenticado")
-      const col = budgetsCollection(user.uid)
-      const { id, ...data } = input
-
-      if (id) {
-        await updateDoc(doc(col, id), data)
-        return id
+      const res = await apiFetch("/api/budgets", {
+        method: "POST",
+        body: JSON.stringify(input),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(err.error ?? "Error al guardar presupuesto")
       }
-
-      const q = query(col, where("categoryId", "==", input.categoryId))
-      const snap = await getDocs(q)
-      if (!snap.empty) {
-        await updateDoc(snap.docs[0].ref, data)
-        return snap.docs[0].id
-      }
-
-      const ref = await addDoc(col, data)
-      return ref.id
+      const json = await res.json() as { id: string }
+      return json.id
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["budgets", user?.uid] }),
   })
@@ -70,7 +60,8 @@ export function useDeleteBudget() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error("No autenticado")
-      await deleteDoc(doc(getFirebaseDb(), "users", user.uid, "budgets", id))
+      const res = await apiFetch(`/api/budgets/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Error al eliminar presupuesto")
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["budgets", user?.uid] }),
   })

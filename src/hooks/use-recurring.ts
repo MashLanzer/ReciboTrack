@@ -1,21 +1,11 @@
 "use client"
 
-import {
-  collection,
-  query,
-  orderBy,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  Timestamp,
-  getDocs,
-} from "firebase/firestore"
+import { Timestamp } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { addWeeks, addMonths, addYears } from "date-fns"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { addWeeks, addMonths, addYears, format } from "date-fns"
 import { useAuth } from "./use-auth"
 import type { RecurringTemplate, RecurringFrequency } from "@/types"
+import { apiFetch } from "@/lib/api-client"
 
 interface RecurringInput {
   merchant: string
@@ -31,8 +21,36 @@ interface RecurringInput {
   nextDueDate: Date
 }
 
-function recurringCollection(uid: string) {
-  return collection(getFirebaseDb(), "users", uid, "recurring")
+/** Convierte un row de la API al tipo RecurringTemplate (con Timestamps) */
+function rowToRecurring(row: Record<string, unknown>): RecurringTemplate {
+  // nextDueDate viene como "YYYY-MM-DD"
+  const nextDueDateStr = row.nextDueDate as string | null | undefined
+  const nextDueDate = nextDueDateStr
+    ? Timestamp.fromDate(new Date(nextDueDateStr + "T12:00:00"))
+    : Timestamp.now()
+
+  return {
+    id:                   row.id as string,
+    merchant:             row.merchant as string,
+    category:             (row.category as string) ?? "",
+    subtotal:             Number(row.subtotal),
+    tax:                  Number(row.tax),
+    total:                Number(row.total),
+    paymentMethod:        (row.paymentMethod as string) ?? null,
+    currency:             (row.currency as string) ?? "USD",
+    notes:                (row.notes as string) ?? "",
+    tags:                 (row.tags as string[]) ?? [],
+    frequency:            row.frequency as RecurringFrequency,
+    nextDueDate,
+    isActive:             (row.isActive as boolean) ?? true,
+    createdAt:            row.createdAt
+      ? Timestamp.fromDate(new Date(row.createdAt as string))
+      : Timestamp.now(),
+    lastLinkedExpenseId:  (row.lastLinkedExpenseId as string) ?? undefined,
+    lastLinkedAt:         row.lastLinkedAt
+      ? Timestamp.fromDate(new Date(row.lastLinkedAt as string))
+      : undefined,
+  }
 }
 
 export function useRecurring() {
@@ -43,14 +61,11 @@ export function useRecurring() {
     enabled: !!user,
     staleTime: 1000 * 60 * 2,
     queryFn: async () => {
-      if (!user) return []
-      const col = recurringCollection(user.uid)
-      // Single-field orderBy only — avoids composite index requirement
-      const q = query(col, orderBy("nextDueDate", "asc"))
-      const snap = await getDocs(q)
-      return snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }) as RecurringTemplate)
-        .filter((t) => t.isActive !== false) // client-side active filter
+      if (!user) return [] as RecurringTemplate[]
+      const res = await apiFetch("/api/recurring")
+      if (!res.ok) throw new Error("Error cargando recurrentes")
+      const rows = await res.json() as Record<string, unknown>[]
+      return rows.map(rowToRecurring)
     },
   })
 }
@@ -63,15 +78,13 @@ export function useDueRecurring() {
     enabled: !!user,
     staleTime: 1000 * 60 * 2,
     queryFn: async () => {
-      if (!user) return []
-      const col = recurringCollection(user.uid)
+      if (!user) return [] as RecurringTemplate[]
+      const res = await apiFetch("/api/recurring")
+      if (!res.ok) throw new Error("Error cargando recurrentes vencidos")
+      const rows = await res.json() as Record<string, unknown>[]
+      const all = rows.map(rowToRecurring)
       const now = Timestamp.now()
-      // Single orderBy + client-side where — avoids composite index requirement
-      const q = query(col, orderBy("nextDueDate", "asc"))
-      const snap = await getDocs(q)
-      return snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }) as RecurringTemplate)
-        .filter((t) => t.isActive !== false && t.nextDueDate.toMillis() <= now.toMillis())
+      return all.filter((t) => t.isActive && t.nextDueDate.toMillis() <= now.toMillis())
     },
   })
 }
@@ -83,14 +96,19 @@ export function useAddRecurring() {
   return useMutation({
     mutationFn: async (input: RecurringInput) => {
       if (!user) throw new Error("No autenticado")
-      const col = recurringCollection(user.uid)
-      const ref = await addDoc(col, {
-        ...input,
-        nextDueDate: Timestamp.fromDate(input.nextDueDate),
-        isActive: true,
-        createdAt: Timestamp.now(),
+      const res = await apiFetch("/api/recurring", {
+        method: "POST",
+        body: JSON.stringify({
+          ...input,
+          nextDueDate: format(input.nextDueDate, "yyyy-MM-dd"),
+        }),
       })
-      return ref.id
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(err.error ?? "Error al crear recurrente")
+      }
+      const json = await res.json() as { id: string }
+      return json.id
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["recurring", user?.uid] })
@@ -113,8 +131,11 @@ export function useConfirmRecurring() {
         frequency === "monthly"  ? addMonths(now, 1) :
         addYears(now, 1)
 
-      const ref = doc(getFirebaseDb(), "users", user.uid, "recurring", id)
-      await updateDoc(ref, { nextDueDate: Timestamp.fromDate(nextDue) })
+      const res = await apiFetch(`/api/recurring/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ nextDueDate: format(nextDue, "yyyy-MM-dd") }),
+      })
+      if (!res.ok) throw new Error("Error al confirmar pago")
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["recurring", user?.uid] })
@@ -132,8 +153,12 @@ export function useSnoozeRecurring() {
       if (!user) throw new Error("No autenticado")
       const snooze = new Date()
       snooze.setDate(snooze.getDate() + 3)
-      const ref = doc(getFirebaseDb(), "users", user.uid, "recurring", id)
-      await updateDoc(ref, { nextDueDate: Timestamp.fromDate(snooze) })
+
+      const res = await apiFetch(`/api/recurring/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ nextDueDate: format(snooze, "yyyy-MM-dd") }),
+      })
+      if (!res.ok) throw new Error("Error al posponer")
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["recurring", user?.uid] })
@@ -149,10 +174,14 @@ export function useUpdateRecurring() {
   return useMutation({
     mutationFn: async ({ id, input }: { id: string; input: Partial<RecurringInput> }) => {
       if (!user) throw new Error("No autenticado")
-      const ref = doc(getFirebaseDb(), "users", user.uid, "recurring", id)
-      const data: Record<string, unknown> = { ...input }
-      if (input.nextDueDate) data.nextDueDate = Timestamp.fromDate(input.nextDueDate)
-      await updateDoc(ref, data)
+      const body: Record<string, unknown> = { ...input }
+      if (input.nextDueDate) body.nextDueDate = format(input.nextDueDate, "yyyy-MM-dd")
+
+      const res = await apiFetch(`/api/recurring/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) throw new Error("Error al actualizar recurrente")
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["recurring", user?.uid] })
@@ -168,7 +197,8 @@ export function useDeleteRecurring() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error("No autenticado")
-      await deleteDoc(doc(getFirebaseDb(), "users", user.uid, "recurring", id))
+      const res = await apiFetch(`/api/recurring/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Error al eliminar recurrente")
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["recurring", user?.uid] })

@@ -1,11 +1,11 @@
 "use client"
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { collection, query, where, getDocs, setDoc, deleteDoc, doc, Timestamp } from "firebase/firestore"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { Timestamp } from "firebase/firestore"
+import { startOfMonth, endOfMonth, format } from "date-fns"
 import { useAuth } from "./use-auth"
-import { startOfMonth, endOfMonth } from "date-fns"
 import { toast } from "sonner"
-import { stripUndefined } from "@/lib/utils"
+import { apiFetch } from "@/lib/api-client"
 
 export interface Income {
   id: string
@@ -28,22 +28,22 @@ export interface IncomeInput {
   account?: "personal" | "business"
 }
 
-function incomeCol(uid: string) {
-  return collection(getFirebaseDb(), "users", uid, "income")
-}
+function rowToIncome(row: Record<string, unknown>): Income {
+  // date comes as "YYYY-MM-DD"
+  const dateTs = row.date
+    ? Timestamp.fromDate(new Date(String(row.date) + "T12:00:00"))
+    : Timestamp.now()
 
-// Shared fetch: gets income for a date range WITHOUT orderBy to avoid composite-index errors.
-// Results are sorted client-side (desc by date) which is equally fast for typical income counts.
-async function fetchIncomeRange(uid: string, start: Date, end: Date): Promise<Income[]> {
-  const q = query(
-    incomeCol(uid),
-    where("date", ">=", Timestamp.fromDate(start)),
-    where("date", "<=", Timestamp.fromDate(end)),
-  )
-  const snap = await getDocs(q)
-  const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }) as Income)
-  // Sort descending by date on the client — avoids needing a Firestore composite index
-  return docs.sort((a, b) => b.date.toMillis() - a.date.toMillis())
+  return {
+    id:          row.id as string,
+    amount:      Number(row.amount),
+    currency:    (row.currency as string) ?? "USD",
+    source:      (row.source as string) ?? "",
+    description: (row.description as string) ?? undefined,
+    date:        dateTs,
+    recurring:   (row.recurring as boolean) ?? false,
+    account:     (row.account as "personal" | "business") ?? undefined,
+  }
 }
 
 export function useIncome(year: number, month: number) {
@@ -55,7 +55,14 @@ export function useIncome(year: number, month: number) {
     enabled: !!user,
     queryFn: async () => {
       if (!user) return [] as Income[]
-      return fetchIncomeRange(user.uid, start, end)
+      const params = new URLSearchParams({
+        startDate: format(start, "yyyy-MM-dd"),
+        endDate:   format(end,   "yyyy-MM-dd"),
+      })
+      const res = await apiFetch(`/api/income?${params}`)
+      if (!res.ok) throw new Error("Error cargando ingresos")
+      const rows = await res.json() as Record<string, unknown>[]
+      return rows.map(rowToIncome)
     },
   })
 }
@@ -67,7 +74,14 @@ export function useIncomePeriod(start: Date, end: Date) {
     enabled: !!user,
     queryFn: async () => {
       if (!user) return [] as Income[]
-      return fetchIncomeRange(user.uid, start, end)
+      const params = new URLSearchParams({
+        startDate: format(start, "yyyy-MM-dd"),
+        endDate:   format(end,   "yyyy-MM-dd"),
+      })
+      const res = await apiFetch(`/api/income?${params}`)
+      if (!res.ok) throw new Error("Error cargando ingresos del período")
+      const rows = await res.json() as Record<string, unknown>[]
+      return rows.map(rowToIncome)
     },
   })
 }
@@ -78,20 +92,14 @@ export function useAddIncome() {
   return useMutation({
     mutationFn: async (input: IncomeInput) => {
       if (!user) throw new Error("No auth")
-      // setDoc+doc() avoids Firebase v12 internal __list__ bug on new subcollections
-      const newRef = doc(incomeCol(user.uid))
-      // stripUndefined removes optional fields left as undefined (e.g. empty description)
-      // Firestore rejects documents with `undefined` field values
-      const data = stripUndefined({
-        amount:    input.amount,
-        currency:  input.currency,
-        source:    input.source,
-        date:      Timestamp.fromDate(input.date),
-        recurring: input.recurring,
-        ...(input.description ? { description: input.description } : {}),
-        ...(input.account     ? { account:     input.account }     : {}),
+      const res = await apiFetch("/api/income", {
+        method: "POST",
+        body: JSON.stringify({
+          ...input,
+          date: format(input.date, "yyyy-MM-dd"),
+        }),
       })
-      await setDoc(newRef, data as Record<string, unknown>)
+      if (!res.ok) throw new Error("Error al añadir ingreso")
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["income", user?.uid] })
@@ -110,7 +118,8 @@ export function useDeleteIncome() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error("No auth")
-      await deleteDoc(doc(getFirebaseDb(), "users", user.uid, "income", id))
+      const res = await apiFetch(`/api/income/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Error al eliminar ingreso")
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["income", user?.uid] })

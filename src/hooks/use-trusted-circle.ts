@@ -1,21 +1,23 @@
 "use client"
 
-import {
-  collection,
-  getDocs,
-  addDoc,
-  deleteDoc,
-  updateDoc,
-  doc,
-  Timestamp,
-} from "firebase/firestore"
+import { Timestamp } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
 import type { TrustedCircleMember, TrustedCircleMemberInput } from "@/types"
+import { apiFetch } from "@/lib/api-client"
 
-function trustedCircleCollection(uid: string) {
-  return collection(getFirebaseDb(), "users", uid, "trustedCircle")
+function rowToMember(row: Record<string, unknown>): TrustedCircleMember {
+  return {
+    id:               row.id as string,
+    userId:           (row.userId as string) ?? "",
+    displayName:      (row.displayName as string) ?? "",
+    email:            row.email as string,
+    addedAt:          row.addedAt
+      ? Timestamp.fromDate(new Date(row.addedAt as string))
+      : Timestamp.now(),
+    canSeeFullBudget: (row.canSeeFullBudget as boolean) ?? false,
+    linked:           (row.linked as boolean) ?? false,
+  }
 }
 
 export function useTrustedCircle() {
@@ -26,9 +28,10 @@ export function useTrustedCircle() {
     enabled: !!user,
     queryFn: async () => {
       if (!user) return [] as TrustedCircleMember[]
-      const col = trustedCircleCollection(user.uid)
-      const snap = await getDocs(col)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TrustedCircleMember)
+      const res = await apiFetch("/api/trusted-circle")
+      if (!res.ok) throw new Error("Error cargando círculo de confianza")
+      const rows = await res.json() as Record<string, unknown>[]
+      return rows.map(rowToMember)
     },
   })
 }
@@ -40,16 +43,15 @@ export function useAddToTrustedCircle() {
   return useMutation({
     mutationFn: async (input: TrustedCircleMemberInput) => {
       if (!user) throw new Error("No autenticado")
-      const col = trustedCircleCollection(user.uid)
-      const ref = await addDoc(col, {
-        ...input,
-        addedAt: Timestamp.now(),
+      const res = await apiFetch("/api/trusted-circle", {
+        method: "POST",
+        body: JSON.stringify(input),
       })
-      return ref.id
+      if (!res.ok) throw new Error("Error al añadir miembro")
+      const json = await res.json() as { id: string }
+      return json.id
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trustedCircle", user?.uid] })
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["trustedCircle", user?.uid] }),
   })
 }
 
@@ -60,11 +62,10 @@ export function useRemoveFromTrustedCircle() {
   return useMutation({
     mutationFn: async (memberId: string) => {
       if (!user) throw new Error("No autenticado")
-      await deleteDoc(doc(getFirebaseDb(), "users", user.uid, "trustedCircle", memberId))
+      const res = await apiFetch(`/api/trusted-circle/${memberId}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Error al eliminar miembro")
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trustedCircle", user?.uid] })
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["trustedCircle", user?.uid] }),
   })
 }
 
@@ -75,13 +76,12 @@ export function useUpdateTrustedCirclePermissions() {
   return useMutation({
     mutationFn: async ({ memberId, canSeeFullBudget }: { memberId: string; canSeeFullBudget: boolean }) => {
       if (!user) throw new Error("No autenticado")
-      await updateDoc(
-        doc(getFirebaseDb(), "users", user.uid, "trustedCircle", memberId),
-        { canSeeFullBudget }
-      )
+      const res = await apiFetch(`/api/trusted-circle/${memberId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ canSeeFullBudget }),
+      })
+      if (!res.ok) throw new Error("Error al actualizar permisos")
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trustedCircle", user?.uid] })
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["trustedCircle", user?.uid] }),
   })
 }

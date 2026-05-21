@@ -1,34 +1,16 @@
 "use client"
 
-import {
-  collection,
-  query,
-  orderBy,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  getDoc,
-  Timestamp,
-  serverTimestamp,
-  where,
-  getDocs,
-} from "firebase/firestore"
+import { Timestamp } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query"
 import { useEffect } from "react"
-import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
 import type { Expense, ExpenseInput } from "@/types"
 import { EXPENSES_PER_PAGE } from "@/lib/constants"
 import { fireWebhook, buildExpensePayload } from "@/lib/webhook"
 import { toast } from "sonner"
-import { stripUndefined } from "@/lib/utils"
 import { format } from "date-fns"
 import type { CategoryBudget } from "./use-category-budgets"
-
-function expensesCollection(uid: string) {
-  return collection(getFirebaseDb(), "users", uid, "expenses")
-}
+import { apiFetch, isoToTimestamp, dateToIso } from "@/lib/api-client"
 
 export type ExpenseSort = "date_desc" | "date_asc" | "amount_desc" | "amount_asc" | "merchant_asc" | "merchant_desc" | "category_asc"
 
@@ -43,53 +25,58 @@ export type ExpenseFilters = {
   account?: "personal" | "business" | "all"
 }
 
+/** Convierte un row de la API (fechas ISO) al tipo Expense (con Timestamps) */
+function rowToExpense(row: Record<string, unknown>): Expense {
+  return {
+    id:              row.id as string,
+    account:         (row.account as "personal" | "business") ?? undefined,
+    merchant:        row.merchant as string,
+    date:            isoToTimestamp(row.date as string),
+    items:           (row.items as Expense["items"]) ?? [],
+    subtotal:        Number(row.subtotal),
+    tax:             Number(row.tax),
+    total:           Number(row.total),
+    paymentMethod:   (row.paymentMethod as string) ?? null,
+    reference:       (row.reference as string) ?? null,
+    category:        row.category as string,
+    currency:        row.currency as string,
+    notes:           (row.notes as string) ?? "",
+    tags:            (row.tags as string[]) ?? [],
+    receiptImageUrl: (row.receiptImageUrl as string) ?? null,
+    project:         (row.project as string) ?? undefined,
+    privacy:         (row.privacy as "private" | "group" | "public") ?? "private",
+    archived:        (row.archived as boolean) ?? false,
+    flagged:         (row.flagged as boolean) ?? false,
+    flaggedAt:       row.flaggedAt ? isoToTimestamp(row.flaggedAt as string) : undefined,
+    recurringId:     (row.recurringId as string) ?? undefined,
+    createdAt:       isoToTimestamp(row.createdAt as string),
+    updatedAt:       isoToTimestamp(row.updatedAt as string),
+  }
+}
+
 async function fetchExpenses(
-  uid: string,
   filters: ExpenseFilters | undefined,
   page: number
 ): Promise<{ expenses: Expense[]; total: number; allTags: string[] }> {
-  const col = expensesCollection(uid)
-  let q = query(col, orderBy("date", "desc"))
-  if (filters?.category) q = query(q, where("category", "==", filters.category))
-  if (filters?.startDate) q = query(q, where("date", ">=", Timestamp.fromDate(filters.startDate)))
-  if (filters?.endDate) q = query(q, where("date", "<=", Timestamp.fromDate(filters.endDate)))
-  const snapshot = await getDocs(q)
-  let expenses = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
-  // account filter
-  if (filters?.account && filters.account !== "all") {
-    expenses = filters.account === "business"
-      ? expenses.filter(e => e.account === "business")
-      : expenses.filter(e => !e.account || e.account === "personal")
+  const params = new URLSearchParams()
+  if (filters?.category)  params.set("category",  filters.category)
+  if (filters?.account && filters.account !== "all") params.set("account", filters.account)
+  if (filters?.startDate) params.set("startDate", dateToIso(filters.startDate))
+  if (filters?.endDate)   params.set("endDate",   dateToIso(filters.endDate))
+  if (filters?.search)    params.set("search",    filters.search)
+  if (filters?.tags?.length) params.set("tags",   filters.tags.join(","))
+  if (filters?.sort)      params.set("sort",      filters.sort)
+  params.set("page",  String(page))
+  params.set("limit", String(EXPENSES_PER_PAGE))
+
+  const res = await apiFetch(`/api/expenses?${params}`)
+  if (!res.ok) throw new Error("Error cargando gastos")
+  const json = await res.json() as { expenses: Record<string, unknown>[]; total: number; allTags: string[] }
+  return {
+    expenses: json.expenses.map(rowToExpense),
+    total:    json.total,
+    allTags:  json.allTags,
   }
-  // search filter
-  if (filters?.search) {
-    const s = filters.search.toLowerCase()
-    expenses = expenses.filter(e =>
-      e.merchant.toLowerCase().includes(s) ||
-      (e.reference?.toLowerCase().includes(s) ?? false) ||
-      (e.notes?.toLowerCase().includes(s) ?? false) ||
-      (e.project?.toLowerCase().includes(s) ?? false) ||
-      (e.tags?.some((t) => t.toLowerCase().includes(s)) ?? false) ||
-      (e.items?.some((it) => it.name.toLowerCase().includes(s)) ?? false)
-    )
-  }
-  // tag filter
-  if (filters?.tags && filters.tags.length > 0) {
-    const ft = filters.tags.map(t => t.toLowerCase())
-    expenses = expenses.filter(e => ft.some(f => e.tags?.some(et => et.toLowerCase() === f)))
-  }
-  const allTags = [...new Set(expenses.flatMap(e => e.tags ?? []).map(t => t.toLowerCase()))].sort()
-  // sort
-  const sort = filters?.sort ?? "date_desc"
-  if (sort === "date_asc") expenses = [...expenses].reverse()
-  else if (sort === "amount_desc") expenses = [...expenses].sort((a, b) => b.total - a.total)
-  else if (sort === "amount_asc") expenses = [...expenses].sort((a, b) => a.total - b.total)
-  else if (sort === "merchant_asc") expenses = [...expenses].sort((a, b) => a.merchant.localeCompare(b.merchant))
-  else if (sort === "merchant_desc") expenses = [...expenses].sort((a, b) => b.merchant.localeCompare(a.merchant))
-  else if (sort === "category_asc") expenses = [...expenses].sort((a, b) => a.category.localeCompare(b.category))
-  const total = expenses.length
-  const paginated = expenses.slice((page - 1) * EXPENSES_PER_PAGE, page * EXPENSES_PER_PAGE)
-  return { expenses: paginated, total, allTags }
 }
 
 export function useExpenses(filters?: {
@@ -103,22 +90,21 @@ export function useExpenses(filters?: {
   account?: "personal" | "business" | "all"
 }) {
   const { user } = useAuth()
-
   const queryClient = useQueryClient()
   const uid = user?.uid
 
   const result = useQuery({
     queryKey: ["expenses", uid, filters],
     enabled: !!uid,
-    placeholderData: keepPreviousData,  // #23 — keep previous page visible while next loads
-    staleTime: 60_000,  // #23 — 1 minute stale time to avoid immediate refetch on back-nav
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
     queryFn: async () => {
       if (!uid) return { expenses: [], total: 0, allTags: [] as string[] }
-      return fetchExpenses(uid, filters, filters?.page ?? 1)
+      return fetchExpenses(filters, filters?.page ?? 1)
     },
   })
 
-  // #23 — Prefetch next page in background when data is available
+  // Prefetch de la siguiente página
   const page = filters?.page ?? 1
   const data = result.data
   useEffect(() => {
@@ -129,7 +115,7 @@ export function useExpenses(filters?: {
     queryClient.prefetchQuery({
       queryKey: ["expenses", uid, nextFilters],
       staleTime: 30_000,
-      queryFn: () => fetchExpenses(uid, nextFilters, page + 1),
+      queryFn: () => fetchExpenses(nextFilters, page + 1),
     }).catch(() => {/* ignore prefetch errors */})
   }, [uid, page, data?.total]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -143,18 +129,18 @@ export function useExpensesForMonth(year: number, month: number) {
     queryKey: ["expenses-month", user?.uid, year, month],
     enabled: !!user,
     queryFn: async () => {
-      if (!user) return []
+      if (!user) return [] as Expense[]
       const start = new Date(year, month - 1, 1)
-      const end = new Date(year, month, 0, 23, 59, 59)
-      const col = expensesCollection(user.uid)
-      const q = query(
-        col,
-        where("date", ">=", Timestamp.fromDate(start)),
-        where("date", "<=", Timestamp.fromDate(end)),
-        orderBy("date", "desc")
-      )
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
+      const end   = new Date(year, month, 0, 23, 59, 59)
+      const params = new URLSearchParams({
+        startDate: dateToIso(start),
+        endDate:   dateToIso(end),
+        all:       "true",
+      })
+      const res = await apiFetch(`/api/expenses?${params}`)
+      if (!res.ok) throw new Error("Error cargando gastos del mes")
+      const json = await res.json() as { expenses: Record<string, unknown>[] }
+      return json.expenses.map(rowToExpense)
     },
   })
 }
@@ -167,15 +153,15 @@ export function useExpensesPeriod(start: Date, end: Date) {
     enabled: !!user,
     queryFn: async () => {
       if (!user) return [] as Expense[]
-      const col = expensesCollection(user.uid)
-      const q = query(
-        col,
-        where("date", ">=", Timestamp.fromDate(start)),
-        where("date", "<=", Timestamp.fromDate(end)),
-        orderBy("date", "desc")
-      )
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
+      const params = new URLSearchParams({
+        startDate: dateToIso(start),
+        endDate:   dateToIso(end),
+        all:       "true",
+      })
+      const res = await apiFetch(`/api/expenses?${params}`)
+      if (!res.ok) throw new Error("Error cargando gastos del período")
+      const json = await res.json() as { expenses: Record<string, unknown>[] }
+      return json.expenses.map(rowToExpense)
     },
   })
 }
@@ -187,115 +173,86 @@ export function useAddExpense() {
   return useMutation({
     mutationFn: async (input: ExpenseInput) => {
       if (!user) throw new Error("No autenticado")
-      const col = expensesCollection(user.uid)
-      const now = Timestamp.now()
-      // stripUndefined — Firestore rejects `undefined` (optional fields: account, project, privacy…)
-      const data = stripUndefined({
-        ...input,
-        date: Timestamp.fromDate(input.date),
-        createdAt: now,
-        updatedAt: now,
-      }) as Record<string, unknown>
-      // addDoc resolves immediately when offline (Firebase queues it locally)
-      const ref = await addDoc(col, data)
-      const expenseId = ref.id
 
-      // Feature A — Link to matching active recurring template
-      try {
-        const recurringCol = collection(getFirebaseDb(), "users", user.uid, "recurring")
-        const recurringSnap = await getDocs(
-          query(recurringCol, where("isActive", "==", true))
-        )
-        const merchantLower = input.merchant.toLowerCase()
-        const match = recurringSnap.docs.find(
-          (d) => (d.data().merchant as string).toLowerCase() === merchantLower
-        )
-        if (match) {
-          const expenseRef = doc(getFirebaseDb(), "users", user.uid, "expenses", expenseId)
-          const templateRef = doc(getFirebaseDb(), "users", user.uid, "recurring", match.id)
-          await updateDoc(expenseRef, { recurringId: match.id })
-          await updateDoc(templateRef, {
-            lastLinkedExpenseId: expenseId,
-            lastLinkedAt: serverTimestamp(),
-          })
-        }
-      } catch { /* ignore — linking is best-effort */ }
-
-      return expenseId
+      const res = await apiFetch("/api/expenses", {
+        method: "POST",
+        body: JSON.stringify({
+          ...input,
+          date: dateToIso(input.date),
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(err.error ?? "Error al guardar el gasto")
+      }
+      const json = await res.json() as { id: string }
+      return json.id
     },
-    // Optimistic update: insert the new expense into every cached expense list
-    // so it appears instantly in the UI even before the server confirms.
+
+    // Optimistic update
     onMutate: async (input) => {
       if (!user) return
       await queryClient.cancelQueries({ queryKey: ["expenses", user.uid] })
 
       const tempId = `temp_${Date.now()}`
       const optimistic: Expense = {
-        id: tempId,
+        id:             tempId,
         ...input,
-        date: Timestamp.fromDate(input.date),
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
+        date:           Timestamp.fromDate(input.date),
+        createdAt:      Timestamp.now(),
+        updatedAt:      Timestamp.now(),
       }
 
-      // Inject into all cached expense-list queries (non-paginated shape)
       queryClient.setQueriesData<{ expenses: Expense[]; total: number; allTags: string[] }>(
         { queryKey: ["expenses", user.uid] },
         (old) => {
           if (!old) return old
-          return {
-            ...old,
-            expenses: [optimistic, ...old.expenses],
-            total: old.total + 1,
-          }
+          return { ...old, expenses: [optimistic, ...old.expenses], total: old.total + 1 }
         }
       )
 
       return { tempId }
     },
+
     onSuccess: async (id, input, ctx) => {
-      // Remove the optimistic entry and refetch real data
       queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
       queryClient.invalidateQueries({ queryKey: ["expenses-month", user?.uid] })
       void ctx
 
-      // Fire personal webhook if configured and event is enabled
+      // Webhook — leer config de perfil
       if (user?.uid) {
         try {
-          const userSnap = await getDoc(doc(getFirebaseDb(), "users", user.uid))
-          const userData = userSnap.data() ?? {}
-          const webhookUrl    = typeof userData.webhookUrl === "string" ? userData.webhookUrl : ""
-          const webhookEvents = Array.isArray(userData.webhookEvents) ? userData.webhookEvents as string[] : []
-          if (webhookUrl && webhookEvents.includes("new_expense")) {
-            void fireWebhook(webhookUrl, buildExpensePayload({
-              id, ...input, date: { toDate: () => input.date },
-            }))
+          const res = await apiFetch("/api/profile")
+          if (res.ok) {
+            const profile = await res.json() as { webhookUrl?: string; webhookEvents?: string[] }
+            const webhookUrl    = profile.webhookUrl ?? ""
+            const webhookEvents = profile.webhookEvents ?? []
+            if (webhookUrl && webhookEvents.includes("new_expense")) {
+              void fireWebhook(webhookUrl, buildExpensePayload({
+                id, ...input, date: { toDate: () => input.date },
+              }))
+            }
           }
         } catch { /* ignore */ }
       }
 
-      // ── Feature 2: Budget alert ─────────────────────────────────────────
-      // Only for personal expenses (not group expenses)
+      // Budget alert — usar caché de React Query
       if (!user || (input as { groupId?: string }).groupId) return
       try {
         const currentMonth = format(new Date(), "yyyy-MM")
-        const budgetsCol = collection(getFirebaseDb(), "users", user.uid, "categoryBudgets")
-        const budgetsSnap = await getDocs(query(budgetsCol, where("month", "==", currentMonth)))
-        const budgets = budgetsSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as CategoryBudget)
-        const matchingBudget = budgets.find((b) => b.categoryId === input.category)
+        // Leer budgets del caché (si ya fueron cargados por use-category-budgets)
+        const budgetsCached = queryClient.getQueryData<CategoryBudget[]>(["category-budgets", user.uid, currentMonth])
+        const matchingBudget = (budgetsCached ?? []).find((b) => b.categoryId === input.category)
         if (!matchingBudget) return
 
-        // Use the React Query cache for all expenses — filter client-side
         const allCached = queryClient.getQueriesData<{ expenses: Expense[]; total: number; allTags: string[] }>({
           queryKey: ["expenses", user.uid],
         })
-        // Gather all cached expenses across all query keys
         const cachedExpenses: Expense[] = []
-        for (const [, data] of allCached) {
-          if (data?.expenses) cachedExpenses.push(...data.expenses)
+        for (const [, d] of allCached) {
+          if (d?.expenses) cachedExpenses.push(...d.expenses)
         }
 
-        // Deduplicate by id
         const seenIds = new Set<string>()
         const uniqueExpenses = cachedExpenses.filter((e) => {
           if (seenIds.has(e.id)) return false
@@ -303,7 +260,6 @@ export function useAddExpense() {
           return true
         })
 
-        // Filter: same category, current month
         const startOfCurrentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
         const catExpenses = uniqueExpenses.filter((e) => {
           if (e.category !== input.category) return false
@@ -312,8 +268,8 @@ export function useAddExpense() {
         })
 
         const totalSpent = catExpenses.reduce((sum, e) => sum + e.total, 0)
-        const budget = matchingBudget.amount
-        const pct = Math.round((totalSpent / budget) * 100)
+        const budget     = matchingBudget.amount
+        const pct        = Math.round((totalSpent / budget) * 100)
 
         const formatAmt = (n: number) =>
           new Intl.NumberFormat("es", { style: "currency", currency: matchingBudget.currency || "USD", maximumFractionDigits: 0 }).format(n)
@@ -322,46 +278,34 @@ export function useAddExpense() {
           toast.error("Presupuesto superado", {
             description: `Categoría: ${input.category} · ${formatAmt(totalSpent)} de ${formatAmt(budget)} gastado (${pct}%)`,
             duration: 8000,
-            action: {
-              label: "Ver presupuestos",
-              onClick: () => { window.location.href = "/budgets" },
-            },
+            action: { label: "Ver presupuestos", onClick: () => { window.location.href = "/budgets" } },
           })
         } else if (totalSpent >= budget * 0.8) {
           toast.warning(`Presupuesto al ${pct}%`, {
             description: `Categoría: ${input.category} · ${formatAmt(totalSpent)} de ${formatAmt(budget)} gastado`,
             duration: 8000,
-            action: {
-              label: "Ver presupuestos",
-              onClick: () => { window.location.href = "/budgets" },
-            },
+            action: { label: "Ver presupuestos", onClick: () => { window.location.href = "/budgets" } },
           })
         }
-      } catch { /* ignore — budget check is best-effort */ }
+      } catch { /* ignore */ }
 
-      // ── Feature 4: "¿Es esto recurrente?" hint ──────────────────────────────
-      // Show a toast when the merchant looks like a regular subscription pattern
-      // but is NOT yet tracked in recurring templates.
+      // Recurring hint detector — usa caché
       try {
         const normalize = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ")
         const merchantKey = normalize(input.merchant)
 
-        // Check if already tracked
         const recurringCached = queryClient.getQueryData<{ merchant: string }[]>(["recurring", user.uid])
         const isAlreadyTracked = (recurringCached ?? []).some(
           (t) => normalize(t.merchant) === merchantKey
         )
         if (isAlreadyTracked) return
 
-        // Use the detector cache (expenses from last 300 ordered by date desc)
         const detectorData = queryClient.getQueryData<Expense[]>(["expenses-detector", user.uid])
         if (!detectorData || detectorData.length < 3) return
 
         const merchantExpenses = detectorData.filter(
-          (e) =>
-            normalize(e.merchant) === merchantKey &&
-            e.date &&
-            typeof (e.date as { toDate?: () => Date }).toDate === "function"
+          (e) => normalize(e.merchant) === merchantKey &&
+          e.date && typeof (e.date as { toDate?: () => Date }).toDate === "function"
         )
 
         if (merchantExpenses.length < 2) return
@@ -375,14 +319,13 @@ export function useAddExpense() {
           gaps.push(Math.round((dates[i].getTime() - dates[i - 1].getTime()) / 86_400_000))
         }
         const sorted = [...gaps].sort((a, b) => a - b)
-        const med = sorted[Math.floor(sorted.length / 2)]
+        const med    = sorted[Math.floor(sorted.length / 2)]
 
         let freq = ""
-        if (med >= 6 && med <= 8) freq = "semanal"
+        if (med >= 6  && med <= 8)   freq = "semanal"
         else if (med >= 13 && med <= 16) freq = "quincenal"
         else if (med >= 26 && med <= 35) freq = "mensual"
         else if (med >= 340 && med <= 390) freq = "anual"
-
         if (!freq) return
 
         const consistent = gaps.every((g) => med > 0 && Math.abs(g - med) / med <= 0.30)
@@ -390,19 +333,14 @@ export function useAddExpense() {
 
         toast.info(`¿"${input.merchant}" es ${freq}?`, {
           description: "Parece que lo añades regularmente. Rastréalo como gasto recurrente.",
-          action: {
-            label: "Rastrear",
-            onClick: () => { window.location.href = "/recurring" },
-          },
+          action: { label: "Rastrear", onClick: () => { window.location.href = "/recurring" } },
           duration: 8_000,
         })
-      } catch { /* ignore — hint is best-effort */ }
+      } catch { /* ignore */ }
     },
+
     onError: (_err, _input, ctx) => {
-      // Roll back the optimistic insert
-      if (ctx) {
-        queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
-      }
+      if (ctx) queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
     },
   })
 }
@@ -414,10 +352,17 @@ export function useUpdateExpense() {
   return useMutation({
     mutationFn: async ({ id, input }: { id: string; input: Partial<ExpenseInput> }) => {
       if (!user) throw new Error("No autenticado")
-      const ref = doc(getFirebaseDb(), "users", user.uid, "expenses", id)
-      const data: Record<string, unknown> = { ...input, updatedAt: Timestamp.now() }
-      if (input.date) data.date = Timestamp.fromDate(input.date)
-      await updateDoc(ref, data)
+      const body: Record<string, unknown> = { ...input }
+      if (input.date) body.date = dateToIso(input.date)
+
+      const res = await apiFetch(`/api/expenses/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(err.error ?? "Error al actualizar")
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
@@ -433,7 +378,8 @@ export function useDeleteExpense() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error("No autenticado")
-      await deleteDoc(doc(getFirebaseDb(), "users", user.uid, "expenses", id))
+      const res = await apiFetch(`/api/expenses/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Error al eliminar")
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
@@ -449,8 +395,11 @@ export function useArchiveExpense() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error("No autenticado")
-      const ref = doc(getFirebaseDb(), "users", user.uid, "expenses", id)
-      await updateDoc(ref, { archived: true, updatedAt: Timestamp.now() })
+      const res = await apiFetch(`/api/expenses/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ archived: true }),
+      })
+      if (!res.ok) throw new Error("Error al archivar")
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
@@ -467,8 +416,11 @@ export function useUnarchiveExpense() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error("No autenticado")
-      const ref = doc(getFirebaseDb(), "users", user.uid, "expenses", id)
-      await updateDoc(ref, { archived: false, updatedAt: Timestamp.now() })
+      const res = await apiFetch(`/api/expenses/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ archived: false }),
+      })
+      if (!res.ok) throw new Error("Error al desarchivar")
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
@@ -486,14 +438,10 @@ export function useArchivedExpenses() {
     enabled: !!user,
     queryFn: async () => {
       if (!user) return [] as Expense[]
-      const col = expensesCollection(user.uid)
-      const q = query(
-        col,
-        where("archived", "==", true),
-        orderBy("updatedAt", "desc")
-      )
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
+      const res = await apiFetch("/api/expenses?archived=true&all=true")
+      if (!res.ok) throw new Error("Error cargando archivados")
+      const json = await res.json() as { expenses: Record<string, unknown>[] }
+      return json.expenses.map(rowToExpense)
     },
   })
 }
@@ -505,12 +453,15 @@ export function useFlagExpense() {
   return useMutation({
     mutationFn: async ({ id, flagged }: { id: string; flagged: boolean }) => {
       if (!user) throw new Error("No autenticado")
-      const ref = doc(getFirebaseDb(), "users", user.uid, "expenses", id)
-      if (flagged) {
-        await updateDoc(ref, { flagged: true, flaggedAt: Timestamp.now(), updatedAt: Timestamp.now() })
-      } else {
-        await updateDoc(ref, { flagged: false, flaggedAt: null, updatedAt: Timestamp.now() })
-      }
+      const body: Record<string, unknown> = { flagged }
+      if (flagged) body.flaggedAt = new Date().toISOString()
+      else         body.flaggedAt = null
+
+      const res = await apiFetch(`/api/expenses/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) throw new Error("Error al marcar gasto")
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
@@ -528,14 +479,10 @@ export function useFlaggedExpenses() {
     enabled: !!user,
     queryFn: async () => {
       if (!user) return [] as Expense[]
-      const col = expensesCollection(user.uid)
-      const q = query(
-        col,
-        where("flagged", "==", true),
-        orderBy("flaggedAt", "desc")
-      )
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense)
+      const res = await apiFetch("/api/expenses?flagged=true&all=true")
+      if (!res.ok) throw new Error("Error cargando marcados")
+      const json = await res.json() as { expenses: Record<string, unknown>[] }
+      return json.expenses.map(rowToExpense)
     },
   })
 }

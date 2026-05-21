@@ -1,14 +1,11 @@
 "use client"
 
-import {
-  collection, getDocs, addDoc, updateDoc, deleteDoc,
-  doc, Timestamp, orderBy, query,
-} from "firebase/firestore"
-
+import { Timestamp } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
+import { format } from "date-fns"
 import { useAuth } from "./use-auth"
 import type { TravelBudget } from "@/types"
+import { apiFetch } from "@/lib/api-client"
 
 export interface TravelBudgetInput {
   name: string
@@ -20,8 +17,22 @@ export interface TravelBudgetInput {
   tags: string[]
 }
 
-function col(uid: string) {
-  return collection(getFirebaseDb(), "users", uid, "travelBudgets")
+function rowToTravelBudget(row: Record<string, unknown>): TravelBudget {
+  // Dates come as "YYYY-MM-DD" strings
+  const toTs = (v: unknown): Timestamp =>
+    v ? Timestamp.fromDate(new Date(String(v) + "T12:00:00")) : Timestamp.now()
+
+  return {
+    id:         row.id as string,
+    name:       row.name as string,
+    emoji:      (row.emoji as string) ?? "",
+    totalLimit: Number(row.totalLimit),
+    currency:   (row.currency as string) ?? "USD",
+    startDate:  toTs(row.startDate),
+    endDate:    toTs(row.endDate),
+    tags:       (row.tags as string[]) ?? [],
+    createdAt:  toTs(row.createdAt),
+  }
 }
 
 export function useTravelBudgets() {
@@ -30,10 +41,11 @@ export function useTravelBudgets() {
     queryKey: ["travelBudgets", user?.uid],
     enabled: !!user,
     queryFn: async () => {
-      if (!user) return []
-      const q = query(col(user.uid), orderBy("startDate", "desc"))
-      const snap = await getDocs(q)
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }) as TravelBudget)
+      if (!user) return [] as TravelBudget[]
+      const res = await apiFetch("/api/travel-budgets")
+      if (!res.ok) throw new Error("Error cargando presupuestos de viaje")
+      const rows = await res.json() as Record<string, unknown>[]
+      return rows.map(rowToTravelBudget)
     },
   })
 }
@@ -44,12 +56,15 @@ export function useAddTravelBudget() {
   return useMutation({
     mutationFn: async (input: TravelBudgetInput) => {
       if (!user) throw new Error("No autenticado")
-      await addDoc(col(user.uid), {
-        ...input,
-        startDate: Timestamp.fromDate(input.startDate),
-        endDate:   Timestamp.fromDate(input.endDate),
-        createdAt: Timestamp.now(),
+      const res = await apiFetch("/api/travel-budgets", {
+        method: "POST",
+        body: JSON.stringify({
+          ...input,
+          startDate: format(input.startDate, "yyyy-MM-dd"),
+          endDate:   format(input.endDate,   "yyyy-MM-dd"),
+        }),
       })
+      if (!res.ok) throw new Error("Error al crear presupuesto de viaje")
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["travelBudgets", user?.uid] }),
   })
@@ -61,10 +76,15 @@ export function useUpdateTravelBudget() {
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<TravelBudgetInput> }) => {
       if (!user) throw new Error("No autenticado")
-      const firestoreUpdates: Record<string, unknown> = { ...updates }
-      if (updates.startDate) firestoreUpdates.startDate = Timestamp.fromDate(updates.startDate)
-      if (updates.endDate)   firestoreUpdates.endDate   = Timestamp.fromDate(updates.endDate)
-      await updateDoc(doc(getFirebaseDb(), "users", user.uid, "travelBudgets", id), firestoreUpdates)
+      const body: Record<string, unknown> = { ...updates }
+      if (updates.startDate) body.startDate = format(updates.startDate, "yyyy-MM-dd")
+      if (updates.endDate)   body.endDate   = format(updates.endDate,   "yyyy-MM-dd")
+
+      const res = await apiFetch(`/api/travel-budgets/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) throw new Error("Error al actualizar presupuesto de viaje")
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["travelBudgets", user?.uid] }),
   })
@@ -76,7 +96,8 @@ export function useDeleteTravelBudget() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (!user) throw new Error("No autenticado")
-      await deleteDoc(doc(getFirebaseDb(), "users", user.uid, "travelBudgets", id))
+      const res = await apiFetch(`/api/travel-budgets/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Error al eliminar presupuesto de viaje")
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["travelBudgets", user?.uid] }),
   })
