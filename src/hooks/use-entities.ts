@@ -1,12 +1,9 @@
 "use client"
 
-import {
-  collection, doc, getDocs, addDoc, updateDoc, deleteDoc,
-  query, orderBy, where, Timestamp, writeBatch, getFirestore, increment,
-} from "firebase/firestore"
+import { Timestamp } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
+import { apiFetch } from "@/lib/api-client"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -40,7 +37,7 @@ export interface Entity {
 
 export interface EntityEdge {
   id: string
-  fromId: string       // entityId or "expense:{expenseId}"
+  fromId: string       // "expense:{expenseId}" o entityId
   toId: string         // entityId
   type: EdgeType
   expenseId: string
@@ -85,14 +82,36 @@ export const TYPE_COLOR: Record<EntityType, string> = {
   intent:   "#14b8a6",
 }
 
-// ── Firestore helpers ─────────────────────────────────────────────────────────
+// ── Row mappers ───────────────────────────────────────────────────────────────
 
-function entitiesCol(uid: string) {
-  return collection(getFirebaseDb(), "users", uid, "entities")
+function rowToEntity(row: Record<string, unknown>): Entity {
+  return {
+    id:          row.id as string,
+    type:        row.type as EntityType,
+    name:        row.name as string,
+    emoji:       (row.emoji as string) ?? "",
+    color:       (row.color as string) ?? "",
+    metadata:    (row.metadata as Record<string, unknown>) ?? {},
+    totalSpend:  Number(row.totalSpend ?? 0),
+    occurrences: Number(row.occurrences ?? 0),
+    createdAt:   row.createdAt
+      ? Timestamp.fromDate(new Date(row.createdAt as string))
+      : Timestamp.now(),
+  }
 }
 
-function edgesCol(uid: string) {
-  return collection(getFirebaseDb(), "users", uid, "entityEdges")
+function rowToEdge(row: Record<string, unknown>): EntityEdge {
+  return {
+    id:        row.id as string,
+    fromId:    row.fromId as string,
+    toId:      row.toId as string,
+    type:      row.type as EdgeType,
+    expenseId: row.expenseId as string,
+    weight:    Number(row.weight ?? 0),
+    createdAt: row.createdAt
+      ? Timestamp.fromDate(new Date(row.createdAt as string))
+      : Timestamp.now(),
+  }
 }
 
 // ── Read ──────────────────────────────────────────────────────────────────────
@@ -106,12 +125,11 @@ export function useEntities(filterType?: EntityType) {
     staleTime: 2 * 60_000,
     queryFn: async (): Promise<Entity[]> => {
       if (!user) return []
-      const base = entitiesCol(user.uid)
-      const q = filterType
-        ? query(base, where("type", "==", filterType), orderBy("occurrences", "desc"))
-        : query(base, orderBy("occurrences", "desc"))
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Entity)
+      const url = filterType ? `/api/entities?type=${filterType}` : "/api/entities"
+      const res = await apiFetch(url)
+      if (!res.ok) throw new Error("Error cargando entidades")
+      const rows = await res.json() as Record<string, unknown>[]
+      return rows.map(rowToEntity)
     },
   })
 }
@@ -125,12 +143,11 @@ export function useEntityEdges(expenseId?: string) {
     staleTime: 2 * 60_000,
     queryFn: async (): Promise<EntityEdge[]> => {
       if (!user) return []
-      const base = edgesCol(user.uid)
-      const q = expenseId
-        ? query(base, where("expenseId", "==", expenseId))
-        : query(base, orderBy("weight", "desc"))
-      const snap = await getDocs(q)
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as EntityEdge)
+      const url = expenseId ? `/api/entity-edges?expenseId=${expenseId}` : "/api/entity-edges"
+      const res = await apiFetch(url)
+      if (!res.ok) throw new Error("Error cargando edges")
+      const rows = await res.json() as Record<string, unknown>[]
+      return rows.map(rowToEdge)
     },
   })
 }
@@ -144,18 +161,19 @@ export function useCreateEntity() {
   return useMutation({
     mutationFn: async (input: EntityInput): Promise<Entity> => {
       if (!user) throw new Error("No auth")
-      const data = {
-        type:        input.type,
-        name:        input.name,
-        emoji:       input.emoji ?? TYPE_EMOJI[input.type],
-        color:       input.color ?? TYPE_COLOR[input.type],
-        metadata:    input.metadata ?? {},
-        totalSpend:  0,
-        occurrences: 0,
-        createdAt:   Timestamp.now(),
-      }
-      const ref = await addDoc(entitiesCol(user.uid), data)
-      return { id: ref.id, ...data }
+      const res = await apiFetch("/api/entities", {
+        method: "POST",
+        body: JSON.stringify({
+          type:     input.type,
+          name:     input.name,
+          emoji:    input.emoji ?? TYPE_EMOJI[input.type],
+          color:    input.color ?? TYPE_COLOR[input.type],
+          metadata: input.metadata ?? {},
+        }),
+      })
+      if (!res.ok) throw new Error("Error al crear entidad")
+      const row = await res.json() as Record<string, unknown>
+      return rowToEntity(row)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["entities", user?.uid] }),
   })
@@ -180,39 +198,11 @@ export function useLinkEntityToExpense() {
       amount: number
     }) => {
       if (!user) throw new Error("No auth")
-      const db = getFirebaseDb()
-
-      // Check if edge already exists
-      const existing = await getDocs(
-        query(edgesCol(user.uid),
-          where("toId", "==", entityId),
-          where("expenseId", "==", expenseId),
-        )
-      )
-
-      if (!existing.empty) return  // Already linked
-
-      const batch = writeBatch(db)
-
-      // Create edge
-      const edgeRef = doc(edgesCol(user.uid))
-      batch.set(edgeRef, {
-        fromId:    `expense:${expenseId}`,
-        toId:      entityId,
-        type:      edgeType,
-        expenseId,
-        weight:    amount,
-        createdAt: Timestamp.now(),
+      const res = await apiFetch("/api/entity-edges", {
+        method: "POST",
+        body: JSON.stringify({ entityId, expenseId, edgeType, amount }),
       })
-
-      // Update entity stats atomically — safe for concurrent writes
-      const entityRef = doc(entitiesCol(user.uid), entityId)
-      batch.update(entityRef, {
-        totalSpend:  increment(amount),
-        occurrences: increment(1),
-      })
-
-      await batch.commit()
+      if (!res.ok) throw new Error("Error al vincular entidad")
     },
     onSuccess: (_, { expenseId }) => {
       qc.invalidateQueries({ queryKey: ["entity-edges", user?.uid, expenseId] })
@@ -230,8 +220,8 @@ export function useDeleteEntity() {
   return useMutation({
     mutationFn: async (entityId: string) => {
       if (!user) throw new Error("No auth")
-      // Delete entity doc (edges are kept but orphaned — acceptable)
-      await deleteDoc(doc(entitiesCol(user.uid), entityId))
+      const res = await apiFetch(`/api/entities/${entityId}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Error al eliminar entidad")
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["entities", user?.uid] }),
   })

@@ -1,11 +1,9 @@
 "use client"
 
-import {
-  collection, doc, getDocs, setDoc, updateDoc, Timestamp,
-} from "firebase/firestore"
+import { Timestamp } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getFirebaseDb } from "@/lib/firebase/client"
 import { useAuth } from "./use-auth"
+import { apiFetch } from "@/lib/api-client"
 import {
   startOfYear, endOfYear, startOfMonth, endOfMonth,
   differenceInDays, getMonth,
@@ -24,8 +22,19 @@ export interface Highlight {
   pinned: boolean
 }
 
-function highlightsCol(uid: string) {
-  return collection(getFirebaseDb(), "users", uid, "highlights")
+function rowToHighlight(row: Record<string, unknown>): Highlight {
+  return {
+    id:          row.id as string,
+    type:        row.type as string,
+    title:       (row.title as string) ?? "",
+    value:       (row.value as string) ?? "",
+    description: (row.description as string) ?? undefined,
+    date:        row.date
+      ? Timestamp.fromDate(new Date(row.date as string))
+      : Timestamp.now(),
+    icon:        (row.icon as string) ?? "",
+    pinned:      Boolean(row.pinned ?? false),
+  }
 }
 
 export function useHighlights() {
@@ -35,8 +44,10 @@ export function useHighlights() {
     enabled: !!user,
     queryFn: async () => {
       if (!user) return [] as Highlight[]
-      const snap = await getDocs(highlightsCol(user.uid))
-      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Highlight)
+      const res = await apiFetch("/api/highlights")
+      if (!res.ok) return [] as Highlight[]
+      const rows = await res.json() as Record<string, unknown>[]
+      return rows.map(rowToHighlight)
     },
   })
 }
@@ -47,14 +58,17 @@ export function usePinHighlight() {
   return useMutation({
     mutationFn: async ({ id, pinned }: { id: string; pinned: boolean }) => {
       if (!user) throw new Error("No autenticado")
-      const ref = doc(getFirebaseDb(), "users", user.uid, "highlights", id)
-      await updateDoc(ref, { pinned })
+      const res = await apiFetch(`/api/highlights/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ pinned }),
+      })
+      if (!res.ok) throw new Error("Error al actualizar highlight")
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["highlights", user?.uid] }),
   })
 }
 
-/** Computes achievement highlights from expenses + income data and writes them to Firestore */
+/** Computes achievement highlights from expenses + income data and writes them to Supabase */
 export function useGenerateHighlights() {
   const { user } = useAuth()
   const qc = useQueryClient()
@@ -82,7 +96,15 @@ export function useGenerateHighlights() {
         return d >= yearStart && d <= yearEnd
       })
 
-      const highlights: Omit<Highlight, "id">[] = []
+      const highlights: Array<{
+        key: string
+        type: string
+        title: string
+        value: string
+        description?: string
+        icon: string
+        pinned: boolean
+      }> = []
 
       // ── Mejor mes: lowest expense/income ratio ──────────────────────────
       const monthsElapsed = getMonth(now) + 1
@@ -100,13 +122,13 @@ export function useGenerateHighlights() {
       }
       if (bestMonthLabel) {
         highlights.push({
-          type: "best_month",
-          title: "Mejor mes del año",
-          value: bestMonthLabel,
+          key:         "best_month",
+          type:        "best_month",
+          title:       "Mejor mes del año",
+          value:       bestMonthLabel,
           description: `Ratio gasto/ingreso más bajo: ${Math.round(bestMonthRatio * 100)}%`,
-          date: Timestamp.now(),
-          icon: "🏆",
-          pinned: false,
+          icon:        "🏆",
+          pinned:      false,
         })
       }
 
@@ -128,20 +150,19 @@ export function useGenerateHighlights() {
       }
       if (bestSavingMonth && bestSavingPct > 0) {
         highlights.push({
-          type: "savings_record",
-          title: "Récord de ahorro",
-          value: `${Math.round(bestSavingPct)}% ahorrado`,
+          key:         "savings_record",
+          type:        "savings_record",
+          title:       "Récord de ahorro",
+          value:       `${Math.round(bestSavingPct)}% ahorrado`,
           description: `Tu mejor mes de ahorro fue ${bestSavingMonth}`,
-          date: Timestamp.now(),
-          icon: "💰",
-          pinned: false,
+          icon:        "💰",
+          pinned:      false,
         })
       }
 
       // ── Racha más larga bajo el promedio diario ─────────────────────────
       if (yearExp.length > 0) {
         const dailyAvg = yearExp.reduce((s, e) => s + e.total, 0) / Math.max(differenceInDays(now, yearStart), 1)
-        // Group by day
         const byDay = new Map<string, number>()
         yearExp.forEach((e) => {
           const key = e.date.toDate().toISOString().split("T")[0]
@@ -155,22 +176,21 @@ export function useGenerateHighlights() {
         }
         if (maxStreak >= 3) {
           highlights.push({
-            type: "longest_streak",
-            title: "Racha más larga",
-            value: `${maxStreak} días`,
+            key:         "longest_streak",
+            type:        "longest_streak",
+            title:       "Racha más larga",
+            value:       `${maxStreak} días`,
             description: "Días consecutivos bajo el promedio diario",
-            date: Timestamp.now(),
-            icon: "🔥",
-            pinned: false,
+            icon:        "🔥",
+            pinned:      false,
           })
         }
       }
 
-      // Write all highlights to Firestore
-      for (const h of highlights) {
-        const ref = doc(highlightsCol(user.uid), h.type)
-        await setDoc(ref, h, { merge: true })
-      }
+      // Escribir todos los highlights via API (upsert)
+      await Promise.all(highlights.map((h) =>
+        apiFetch("/api/highlights", { method: "POST", body: JSON.stringify(h) })
+      ))
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["highlights", user?.uid] }),
   })
