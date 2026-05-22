@@ -30,7 +30,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
-import Link from "next/link"
 import {
   RefreshCw,
   Plus,
@@ -165,6 +164,7 @@ export default function RecurringPage() {
   const [registeringId, setRegisteringId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list")
   const [search, setSearch] = useState("")
+  const [showBreakdown, setShowBreakdown] = useState(false)
 
   const allCategories = categories.length > 0 ? categories : DEFAULT_CATEGORIES
 
@@ -176,11 +176,14 @@ export default function RecurringPage() {
   function openCreate() {
     setEditingId(null)
     setForm(EMPTY_FORM)
+    setShowBreakdown(false)
     setDialogOpen(true)
   }
 
   function openEdit(t: RecurringTemplate) {
     setEditingId(t.id)
+    const hasSub = (t.subtotal ?? 0) > 0 || (t.tax ?? 0) > 0
+    setShowBreakdown(hasSub)
     setForm({
       merchant: t.merchant,
       category: t.category,
@@ -326,20 +329,20 @@ export default function RecurringPage() {
               <Button
                 variant={viewMode === "list" ? "secondary" : "ghost"}
                 size="sm"
-                className="h-7 w-7 p-0"
+                className="h-7 px-2.5 gap-1.5 text-xs"
                 onClick={() => setViewMode("list")}
-                title="Vista de lista"
               >
                 <List className="h-3.5 w-3.5" />
+                Lista
               </Button>
               <Button
                 variant={viewMode === "calendar" ? "secondary" : "ghost"}
                 size="sm"
-                className="h-7 w-7 p-0"
+                className="h-7 px-2.5 gap-1.5 text-xs"
                 onClick={() => setViewMode("calendar")}
-                title="Vista de calendario"
               >
                 <Calendar className="h-3.5 w-3.5" />
+                Calendario
               </Button>
             </div>
           )}
@@ -349,6 +352,22 @@ export default function RecurringPage() {
           </Button>
         </div>
       </div>
+
+      {/* Summary card */}
+      {templates.length > 0 && (
+        <div className="rounded-xl border bg-card p-4 flex items-center gap-4">
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <TrendingDown className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-muted-foreground">Costo mensual estimado</p>
+            <p className="text-2xl font-bold tabular-nums">
+              {formatCurrency(monthlyTotal)}
+            </p>
+            <p className="text-xs text-muted-foreground">sumando todos los recurrentes normalizados al mes</p>
+          </div>
+        </div>
+      )}
 
       {/* Buscador */}
       <div className="relative">
@@ -368,22 +387,6 @@ export default function RecurringPage() {
           </button>
         )}
       </div>
-
-      {/* Summary card */}
-      {templates.length > 0 && (
-        <div className="rounded-xl border bg-card p-4 flex items-center gap-4">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <TrendingDown className="h-5 w-5 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-muted-foreground">Costo mensual estimado</p>
-            <p className="text-2xl font-bold tabular-nums">
-              {formatCurrency(monthlyTotal)}
-            </p>
-            <p className="text-xs text-muted-foreground">sumando todos los recurrentes normalizados al mes</p>
-          </div>
-        </div>
-      )}
 
       {/* Subscription detector */}
       {!isLoading && <SubscriptionDetector />}
@@ -451,14 +454,6 @@ export default function RecurringPage() {
                 Próximo: <span className="font-semibold">{nextTemplate.merchant}</span> en {daysToNext} día{daysToNext !== 1 ? "s" : ""}
               </p>
             )}
-            <div className="pl-9">
-              <Link
-                href="/recurring"
-                className="text-xs text-green-700 dark:text-green-400 underline underline-offset-2 hover:no-underline transition-all"
-              >
-                Ver todos los recurrentes →
-              </Link>
-            </div>
           </div>
         )
       })()}
@@ -588,49 +583,62 @@ export default function RecurringPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label>Subtotal</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={form.subtotal}
-                  onChange={(e) => {
-                    const sub = e.target.value
-                    const tax = form.tax
-                    // #16 — Auto-calcular total = subtotal + tax
-                    const autoTotal = (parseFloat(sub) || 0) + (parseFloat(tax) || 0)
-                    setForm({
-                      ...form,
-                      subtotal: sub,
-                      total: autoTotal > 0 ? String(autoTotal) : form.total,
-                    })
-                  }}
-                  className="tabular-nums"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Impuestos</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={form.tax}
-                  onChange={(e) => {
-                    const tax = e.target.value
-                    const sub = form.subtotal
-                    // #16 — Auto-calcular total = subtotal + tax
-                    const autoTotal = (parseFloat(sub) || 0) + (parseFloat(tax) || 0)
-                    setForm({
-                      ...form,
-                      tax,
-                      total: autoTotal > 0 ? String(autoTotal) : form.total,
-                    })
-                  }}
-                  className="tabular-nums"
-                />
-              </div>
             </div>
+
+            {/* Desglose opcional — subtotal + impuestos */}
+            <button
+              type="button"
+              onClick={() => setShowBreakdown((v) => !v)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showBreakdown ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {showBreakdown ? "Ocultar desglose" : "Añadir subtotal e impuestos"}
+            </button>
+
+            {showBreakdown && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Subtotal</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={form.subtotal}
+                    onChange={(e) => {
+                      const sub = e.target.value
+                      const tax = form.tax
+                      const autoTotal = (parseFloat(sub) || 0) + (parseFloat(tax) || 0)
+                      setForm({
+                        ...form,
+                        subtotal: sub,
+                        total: autoTotal > 0 ? String(autoTotal) : form.total,
+                      })
+                    }}
+                    className="tabular-nums"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Impuestos</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={form.tax}
+                    onChange={(e) => {
+                      const tax = e.target.value
+                      const sub = form.subtotal
+                      const autoTotal = (parseFloat(sub) || 0) + (parseFloat(tax) || 0)
+                      setForm({
+                        ...form,
+                        tax,
+                        total: autoTotal > 0 ? String(autoTotal) : form.total,
+                      })
+                    }}
+                    className="tabular-nums"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -1134,6 +1142,20 @@ function RecurringItem({
             {historyOpen ? <ChevronUp className="h-4 w-4" /> : <History className="h-4 w-4" />}
           </Button>
 
+          {/* Posponer — inline solo para vencidos / críticos */}
+          {(status.urgency === "overdue" || status.urgency === "critical") && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2.5 text-xs gap-1 shrink-0"
+              onClick={() => onSnooze(t.id)}
+              title="Posponer 3 días"
+            >
+              <Clock className="h-3 w-3" />
+              +3d
+            </Button>
+          )}
+
           <Button
             size="sm"
             className="h-8 px-2.5 text-xs gap-1"
@@ -1154,10 +1176,12 @@ function RecurringItem({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onSnooze(t.id)}>
-                <Clock className="h-4 w-4" />
-                Posponer 3 días
-              </DropdownMenuItem>
+              {status.urgency !== "overdue" && status.urgency !== "critical" && (
+                <DropdownMenuItem onClick={() => onSnooze(t.id)}>
+                  <Clock className="h-4 w-4" />
+                  Posponer 3 días
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => onEdit(t)}>
                 <Pencil className="h-4 w-4" />
                 Editar

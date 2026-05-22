@@ -541,22 +541,6 @@ export default function AnalyticsPage() {
                 <DeltaBadge value={percentChange(selectedTotal, comparedTotal)} />
               </div>
             </div>
-            {/* Month navigation */}
-            <div className="flex items-center gap-1">
-              <Button size="icon" variant="outline" className="h-7 w-7"
-                onClick={() => setSelectedOffset((o) => Math.min(o + 1, 4))}
-                disabled={selectedOffset >= 4}>
-                <TrendingDown className="h-3.5 w-3.5 rotate-90" />
-              </Button>
-              <span className="text-xs w-16 text-center font-medium capitalize">
-                {format(selectedMonth, "MMM yy", { locale: es })}
-              </span>
-              <Button size="icon" variant="outline" className="h-7 w-7"
-                onClick={() => setSelectedOffset((o) => Math.max(o - 1, 0))}
-                disabled={selectedOffset === 0}>
-                <TrendingUp className="h-3.5 w-3.5 rotate-90" />
-              </Button>
-            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0 space-y-0">
@@ -657,12 +641,7 @@ export default function AnalyticsPage() {
         </CardContent>
       </Card>
 
-      </>)} {/* END TAB: RESUMEN */}
-
-      {/* ════════════════════ TAB: METAS ════════════════════ */}
-      {activeTab === "metas" && (<>
-
-      {/* ── #10 Límite de gasto diario con historial ── */}
+      {/* ── #10 Gasto diario (heatmap) ── */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -831,80 +810,10 @@ export default function AnalyticsPage() {
         </CardContent>
       </Card>
 
-      {/* ── #6 Patrón por día de la semana ── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Patrón semanal de gasto</CardTitle>
-          <p className="text-xs text-muted-foreground">Promedio diario · últimos 6 meses</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {isLoading ? (
-            <div className="h-40 flex items-end gap-1.5 px-1">
-              {[60, 40, 75, 55, 90, 35, 20].map((h, i) => (
-                <div key={i} className="flex-1 bg-muted animate-pulse rounded-t" style={{ height: `${h}%` }} />
-              ))}
-            </div>
-          ) : (
-            <>
-              <ResponsiveContainer width="100%" height={160}>
-                <BarChart data={weekdayData} barCategoryGap="20%">
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis hide />
-                  <Tooltip
-                    cursor={{ fill: "hsl(var(--accent))", radius: 4 }}
-                    content={({ active, payload }) => {
-                      if (!active || !payload?.length) return null
-                      const d = payload[0].payload
-                      return (
-                        <div className="rounded-lg border bg-popover p-2.5 shadow-md text-xs space-y-0.5">
-                          <p className="font-semibold">{d.label}</p>
-                          <p className="tabular-nums">Promedio: <span className="font-medium">{formatCurrency(d.avg)}</span></p>
-                          <p className="tabular-nums text-muted-foreground">Total: {formatCurrency(d.total)}</p>
-                          <p className="text-muted-foreground">{d.count} transacciones</p>
-                        </div>
-                      )
-                    }}
-                  />
-                  <Bar dataKey="avg" radius={[4, 4, 0, 0]}>
-                    {weekdayData.map((entry, i) => (
-                      <Cell
-                        key={i}
-                        fill={entry.isMax ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.25)"}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+      </>)} {/* END TAB: RESUMEN */}
 
-              {/* Summary row: busiest day + quietest day */}
-              {weekdayData.some((d) => d.avg > 0) && (() => {
-                const sorted = [...weekdayData].filter((d) => d.avg > 0).sort((a, b) => b.avg - a.avg)
-                const busiest = sorted[0]
-                const quietest = sorted[sorted.length - 1]
-                return (
-                  <div className="grid grid-cols-2 gap-2 pt-1 border-t">
-                    <div className="rounded-lg bg-primary/5 border border-primary/20 px-3 py-2">
-                      <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Día más activo</p>
-                      <p className="text-sm font-bold mt-0.5">{busiest.label}</p>
-                      <p className="text-xs text-muted-foreground tabular-nums">{formatCurrency(busiest.avg)} promedio</p>
-                    </div>
-                    <div className="rounded-lg bg-muted/40 px-3 py-2">
-                      <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Día más tranquilo</p>
-                      <p className="text-sm font-bold mt-0.5">{quietest.label}</p>
-                      <p className="text-xs text-muted-foreground tabular-nums">{formatCurrency(quietest.avg)} promedio</p>
-                    </div>
-                  </div>
-                )
-              })()}
-            </>
-          )}
-        </CardContent>
-      </Card>
+      {/* ════════════════════ TAB: METAS ════════════════════ */}
+      {activeTab === "metas" && (<>
 
       {/* ── #13 Metas de ahorro ── */}
       <Card>
@@ -921,10 +830,16 @@ export default function AnalyticsPage() {
           {goalsLoading ? (
             <Skeleton className="h-20 rounded-lg" />
           ) : savingGoals.length === 0 ? (
-            <div className="text-center py-6 text-muted-foreground">
-              <Target className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">Sin metas de ahorro todavía</p>
-              <p className="text-xs mt-1">Define cuánto quieres ahorrar y lleva el control</p>
+            <div className="text-center py-6 text-muted-foreground space-y-3">
+              <Target className="h-8 w-8 mx-auto opacity-30" />
+              <div>
+                <p className="text-sm">Sin metas de ahorro todavía</p>
+                <p className="text-xs mt-1">Define cuánto quieres ahorrar y lleva el control</p>
+              </div>
+              <Button size="sm" variant="outline" className="gap-1.5"
+                onClick={() => { setGoalForm({ type: "saving", name: "", targetAmount: 0, currentAmount: 0, currency: "USD", deadline: null }); setGoalDialog(true) }}>
+                <Plus className="h-3.5 w-3.5" /> Crear primera meta
+              </Button>
             </div>
           ) : (
             <div className="space-y-4">
@@ -984,8 +899,74 @@ export default function AnalyticsPage() {
 
       {/* ════════════════════ TAB: INFORMES ════════════════════ */}
       {/* Components are lazy-loaded — only bundled/fetched when this tab is opened */}
-      {activeTab === "informes" && (
-        <Suspense fallback={
+      {activeTab === "informes" && (<>
+
+      {/* ── #6 Patrón por día de la semana ── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Patrón semanal de gasto</CardTitle>
+          <p className="text-xs text-muted-foreground">Promedio diario · últimos 6 meses</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {isLoading ? (
+            <div className="h-40 flex items-end gap-1.5 px-1">
+              {[60, 40, 75, 55, 90, 35, 20].map((h, i) => (
+                <div key={i} className="flex-1 bg-muted animate-pulse rounded-t" style={{ height: `${h}%` }} />
+              ))}
+            </div>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={weekdayData} barCategoryGap="20%">
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis hide />
+                  <Tooltip
+                    cursor={{ fill: "hsl(var(--accent))", radius: 4 }}
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null
+                      const d = payload[0].payload
+                      return (
+                        <div className="rounded-lg border bg-popover p-2.5 shadow-md text-xs space-y-0.5">
+                          <p className="font-semibold">{d.label}</p>
+                          <p className="tabular-nums">Promedio: <span className="font-medium">{formatCurrency(d.avg)}</span></p>
+                          <p className="tabular-nums text-muted-foreground">Total: {formatCurrency(d.total)}</p>
+                          <p className="text-muted-foreground">{d.count} transacciones</p>
+                        </div>
+                      )
+                    }}
+                  />
+                  <Bar dataKey="avg" radius={[4, 4, 0, 0]}>
+                    {weekdayData.map((entry, i) => (
+                      <Cell key={i} fill={entry.isMax ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.25)"} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              {weekdayData.some((d) => d.avg > 0) && (() => {
+                const sorted = [...weekdayData].filter((d) => d.avg > 0).sort((a, b) => b.avg - a.avg)
+                const busiest = sorted[0]
+                const quietest = sorted[sorted.length - 1]
+                return (
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t">
+                    <div className="rounded-lg bg-primary/5 border border-primary/20 px-3 py-2">
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Día más activo</p>
+                      <p className="text-sm font-bold mt-0.5">{busiest.label}</p>
+                      <p className="text-xs text-muted-foreground tabular-nums">{formatCurrency(busiest.avg)} promedio</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/40 px-3 py-2">
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Día más tranquilo</p>
+                      <p className="text-sm font-bold mt-0.5">{quietest.label}</p>
+                      <p className="text-xs text-muted-foreground tabular-nums">{formatCurrency(quietest.avg)} promedio</p>
+                    </div>
+                  </div>
+                )
+              })()}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Suspense fallback={
           <div className="space-y-4">
             {[1,2,3,4].map(i => <Skeleton key={i} className="h-48 rounded-2xl" />)}
           </div>
@@ -1014,7 +995,7 @@ export default function AnalyticsPage() {
             </ErrorBoundary>
           </div>
         </Suspense>
-      )}
+      </>)}
 
       {/* ════════════════════ TAB: FINANZAS ════════════════════ */}
       {activeTab === "finanzas" && (
