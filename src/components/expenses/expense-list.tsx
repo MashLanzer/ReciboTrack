@@ -16,11 +16,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
-import { Search, MoreHorizontal, Trash2, Edit, Copy, Image, ChevronLeft, ChevronRight, Filter, Tag, X, Upload, Sheet, Loader2, CalendarRange, Calendar, CheckSquare, Square, CheckCheck, LayoutList, AlignJustify, Layers, Receipt, SlidersHorizontal, ChevronDown } from "lucide-react"
+import { Search, MoreHorizontal, Trash2, Edit, Copy, Image, ChevronLeft, ChevronRight, Filter, Tag, X, Upload, Sheet, Loader2, CalendarRange, Calendar, CheckSquare, Square, CheckCheck, Layers, Receipt, SlidersHorizontal, ChevronDown, ScanLine, PenLine } from "lucide-react"
 import { startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subDays, format as fmtDate, parseISO, isValid } from "date-fns"
 import { ExpenseEditDialog } from "./expense-edit-dialog"
 import { ExpenseDetailDialog } from "./expense-detail-dialog"
@@ -259,6 +260,19 @@ export function ExpenseList() {
     setSelectedIds(new Set())
   }
 
+  function toggleGroup(groupItems: Expense[]) {
+    const allSelected = groupItems.every((e) => selectedIds.has(e.id))
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (allSelected) {
+        groupItems.forEach((e) => next.delete(e.id))
+      } else {
+        groupItems.forEach((e) => next.add(e.id))
+      }
+      return next
+    })
+  }
+
   const selectedExpenses = expenses.filter((e) => selectedIds.has(e.id))
 
   function scheduleDelete(ids: string[]) {
@@ -443,30 +457,32 @@ export function ExpenseList() {
           )}
         </Button>
 
-        {/* Compact mode toggle (Feature 9) */}
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8 shrink-0"
-          onClick={toggleCompact}
-          title={compactMode ? "Vista normal" : "Vista compacta"}
-        >
-          {compactMode ? <LayoutList className="h-4 w-4" /> : <AlignJustify className="h-4 w-4" />}
-        </Button>
-
-        {/* Export + actions overflow */}
+        {/* Actions + view overflow */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="h-9 w-9 p-0 shrink-0">
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground py-1">Selección</DropdownMenuLabel>
             <DropdownMenuItem onClick={() => selectMode ? exitSelectMode() : setSelectMode(true)} className="gap-2">
               <CheckSquare className="h-4 w-4" />
               {selectMode ? "Cancelar selección" : "Seleccionar varios"}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground py-1">Vista</DropdownMenuLabel>
+            <DropdownMenuItem onClick={toggleCompact} className="gap-2">
+              <span className={cn(
+                "flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition-colors",
+                compactMode ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/40"
+              )}>
+                {compactMode && <CheckCheck className="h-3 w-3" />}
+              </span>
+              Vista compacta
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground py-1">Datos</DropdownMenuLabel>
             <DropdownMenuItem onClick={() => setCsvOpen(true)} className="gap-2">
               <Upload className="h-4 w-4" />
               Importar CSV
@@ -614,15 +630,6 @@ export function ExpenseList() {
             {groupBy === "cat" ? "Por categoría" : "Por fecha"}
           </Button>
 
-          {/* Clear all */}
-          {hasActiveFilters && (
-            <button
-              onClick={() => router.replace(pathname)}
-              className="text-xs text-muted-foreground hover:text-destructive transition-colors underline-offset-2 hover:underline ml-auto"
-            >
-              Limpiar
-            </button>
-          )}
         </div>
       )}
 
@@ -699,12 +706,24 @@ export function ExpenseList() {
           </div>
         ) : (
           /* ── No expenses at all ── */
-          <div className="text-center py-12 space-y-3">
-            <p className="text-4xl">🧾</p>
-            <p className="font-semibold text-base">Sin gastos registrados</p>
-            <p className="text-sm text-muted-foreground">
-              Escanea un recibo o añade tu primer gasto manualmente
-            </p>
+          <div className="text-center py-14 space-y-4">
+            <p className="text-5xl">🧾</p>
+            <div className="space-y-1">
+              <p className="font-semibold text-base">Sin gastos registrados</p>
+              <p className="text-sm text-muted-foreground">
+                Empieza añadiendo tu primer gasto
+              </p>
+            </div>
+            <div className="flex gap-3 justify-center pt-1">
+              <Button onClick={() => setScannerOpen(true)} className="gap-2">
+                <ScanLine className="h-4 w-4" />
+                Escanear recibo
+              </Button>
+              <Button variant="outline" onClick={() => setQuickAddOpen(true)} className="gap-2">
+                <PenLine className="h-4 w-4" />
+                Añadir manual
+              </Button>
+            </div>
           </div>
         )
       ) : (
@@ -737,6 +756,17 @@ export function ExpenseList() {
               <div key={groupKey}>
                 <div className="flex items-center justify-between py-2 mb-2 border-b">
                   <div className="flex items-center gap-2">
+                    {selectMode && (
+                      <button
+                        onClick={() => toggleGroup(items)}
+                        className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
+                        aria-label={items.every((e) => selectedIds.has(e.id)) ? "Deseleccionar grupo" : "Seleccionar grupo"}
+                      >
+                        {items.every((e) => selectedIds.has(e.id))
+                          ? <CheckSquare className="h-4 w-4 text-primary" />
+                          : <Square className="h-4 w-4" />}
+                      </button>
+                    )}
                     {groupCat && (
                       <span className="text-sm">{groupCat.icon}</span>
                     )}
@@ -896,23 +926,33 @@ export function ExpenseList() {
           {/* Paginación */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between pt-4">
-              <p className="text-sm text-muted-foreground">{total} gastos en total</p>
+              <p className="text-sm text-muted-foreground">
+                {(page - 1) * EXPENSES_PER_PAGE + 1}–{Math.min(page * EXPENSES_PER_PAGE, total)} de {total} gastos
+              </p>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => setParams({ page: String(page - 1) })}
+                  className="h-10 w-10"
+                  onClick={() => {
+                    setParams({ page: String(page - 1) })
+                    window.scrollTo({ top: 0, behavior: "smooth" })
+                  }}
                   disabled={page === 1}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="text-sm tabular-nums">
+                <span className="text-sm tabular-nums font-medium">
                   {page} / {totalPages}
                 </span>
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => setParams({ page: String(page + 1) })}
+                  className="h-10 w-10"
+                  onClick={() => {
+                    setParams({ page: String(page + 1) })
+                    window.scrollTo({ top: 0, behavior: "smooth" })
+                  }}
                   disabled={page >= totalPages}
                 >
                   <ChevronRight className="h-4 w-4" />

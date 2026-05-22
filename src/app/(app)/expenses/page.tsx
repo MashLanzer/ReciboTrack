@@ -81,14 +81,17 @@ export default function ExpensesPage() {
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6">
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="min-w-0">
           <h1 className="font-serif text-2xl">Gastos</h1>
-          <p className="text-sm text-muted-foreground mt-1">Historial de todos tus gastos</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Historial de todos tus gastos</p>
         </div>
-        <div className="flex items-center gap-2">
-          <ImportStatementButton />
-          <ShareSummary />
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Acciones secundarias — sólo en desktop (son features avanzadas) */}
+          <div className="hidden md:flex items-center gap-2">
+            <ImportStatementButton />
+            <ShareSummary />
+          </div>
           <ViewToggle current={view} onChange={setView} />
         </div>
       </div>
