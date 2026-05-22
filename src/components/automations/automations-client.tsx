@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   Select,
   SelectContent,
@@ -259,6 +260,7 @@ export function AutomationsClient() {
   const [open, setOpen] = useState(false)
   const [editingRule, setEditingRule] = useState<AutomationRule | null>(null)
   const [dialogForm, setDialogForm] = useState<FormState>(emptyForm())
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 
   function openCreate() {
     setEditingRule(null)
@@ -312,9 +314,14 @@ export function AutomationsClient() {
     }
   }
 
-  async function handleDelete(id: string) {
+  function handleDelete(id: string) {
+    setDeleteTarget(id)
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
     try {
-      await remove.mutateAsync(id)
+      await remove.mutateAsync(deleteTarget)
       toast.success("Automatización eliminada")
     } catch {
       toast.error("Error al eliminar")
@@ -371,6 +378,15 @@ export function AutomationsClient() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
+        title="¿Eliminar automatización?"
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={confirmDelete}
+      />
 
       <RuleDialog
         key={editingRule?.id ?? "new"}

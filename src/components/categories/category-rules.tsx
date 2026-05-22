@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   Select,
   SelectContent,
@@ -301,6 +302,7 @@ export function CategoryRules() {
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<CategoryRule | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<CategoryRule | null>(null)
 
   function openCreate() {
     setEditing(null)
@@ -312,8 +314,27 @@ export function CategoryRules() {
     setDialogOpen(true)
   }
 
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    try {
+      await deleteRule.mutateAsync(deleteTarget.id)
+      toast.success("Regla eliminada")
+    } catch {
+      toast.error("Error al eliminar")
+    }
+  }
+
   return (
     <section className="space-y-3">
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
+        title={`¿Eliminar la regla "${deleteTarget?.name}"?`}
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={confirmDelete}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -365,10 +386,7 @@ export function CategoryRules() {
                 catName={cat?.name ?? rule.categoryId}
                 catIcon={cat?.icon ?? "📦"}
                 onEdit={() => openEdit(rule)}
-                onDelete={() => {
-                  deleteRule.mutate(rule.id)
-                  toast.success("Regla eliminada")
-                }}
+                onDelete={() => setDeleteTarget(rule)}
                 onToggle={(enabled) => updateRule.mutate({ id: rule.id, input: { enabled } })}
               />
             )

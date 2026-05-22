@@ -76,7 +76,7 @@ export default function IncomePage() {
           <TrendingUp className="h-5 w-5 text-green-600" />
         </div>
         <div>
-          <h1 className="text-xl font-semibold">Ingresos y Balance</h1>
+          <h1 className="font-serif text-xl">Ingresos y Balance</h1>
           <p className="text-xs text-muted-foreground">Cuánto ganas vs cuánto gastas</p>
         </div>
       </div>
