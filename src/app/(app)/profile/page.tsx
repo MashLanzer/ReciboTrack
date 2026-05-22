@@ -33,7 +33,7 @@ import {
   User, Camera, Sun, Moon, Monitor, Download, LogOut, Trash2, Bell, Globe,
   Shield, Check, Loader2, AlertTriangle, BarChart3, EyeOff, Wallet,
   Sheet, Webhook, ExternalLink, Link2Off, Send, RefreshCw, Settings2,
-  ChevronRight, Lock, Smartphone, Database, Plug, CreditCard, Share2, Plus,
+  ChevronRight, Lock, Smartphone, Database, Plug, CreditCard, Share2, Plus, ImageIcon,
 } from "lucide-react"
 import { CollapsibleContent, CollapsibleChevron } from "@/components/ui/collapsible"
 import { AccentColorPicker } from "@/components/shared/accent-color-picker"
@@ -172,6 +172,7 @@ export default function ProfilePage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
+  const avatarMenuRef  = useRef<HTMLDivElement>(null)
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false)
 
   // Password change dialog
@@ -198,6 +199,18 @@ export default function ProfilePage() {
     setWebhookUrl(webhookConfig.webhookUrl)
     setWebhookEvents(webhookConfig.webhookEvents)
   }, [webhookConfig.webhookUrl, webhookConfig.webhookEvents])
+
+  // Click-outside to close avatar source picker
+  useEffect(() => {
+    if (!avatarMenuOpen) return
+    function onMouseDown(e: MouseEvent) {
+      if (avatarMenuRef.current && !avatarMenuRef.current.contains(e.target as Node)) {
+        setAvatarMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", onMouseDown)
+    return () => document.removeEventListener("mousedown", onMouseDown)
+  }, [avatarMenuOpen])
 
   // Compute achievement input from available data
   const achievementInput = useMemo(() => {
@@ -422,20 +435,20 @@ export default function ProfilePage() {
       </div>
 
       {/* ── Tab bar ── */}
-      <div className="flex gap-1 rounded-xl bg-muted/50 p-1">
+      <div className="flex gap-0.5 rounded-xl bg-muted/50 p-1">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
             className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all",
+              "flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-lg transition-all",
               tab === id
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
             <Icon className="h-3.5 w-3.5 shrink-0" />
-            <span className="hidden sm:inline">{label}</span>
+            <span className="text-[10px] font-medium leading-none">{label}</span>
           </button>
         ))}
       </div>
@@ -468,7 +481,7 @@ export default function ProfilePage() {
 
                   {/* Floating source picker */}
                   {avatarMenuOpen && (
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 flex flex-col gap-1
+                    <div ref={avatarMenuRef} className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 flex flex-col gap-1
                       rounded-xl border bg-card shadow-lg p-1.5 w-36 animate-[fadeSlideUp_0.15s_ease-out_both]">
                       <button
                         type="button"
@@ -483,7 +496,7 @@ export default function ProfilePage() {
                         onClick={() => { setAvatarMenuOpen(false); avatarInputRef.current?.click() }}
                         className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium hover:bg-muted transition-colors text-left"
                       >
-                        <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <ImageIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         Galería
                       </button>
                     </div>
@@ -1017,8 +1030,6 @@ export default function ProfilePage() {
             </div>
           </CollapsibleSectionCard>
 
-          {/* ── Trusted Circle ── */}
-          <TrustedCircleCard />
         </div>
       )}
 
@@ -1027,6 +1038,9 @@ export default function ProfilePage() {
       ══════════════════════════════════════════════════════════════════════ */}
       {tab === "compartir" && (
         <div className="space-y-4">
+          {/* ── Trusted Circle ── */}
+          <TrustedCircleCard />
+
           <CreatePortalDialog
             open={createPortalOpen}
             onOpenChange={setCreatePortalOpen}
@@ -1165,7 +1179,7 @@ export default function ProfilePage() {
             </div>
             <div className="p-4 space-y-3">
               <p className="text-xs text-muted-foreground">
-                Eliminar tu cuenta es permanente e irreversible. Los datos en Firestore (gastos, grupos, etc.) se mantienen hasta que los elimines manualmente.
+                Eliminar tu cuenta es permanente e irreversible. Tu historial de gastos, grupos y demás datos de la app quedan eliminados de forma definitiva.
               </p>
               <Button
                 variant="outline" size="sm"
