@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -159,6 +160,7 @@ export default function RecurringPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; merchant: string } | null>(null)
   const [form, setForm] = useState<RecurringForm>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [registeringId, setRegisteringId] = useState<string | null>(null)
@@ -293,10 +295,14 @@ export default function RecurringPage() {
     }
   }
 
-  async function handleDelete(id: string, merchant: string) {
-    if (!confirm(`¿Eliminar "${merchant}" de los recurrentes?`)) return
+  function handleDelete(id: string, merchant: string) {
+    setDeleteTarget({ id, merchant })
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
     try {
-      await deleteRecurring.mutateAsync(id)
+      await deleteRecurring.mutateAsync(deleteTarget.id)
       toast.success("Eliminado")
     } catch {
       toast.error("Error al eliminar")
@@ -314,10 +320,19 @@ export default function RecurringPage() {
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
+        title={`¿Eliminar "${deleteTarget?.merchant}" de los recurrentes?`}
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={confirmDelete}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Recurrentes</h1>
+          <h1 className="font-serif text-2xl">Recurrentes</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {templates.length} activo{templates.length !== 1 ? "s" : ""}
           </p>

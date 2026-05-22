@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { toast } from "sonner"
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react"
 
@@ -32,6 +33,7 @@ export function CategoriesManager() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<CategoryDoc | null>(null)
   const [form, setForm] = useState<FormData>({ name: "", icon: "📦", color: "#6b7280" })
+  const [deleteTarget, setDeleteTarget] = useState<CategoryDoc | null>(null)
 
   function openCreate() {
     setEditing(null)
@@ -61,10 +63,14 @@ export function CategoriesManager() {
     }
   }
 
-  async function handleDelete(cat: CategoryDoc) {
-    if (!confirm(`¿Eliminar la categoría "${cat.name}"?`)) return
+  function handleDelete(cat: CategoryDoc) {
+    setDeleteTarget(cat)
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
     try {
-      await deleteCategory.mutateAsync(cat.id)
+      await deleteCategory.mutateAsync(deleteTarget.id)
       toast.success("Categoría eliminada")
     } catch {
       toast.error("Error al eliminar")
@@ -84,6 +90,15 @@ export function CategoriesManager() {
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
+        title={`¿Eliminar la categoría "${deleteTarget?.name}"?`}
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={confirmDelete}
+      />
+
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">Predeterminadas</p>
         <div className="grid gap-2">

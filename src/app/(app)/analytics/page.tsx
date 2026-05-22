@@ -25,6 +25,7 @@ import { TrendingUp, TrendingDown, Minus, Plus, Trash2, Target, AlertTriangle, C
 import { exportMonthlyPDF } from "@/components/expenses/export-utils"
 import { useUpdateUserSettings } from "@/hooks/use-user-settings"
 import { ShareSummary } from "@/components/expenses/share-summary"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FinancialHealth } from "@/components/analytics/financial-health"
 import { ErrorBoundary }  from "@/components/ui/error-boundary"
 import { AiMonthlySummary } from "@/components/analytics/ai-monthly-summary"
@@ -139,6 +140,7 @@ export default function AnalyticsPage() {
     return () => clearTimeout(t)
   }, [activeTab])
   const [goalDialog, setGoalDialog] = useState(false)
+  const [deleteGoalTarget, setDeleteGoalTarget] = useState<string | null>(null)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [progressDialog, setProgressDialog] = useState<{ id: string; current: number; name: string } | null>(null)
   const [progressInput, setProgressInput] = useState("")
@@ -355,10 +357,14 @@ export default function AnalyticsPage() {
     }
   }
 
-  async function handleDeleteGoal(id: string) {
-    if (!confirm("¿Eliminar esta meta?")) return
+  function handleDeleteGoal(id: string) {
+    setDeleteGoalTarget(id)
+  }
+
+  async function confirmDeleteGoal() {
+    if (!deleteGoalTarget) return
     try {
-      await deleteGoal.mutateAsync(id)
+      await deleteGoal.mutateAsync(deleteGoalTarget)
       toast.success("Meta eliminada")
     } catch {
       toast.error("Error al eliminar")
@@ -397,6 +403,15 @@ export default function AnalyticsPage() {
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-5">
+      <ConfirmDialog
+        open={!!deleteGoalTarget}
+        onOpenChange={(o) => { if (!o) setDeleteGoalTarget(null) }}
+        title="¿Eliminar esta meta?"
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={confirmDeleteGoal}
+      />
+
       <FinancialHealth />
 
       {/* ── Header ── */}

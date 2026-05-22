@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CURRENCIES } from "@/lib/constants"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { toast } from "sonner"
 import type { GroupMember } from "@/hooks/use-groups"
 
@@ -29,6 +30,7 @@ export function GroupEvents({ groupId, members }: Props) {
   const rsvp       = useRsvpEvent()
   const settle     = useSettleEvent()
   const [createOpen, setCreateOpen] = useState(false)
+  const [settleTarget, setSettleTarget] = useState<GroupEvent | null>(null)
 
   // Create form state
   const [title, setTitle]           = useState("")
@@ -58,11 +60,15 @@ export function GroupEvents({ groupId, members }: Props) {
     } catch { toast.error("Error al actualizar RSVP") }
   }
 
-  async function handleSettle(event: GroupEvent) {
+  function handleSettle(event: GroupEvent) {
     if (event.attendees.length < 2) { toast.error("Se necesitan al menos 2 asistentes"); return }
-    if (!confirm(`¿Liquidar "${event.title}"? Se crearán gastos por ${formatCurrency(event.totalCost / event.attendees.length, event.currency)} por persona.`)) return
+    setSettleTarget(event)
+  }
+
+  async function confirmSettle() {
+    if (!settleTarget) return
     try {
-      await settle.mutateAsync({ groupId, event, memberMap })
+      await settle.mutateAsync({ groupId, event: settleTarget, memberMap })
       toast.success("Evento liquidado")
     } catch { toast.error("Error al liquidar") }
   }
@@ -71,6 +77,17 @@ export function GroupEvents({ groupId, members }: Props) {
 
   return (
     <div className="space-y-3">
+      <ConfirmDialog
+        open={!!settleTarget}
+        onOpenChange={(o) => { if (!o) setSettleTarget(null) }}
+        title={`¿Liquidar "${settleTarget?.title}"?`}
+        description={settleTarget && settleTarget.attendees.length > 0
+          ? `Se crearán gastos por ${formatCurrency(settleTarget.totalCost / settleTarget.attendees.length, settleTarget.currency)} por persona.`
+          : "Esta acción no se puede deshacer."}
+        confirmLabel="Liquidar"
+        onConfirm={confirmSettle}
+      />
+
       <div className="flex items-center justify-between">
         <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Eventos</p>
         <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => setCreateOpen(true)}>
