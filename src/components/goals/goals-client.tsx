@@ -213,8 +213,8 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
         )}
 
         {/* Actions */}
-        <div className="flex gap-2 pt-1">
-          {!isComplete && (
+        {!isComplete && (
+          <div className="flex gap-2 pt-1">
             <Button
               size="sm"
               variant="outline"
@@ -224,18 +224,18 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
               {aportarOpen ? <ChevronUp className="h-3.5 w-3.5 mr-1" /> : <ChevronDown className="h-3.5 w-3.5 mr-1" />}
               Aportar
             </Button>
-          )}
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 text-xs gap-1.5"
-            onClick={handleComplete}
-            disabled={updateGoal.isPending}
-          >
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            Completar
-          </Button>
-        </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs gap-1.5"
+              onClick={handleComplete}
+              disabled={updateGoal.isPending}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Completar
+            </Button>
+          </div>
+        )}
 
         {/* Aportar section */}
         {aportarOpen && (
@@ -251,7 +251,7 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                Aporte unico
+                Aporte único
               </button>
               <button
                 onClick={() => setAportMode("daily")}
@@ -354,7 +354,7 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
                       type="number"
                       step="0.01"
                       min={0.01}
-                      placeholder="Cuanto por dia"
+                      placeholder="Cuánto por día"
                       value={dailyInput}
                       onChange={e => setDailyInput(e.target.value)}
                       className="h-8 text-sm tabular-nums flex-1"
@@ -363,7 +363,7 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
                       size="sm"
                       className="h-8 text-xs"
                       onClick={async () => {
-                        if (!dailyAmt || dailyAmt <= 0) { toast.error("Importe invalido"); return }
+                        if (!dailyAmt || dailyAmt <= 0) { toast.error("Importe inválido"); return }
                         try {
                           await updateGoal.mutateAsync({ id: goal.id, dailyContribution: dailyAmt } as Parameters<typeof updateGoal.mutateAsync>[0])
                           toast.success(`Aporte diario de ${formatCurrency(dailyAmt, goal.currency)} activado`)
@@ -378,7 +378,7 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
                   {dailyAmt > 0 && (
                     <div className="rounded-lg bg-muted/40 px-3 py-2 space-y-0.5 text-xs text-muted-foreground">
                       {daysToGoal !== null && (
-                        <p>En <strong className="text-foreground">{daysToGoal} dias</strong> alcanzaras tu meta</p>
+                        <p>En <strong className="text-foreground">{daysToGoal} días</strong> alcanzarás tu meta</p>
                       )}
                       <p>Equivale a <strong className="text-foreground">{formatCurrency(monthlyEquiv, goal.currency)}/mes</strong></p>
                     </div>

@@ -198,19 +198,15 @@ export default function MapPage() {
             </div>
           )}
 
-          {/* No geo data / permission fallback */}
-          {!hasGeoData && !isLoading && (
-            geoPermission === "denied" ? (
-              <GeoPermissionDenied />
-            ) : (
-              <div className="rounded-2xl border bg-muted/30 p-4 text-center">
-                <p className="text-2xl mb-2">📍</p>
-                <p className="text-sm font-medium">Activa ubicación al registrar gastos</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Toca el botón 📍 en el formulario de nuevo gasto para capturar la ubicación
-                </p>
-              </div>
-            )
+          {/* No geo data / permission fallback — only show the "activate" tip in sidebar (GeoPermissionDenied already shown in map area on desktop) */}
+          {!hasGeoData && !isLoading && geoPermission !== "denied" && (
+            <div className="rounded-2xl border bg-muted/30 p-4 text-center">
+              <p className="text-2xl mb-2">📍</p>
+              <p className="text-sm font-medium">Activa ubicación al registrar gastos</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Toca el botón 📍 en el formulario de nuevo gasto para capturar la ubicación
+              </p>
+            </div>
           )}
         </div>
       </div>

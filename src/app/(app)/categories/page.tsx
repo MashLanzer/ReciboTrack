@@ -5,7 +5,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary"
 
 export default function CategoriesPage() {
   return (
-    <div className="container max-w-2xl mx-auto px-4 py-6 space-y-8">
+    <div className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
       <div>
         <h1 className="font-serif text-2xl">Categorías</h1>
         <p className="text-sm text-muted-foreground mt-1">Gestiona las categorías y reglas automáticas</p>
