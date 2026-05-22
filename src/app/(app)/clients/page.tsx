@@ -150,7 +150,7 @@ export default function ClientsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Clientes</h1>
+          <h1 className="font-serif text-2xl">Clientes</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {clients.length > 0
               ? `${clients.length} cliente${clients.length !== 1 ? "s" : ""}`

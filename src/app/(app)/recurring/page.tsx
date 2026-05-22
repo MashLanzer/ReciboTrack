@@ -161,6 +161,7 @@ export default function RecurringPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; merchant: string } | null>(null)
+  const [lateRegisterTarget, setLateRegisterTarget] = useState<{ template: RecurringTemplate; label: string } | null>(null)
   const [form, setForm] = useState<RecurringForm>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [registeringId, setRegisteringId] = useState<string | null>(null)
@@ -245,21 +246,7 @@ export default function RecurringPage() {
     }
   }
 
-  async function handleRegister(t: RecurringTemplate) {
-    // #6 — Advertir si el pago está vencido para que el usuario confirme
-    const daysLate = Math.floor(
-      (new Date().getTime() - t.nextDueDate.toDate().getTime()) / (1000 * 60 * 60 * 24)
-    )
-    if (daysLate > 0) {
-      const label = daysLate >= 30
-        ? `hace ${Math.floor(daysLate / 30)} mes${Math.floor(daysLate / 30) !== 1 ? "es" : ""}`
-        : `hace ${daysLate} día${daysLate !== 1 ? "s" : ""}`
-      const ok = confirm(
-        `"${t.merchant}" venció ${label}.\n\nSe registrará con fecha de hoy (${new Date().toLocaleDateString("es")}). ¿Continuar?`
-      )
-      if (!ok) return
-    }
-
+  async function doRegister(t: RecurringTemplate) {
     setRegisteringId(t.id)
     try {
       await addExpense.mutateAsync({
@@ -284,6 +271,21 @@ export default function RecurringPage() {
     } finally {
       setRegisteringId(null)
     }
+  }
+
+  function handleRegister(t: RecurringTemplate) {
+    // #6 — Advertir si el pago está vencido para que el usuario confirme
+    const daysLate = Math.floor(
+      (new Date().getTime() - t.nextDueDate.toDate().getTime()) / (1000 * 60 * 60 * 24)
+    )
+    if (daysLate > 0) {
+      const label = daysLate >= 30
+        ? `hace ${Math.floor(daysLate / 30)} mes${Math.floor(daysLate / 30) !== 1 ? "es" : ""}`
+        : `hace ${daysLate} día${daysLate !== 1 ? "s" : ""}`
+      setLateRegisterTarget({ template: t, label })
+      return
+    }
+    void doRegister(t)
   }
 
   async function handleSnooze(id: string) {
@@ -327,6 +329,14 @@ export default function RecurringPage() {
         description="Esta acción no se puede deshacer."
         confirmLabel="Eliminar"
         onConfirm={confirmDelete}
+      />
+      <ConfirmDialog
+        open={!!lateRegisterTarget}
+        onOpenChange={(o) => { if (!o) setLateRegisterTarget(null) }}
+        title={`"${lateRegisterTarget?.template.merchant}" venció ${lateRegisterTarget?.label}`}
+        description={`Se registrará con fecha de hoy (${new Date().toLocaleDateString("es")}). ¿Continuar?`}
+        confirmLabel="Registrar igualmente"
+        onConfirm={() => { if (lateRegisterTarget) void doRegister(lateRegisterTarget.template) }}
       />
 
       {/* Header */}
