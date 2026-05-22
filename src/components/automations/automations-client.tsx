@@ -149,9 +149,6 @@ function RuleDialog({
   const [form, setForm] = useState<FormState>(initial)
   const set = (k: keyof FormState, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
-  // Sync when initial changes (edit mode)
-  useState(() => { setForm(initial) })
-
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent className="max-w-sm">

@@ -183,7 +183,7 @@ export default function GraphPage() {
           </div>
 
           {/* Canvas — fixed height on mobile, fills remaining space on desktop */}
-          <div ref={containerRef} className="h-72 sm:h-80 md:h-auto md:flex-1 md:min-h-0 rounded-2xl border bg-card overflow-hidden relative">
+          <div ref={containerRef} className="h-80 sm:h-96 md:h-auto md:flex-1 md:min-h-0 rounded-2xl border bg-card overflow-hidden relative">
             {isLoading ? (
               <GraphLoadingState />
             ) : graphData.nodes.length === 0 ? (

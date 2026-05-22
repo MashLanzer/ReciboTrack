@@ -158,7 +158,7 @@ export default function QuickAccessPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Accesos rápidos</h1>
+          <h1 className="font-serif text-2xl">Accesos rápidos</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Gastos de un toque</p>
         </div>
         <Button onClick={openCreate} className="gap-2">
@@ -355,7 +355,7 @@ export default function QuickAccessPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Orden</Label>
+              <Label>Orden <span className="text-muted-foreground font-normal text-[11px]">(0 = primero en la lista)</span></Label>
               <Input
                 type="number"
                 min="0"
