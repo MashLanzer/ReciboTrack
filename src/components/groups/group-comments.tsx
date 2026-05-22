@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { Send, Trash2, MessageCircle, Loader2 } from "lucide-react"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
 // ─── Comment thread dialog ────────────────────────────────────────────────────
 
@@ -34,6 +35,7 @@ export function CommentsDialog({ open, onClose, groupId, expenseId, expenseName 
   const addComment = useAddGroupComment(groupId, expenseId)
   const deleteComment = useDeleteGroupComment(groupId, expenseId)
   const [text, setText] = useState("")
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // Scroll to bottom when new comments arrive
@@ -56,6 +58,22 @@ export function CommentsDialog({ open, onClose, groupId, expenseId, expenseName 
   }
 
   return (
+    <>
+    <ConfirmDialog
+      open={!!deleteTarget}
+      onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
+      title="¿Eliminar comentario?"
+      description="Esta acción no se puede deshacer."
+      confirmLabel="Eliminar"
+      onConfirm={async () => {
+        if (!deleteTarget) return
+        try {
+          await deleteComment.mutateAsync(deleteTarget)
+        } catch {
+          toast.error("Error al eliminar el comentario")
+        }
+      }}
+    />
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-sm flex flex-col max-h-[80vh]">
         <DialogHeader>
@@ -116,7 +134,7 @@ export function CommentsDialog({ open, onClose, groupId, expenseId, expenseName 
                     </p>
                     {isOwn && (
                       <button
-                        onClick={() => deleteComment.mutate(c.id)}
+                        onClick={() => setDeleteTarget(c.id)}
                         className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-white
                           flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                       >
@@ -154,6 +172,7 @@ export function CommentsDialog({ open, onClose, groupId, expenseId, expenseName 
         </div>
       </DialogContent>
     </Dialog>
+    </>
   )
 }
 

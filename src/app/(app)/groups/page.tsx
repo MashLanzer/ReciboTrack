@@ -723,6 +723,7 @@ function BalanceTab({
   const [settleCurrency, setSettleCurrency] = useState("USD")
   const [historyOpen, setHistoryOpen] = useState(false)
   const [liquidationOpen, setLiquidationOpen] = useState(false)
+  const [deleteSettlementTarget, setDeleteSettlementTarget] = useState<GroupSettlement | null>(null)
 
   const balances = computeBalances(expenses, settlements, group.members)
   const myBalance = balances[currentUid] ?? 0
@@ -760,6 +761,21 @@ function BalanceTab({
 
   return (
     <div className="space-y-4">
+      <ConfirmDialog
+        open={!!deleteSettlementTarget}
+        onOpenChange={(o) => { if (!o) setDeleteSettlementTarget(null) }}
+        title="¿Eliminar este pago?"
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={async () => {
+          if (!deleteSettlementTarget) return
+          try {
+            await deleteSettlement.mutateAsync({ groupId: group.id, settlementId: deleteSettlementTarget.id })
+            toast.success("Pago eliminado")
+          } catch { toast.error("Error al eliminar") }
+        }}
+      />
+
       {/* My balance hero */}
       <div className={cn(
         "rounded-2xl px-5 py-5 text-center relative overflow-hidden",
@@ -945,7 +961,7 @@ function BalanceTab({
                   </p>
                   {(s.fromUid === currentUid || s.toUid === currentUid) && (
                     <button
-                      onClick={() => deleteSettlement.mutateAsync({ groupId: group.id, settlementId: s.id })}
+                      onClick={() => setDeleteSettlementTarget(s)}
                       className="md:opacity-0 md:group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
                     >
                       <X className="h-3.5 w-3.5" />
