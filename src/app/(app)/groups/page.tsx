@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -1167,6 +1168,11 @@ function GroupDetail({
   // Invite code
   const [copiedCode, setCopiedCode] = useState(false)
 
+  // Confirmations (replace native confirm())
+  const [deleteExpenseTarget, setDeleteExpenseTarget] = useState<GroupExpense | null>(null)
+  const [leaveConfirm, setLeaveConfirm] = useState(false)
+  const [archiveConfirm, setArchiveConfirm] = useState(false)
+
   // Filters
   const [search, setSearch] = useState("")
   const [filterCat, setFilterCat] = useState("__all__")
@@ -1292,16 +1298,24 @@ function GroupDetail({
     finally { setFormSaving(false) }
   }
 
-  async function handleDelete(e: GroupExpense) {
-    if (!confirm("¿Eliminar este gasto?")) return
+  function handleDelete(e: GroupExpense) {
+    setDeleteExpenseTarget(e)
+  }
+
+  async function confirmDeleteExpense() {
+    if (!deleteExpenseTarget) return
     try {
-      await deleteExpense.mutateAsync({ groupId: group.id, expenseId: e.id })
+      await deleteExpense.mutateAsync({ groupId: group.id, expenseId: deleteExpenseTarget.id })
       toast.success("Gasto eliminado")
+      setDeleteExpenseTarget(null)
     } catch { toast.error("Error al eliminar") }
   }
 
   async function handleLeave() {
-    if (!confirm(`¿Salir del grupo "${group.name}"?`)) return
+    setLeaveConfirm(true)
+  }
+
+  async function confirmLeave() {
     try {
       await leaveGroup.mutateAsync(group.id)
       toast.success("Saliste del grupo")
@@ -1310,7 +1324,10 @@ function GroupDetail({
   }
 
   async function handleArchive() {
-    if (!confirm(`¿Archivar el grupo "${group.name}"? Seguirá visible en grupos archivados.`)) return
+    setArchiveConfirm(true)
+  }
+
+  async function confirmArchive() {
     try {
       await archiveGroup.mutateAsync(group.id)
       toast.success("Grupo archivado")
@@ -1349,7 +1366,7 @@ function GroupDetail({
   }
 
   async function shareInviteLink() {
-    const url = `${window.location.origin}/join?code=${inviteCode}`
+    const url = `${window.location.origin}/join/${inviteCode}`
     try {
       await navigator.clipboard.writeText(url)
       toast.success("Enlace copiado", { description: url })
@@ -2043,6 +2060,32 @@ function GroupDetail({
           />
         </DialogContent>
       </Dialog>
+
+      {/* ── Confirm dialogs ── */}
+      <ConfirmDialog
+        open={!!deleteExpenseTarget}
+        onOpenChange={(o) => { if (!o) setDeleteExpenseTarget(null) }}
+        title={`¿Eliminar "${deleteExpenseTarget?.merchant}"?`}
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={confirmDeleteExpense}
+      />
+      <ConfirmDialog
+        open={leaveConfirm}
+        onOpenChange={setLeaveConfirm}
+        title={`¿Salir del grupo "${group.name}"?`}
+        description="Perderás el acceso a los gastos y el historial del grupo."
+        confirmLabel="Salir"
+        onConfirm={confirmLeave}
+      />
+      <ConfirmDialog
+        open={archiveConfirm}
+        onOpenChange={setArchiveConfirm}
+        title={`¿Archivar "${group.name}"?`}
+        description="El grupo seguirá visible en la sección de archivados."
+        confirmLabel="Archivar"
+        onConfirm={confirmArchive}
+      />
 
       {/* ── Edit group dialog ── */}
       <Dialog open={editGroupOpen} onOpenChange={setEditGroupOpen}>
