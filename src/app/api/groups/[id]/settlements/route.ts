@@ -55,6 +55,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       to_uid:     body.toUid,
       amount:     body.amount,
       currency:   body.currency,
+      note:       body.note ?? null,
       settled_at: new Date().toISOString(),
     })
     .select()

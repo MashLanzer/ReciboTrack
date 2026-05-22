@@ -168,7 +168,11 @@ function LoginForm() {
         await initUserProfile(result.user.uid, name, email)
         toast.success("Cuenta creada")
       } else {
-        await signInWithEmailAndPassword(getFirebaseAuth(), email, password)
+        const result = await signInWithEmailAndPassword(getFirebaseAuth(), email, password)
+        // Asegura que el perfil exista en Supabase también para usuarios existentes
+        try {
+          await initUserProfile(result.user.uid, result.user.displayName ?? email.split("@")[0], email)
+        } catch { /* no crítico */ }
       }
       setSessionCookie()
       navigateAfterLogin()

@@ -8,9 +8,14 @@
  * Rate limiting: ventana deslizante en memoria (Map). Se reinicia cuando el
  * servidor se reinicia — suficiente para producción serverless con Vercel
  * (cada instancia tiene su propio Map).
+ *
+ * Auto-profile: Tras verificar el token, hace un upsert (ignoreDuplicates)
+ * de la fila en `profiles` para garantizar que siempre exista antes de
+ * cualquier INSERT en tablas con FK a profiles.
  */
 
 import { NextRequest, NextResponse } from "next/server"
+import { getSupabase } from "@/lib/supabase/server"
 
 // ─── Rate limit store ────────────────────────────────────────────────────────
 
@@ -24,7 +29,7 @@ const store = new Map<string, RateRecord>()
 const LIMITS: Record<string, { maxReqs: number; windowMs: number }> = {
   ai:  { maxReqs: 20, windowMs: 60_000 }, // AI routes: 20 req/min
   ocr: { maxReqs: 10, windowMs: 60_000 }, // OCR route: 10 req/min
-  pay: { maxReqs: 30, windowMs: 60_000 }, // Pay-link:  30 req/min
+  pay: { maxReqs: 60, windowMs: 60_000 }, // Data routes: 60 req/min
 }
 
 /**
@@ -54,11 +59,19 @@ function checkRateLimit(uid: string, group: keyof typeof LIMITS): boolean {
   return true
 }
 
+// ─── In-memory profile cache (por instancia serverless) ──────────────────────
+// Evita hacer upsert en cada GET — solo upserta la primera vez por uid en
+// esta instancia (se reinicia en cada cold start, que es suficiente).
+
+const profileCreated = new Set<string>()
+
 // ─── Token verification via Firebase REST API ────────────────────────────────
 
 interface FirebaseTokenInfo {
-  localId: string // Firebase UID
-  email?: string
+  localId:      string  // Firebase UID
+  email?:       string
+  displayName?: string  // Firebase lo llama displayName en accounts:lookup
+  photoUrl?:    string  // Firebase lo llama photoUrl (sin mayúscula)
   emailVerified?: boolean
 }
 
@@ -67,14 +80,18 @@ interface FirebaseLookupResponse {
   error?: { message: string }
 }
 
+interface VerifiedToken {
+  uid:         string
+  email?:      string
+  displayName?: string
+  photoUrl?:   string
+}
+
 /**
  * Verifies a Firebase ID token using the REST accounts:lookup endpoint.
- * Returns the uid on success, null on failure.
- *
- * Note: This validates the token is current and the user exists in Firebase.
- * It does NOT re-validate the JWT signature (that's done by Firebase's servers).
+ * Returns user info on success, null on failure.
  */
-async function verifyFirebaseToken(idToken: string): Promise<string | null> {
+async function verifyFirebaseToken(idToken: string): Promise<VerifiedToken | null> {
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY
   if (!apiKey) {
     console.error("[api-auth] NEXT_PUBLIC_FIREBASE_API_KEY not set")
@@ -88,7 +105,6 @@ async function verifyFirebaseToken(idToken: string): Promise<string | null> {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken }),
-        // Timeout: 5s — don't block the request too long
         signal: AbortSignal.timeout(5_000),
       }
     )
@@ -101,10 +117,66 @@ async function verifyFirebaseToken(idToken: string): Promise<string | null> {
     }
 
     const user = data.users?.[0]
-    return user?.localId ?? null
+    if (!user?.localId) return null
+
+    return {
+      uid:         user.localId,
+      email:       user.email,
+      displayName: user.displayName,
+      photoUrl:    user.photoUrl,
+    }
   } catch (err) {
     console.error("[api-auth] Token verification failed:", err)
     return null
+  }
+}
+
+// ─── Auto-upsert profile ─────────────────────────────────────────────────────
+
+/**
+ * Garantiza que el usuario tenga fila en la tabla `profiles`.
+ * Usa ON CONFLICT DO NOTHING para que sea un no-op si ya existe.
+ * Se hace como máximo una vez por uid por instancia serverless (cache en memoria).
+ */
+async function ensureProfile(verified: VerifiedToken): Promise<void> {
+  if (profileCreated.has(verified.uid)) return  // ya lo comprobamos en esta instancia
+
+  try {
+    const now = new Date().toISOString()
+    await getSupabase()
+      .from("profiles")
+      .upsert(
+        {
+          uid:          verified.uid,
+          email:        verified.email        ?? null,
+          display_name: verified.displayName  ?? null,
+          photo_url:    verified.photoUrl     ?? null,
+          updated_at:   now,
+          created_at:   now,
+        },
+        { onConflict: "uid", ignoreDuplicates: true }
+      )
+
+    // También actualizar el directorio público (para lookup de Trusted Circle)
+    if (verified.email) {
+      await getSupabase()
+        .from("user_directory")
+        .upsert(
+          {
+            email:        verified.email.toLowerCase(),
+            uid:          verified.uid,
+            display_name: verified.displayName ?? null,
+            photo_url:    verified.photoUrl    ?? null,
+            updated_at:   now,
+          },
+          { onConflict: "email", ignoreDuplicates: true }
+        )
+    }
+
+    profileCreated.add(verified.uid)
+  } catch (err) {
+    // No crítico — si falla, el route de datos mostrará el error real
+    console.error("[api-auth] ensureProfile failed:", err)
   }
 }
 
@@ -113,14 +185,17 @@ async function verifyFirebaseToken(idToken: string): Promise<string | null> {
 export type RateLimitGroup = keyof typeof LIMITS
 
 export interface AuthResult {
-  uid: string
+  uid:         string
+  email?:      string
+  displayName?: string
 }
 
 /**
- * Authenticates the request and checks rate limit.
+ * Authenticates the request, auto-creates the profile if needed, and checks
+ * rate limit.
  *
  * Usage in a route:
- *   const auth = await requireAuth(req, "ai")
+ *   const auth = await requireAuth(req, "pay")
  *   if (auth instanceof NextResponse) return auth
  *   // auth.uid is now available
  *
@@ -144,16 +219,19 @@ export async function requireAuth(
   }
 
   // 2. Verify the token with Firebase
-  const uid = await verifyFirebaseToken(token)
-  if (!uid) {
+  const verified = await verifyFirebaseToken(token)
+  if (!verified) {
     return NextResponse.json(
       { error: "Sesión inválida o expirada. Vuelve a iniciar sesión." },
       { status: 401 }
     )
   }
 
-  // 3. Check rate limit
-  const allowed = checkRateLimit(uid, group)
+  // 3. Auto-create profile in Supabase (no-op if already exists)
+  await ensureProfile(verified)
+
+  // 4. Check rate limit
+  const allowed = checkRateLimit(verified.uid, group)
   if (!allowed) {
     const limit = LIMITS[group]
     return NextResponse.json(
@@ -165,5 +243,5 @@ export async function requireAuth(
     )
   }
 
-  return { uid }
+  return { uid: verified.uid, email: verified.email, displayName: verified.displayName }
 }
