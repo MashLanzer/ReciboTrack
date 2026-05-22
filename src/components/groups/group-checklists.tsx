@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { cn } from "@/lib/utils"
 
 interface GroupChecklistsProps {
@@ -174,6 +175,7 @@ export function GroupChecklists({ groupId }: GroupChecklistsProps) {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [itemLines, setItemLines] = useState("") // one per line
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 
   async function handleCreate() {
     if (!title.trim()) { toast.error("El título es requerido"); return }
@@ -189,9 +191,14 @@ export function GroupChecklists({ groupId }: GroupChecklistsProps) {
     }
   }
 
-  async function handleDelete(checklistId: string) {
+  function handleDelete(checklistId: string) {
+    setDeleteTarget(checklistId)
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
     try {
-      await remove.mutateAsync({ groupId, checklistId })
+      await remove.mutateAsync({ groupId, checklistId: deleteTarget })
       toast.success("Checklist eliminado")
     } catch {
       toast.error("Error al eliminar")
@@ -202,6 +209,15 @@ export function GroupChecklists({ groupId }: GroupChecklistsProps) {
 
   return (
     <div className="space-y-3">
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
+        title="¿Eliminar checklist?"
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={confirmDelete}
+      />
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CheckSquare className="h-4 w-4 text-muted-foreground" />

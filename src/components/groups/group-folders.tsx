@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
 interface GroupFoldersProps {
   groupId: string
@@ -78,6 +79,7 @@ export function GroupFolders({ groupId }: GroupFoldersProps) {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<GroupFolder | null>(null)
   const [form, setForm] = useState<FolderFormState>(emptyForm())
+  const [deleteTarget, setDeleteTarget] = useState<GroupFolder | null>(null)
 
   function openCreate() {
     setEditing(null)
@@ -91,9 +93,14 @@ export function GroupFolders({ groupId }: GroupFoldersProps) {
     setOpen(true)
   }
 
-  async function handleDelete(folder: GroupFolder) {
+  function handleDelete(folder: GroupFolder) {
+    setDeleteTarget(folder)
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
     try {
-      await remove.mutateAsync({ groupId, folderId: folder.id })
+      await remove.mutateAsync({ groupId, folderId: deleteTarget.id })
       toast.success("Carpeta eliminada")
     } catch {
       toast.error("Error al eliminar carpeta")
@@ -134,6 +141,15 @@ export function GroupFolders({ groupId }: GroupFoldersProps) {
 
   return (
     <div className="space-y-3">
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
+        title={`¿Eliminar la carpeta "${deleteTarget?.name}"?`}
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={confirmDelete}
+      />
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Folder className="h-4 w-4 text-muted-foreground" />
