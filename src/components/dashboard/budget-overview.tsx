@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { Plus, Trash2, AlertTriangle, Copy, Loader2, Check } from "lucide-react"
@@ -35,6 +36,7 @@ export function BudgetOverview() {
   const [form, setForm] = useState({ categoryId: "", monthlyLimit: "", currency: "USD", id: "" })
   const [copyingPrev, setCopyingPrev] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 
   // Group last month's spending by category
   const prevByCategory = useMemo(() => {
@@ -111,6 +113,21 @@ export function BudgetOverview() {
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
+        title="¿Eliminar este presupuesto?"
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={async () => {
+          if (!deleteTarget) return
+          try {
+            await deleteBudget.mutateAsync(deleteTarget)
+            toast.success("Presupuesto eliminado")
+          } catch { toast.error("Error al eliminar") }
+        }}
+      />
+
       {/* Empty state: suggest copying from last month */}
       {budgets.length === 0 && prevByCategory.length > 0 && (
         <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
@@ -184,7 +201,7 @@ export function BudgetOverview() {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                      onClick={() => deleteBudget.mutate(budget.id)}
+                      onClick={() => setDeleteTarget(budget.id)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>

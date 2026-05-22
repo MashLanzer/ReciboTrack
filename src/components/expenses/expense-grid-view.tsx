@@ -14,6 +14,7 @@ import { EXPENSES_PER_PAGE } from "@/lib/constants"
 import { useUIStore } from "@/stores/ui-store"
 import { toast } from "sonner"
 import { isValid, parseISO } from "date-fns"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
 export function ExpenseGridView() {
   const router = useRouter()
@@ -34,6 +35,7 @@ export function ExpenseGridView() {
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { activeAccount } = useUIStore()
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 
   const setParams = useCallback((updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -70,9 +72,14 @@ export function ExpenseGridView() {
     searchTimer.current = setTimeout(() => setParams({ q: val || null }), 300)
   }
 
-  async function handleDelete(id: string) {
+  function handleDelete(id: string) {
+    setDeleteTarget(id)
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
     try {
-      await deleteExpense.mutateAsync(id)
+      await deleteExpense.mutateAsync(deleteTarget)
       toast.success("Gasto eliminado")
     } catch {
       toast.error("Error al eliminar")
@@ -90,6 +97,15 @@ export function ExpenseGridView() {
   }
 
   return (
+    <>
+    <ConfirmDialog
+      open={!!deleteTarget}
+      onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
+      title="¿Eliminar este gasto?"
+      description="Esta acción no se puede deshacer."
+      confirmLabel="Eliminar"
+      onConfirm={confirmDelete}
+    />
     <div className="space-y-4">
       {/* Search + filter bar */}
       <div className="flex gap-2">
@@ -161,5 +177,6 @@ export function ExpenseGridView() {
         </div>
       )}
     </div>
+    </>
   )
 }

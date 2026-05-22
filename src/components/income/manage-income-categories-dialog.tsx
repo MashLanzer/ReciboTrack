@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { toast } from "sonner"
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react"
 import {
@@ -52,6 +53,7 @@ export function ManageIncomeCategoriesDialog({ open, onOpenChange }: Props) {
   const [mode, setMode] = useState<"list" | "add" | "edit">("list")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<EditingForm>(emptyForm())
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
 
   function startAdd() {
     setForm(emptyForm())
@@ -90,10 +92,15 @@ export function ManageIncomeCategoriesDialog({ open, onOpenChange }: Props) {
     }
   }
 
-  async function handleDelete(id: string, name: string) {
+  function handleDelete(id: string, name: string) {
+    setDeleteTarget({ id, name })
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
     try {
-      await deleteCat.mutateAsync(id)
-      toast.success(`"${name}" eliminada`)
+      await deleteCat.mutateAsync(deleteTarget.id)
+      toast.success(`"${deleteTarget.name}" eliminada`)
     } catch {
       toast.error("Error al eliminar")
     }
@@ -106,6 +113,15 @@ export function ManageIncomeCategoriesDialog({ open, onOpenChange }: Props) {
     : DEFAULT_INCOME_CATEGORIES.map((d, i) => ({ ...d, id: `default-${i}`, createdAt: null }))
 
   return (
+    <>
+    <ConfirmDialog
+      open={!!deleteTarget}
+      onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
+      title={`¿Eliminar "${deleteTarget?.name}"?`}
+      description="Esta acción no se puede deshacer."
+      confirmLabel="Eliminar"
+      onConfirm={confirmDelete}
+    />
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -259,5 +275,6 @@ export function ManageIncomeCategoriesDialog({ open, onOpenChange }: Props) {
         )}
       </DialogContent>
     </Dialog>
+    </>
   )
 }

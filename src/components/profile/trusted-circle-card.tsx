@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Users, Plus, Trash2, Loader2, CheckCircle, AlertCircle } from "lucide-react"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -74,6 +75,7 @@ export function TrustedCircleCard() {
   const [emailInput, setEmailInput] = useState("")
   const [lookupState, setLookupState] = useState<LookupState>("idle")
   const [lookupResult, setLookupResult] = useState<LookupResult | null>(null)
+  const [removeTarget, setRemoveTarget] = useState<{ id: string; displayName: string } | null>(null)
 
   async function handleEmailBlur() {
     const email = emailInput.trim().toLowerCase()
@@ -144,6 +146,21 @@ export function TrustedCircleCard() {
   }
 
   return (
+    <>
+    <ConfirmDialog
+      open={!!removeTarget}
+      onOpenChange={(o) => { if (!o) setRemoveTarget(null) }}
+      title={`¿Eliminar a "${removeTarget?.displayName}" del círculo?`}
+      description="Ya no podrá ver tu información financiera compartida."
+      confirmLabel="Eliminar"
+      onConfirm={async () => {
+        if (!removeTarget) return
+        try {
+          await removeMember.mutateAsync(removeTarget.id)
+          toast.success(`${removeTarget.displayName} eliminado del círculo`)
+        } catch { toast.error("Error al eliminar") }
+      }}
+    />
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -195,10 +212,7 @@ export function TrustedCircleCard() {
                     />
                   </div>
                   <button
-                    onClick={async () => {
-                      await removeMember.mutateAsync(member.id)
-                      toast.success(`${member.displayName} eliminado del círculo`)
-                    }}
+                    onClick={() => setRemoveTarget({ id: member.id, displayName: member.displayName })}
                     className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -275,5 +289,6 @@ export function TrustedCircleCard() {
         )}
       </CardContent>
     </Card>
+    </>
   )
 }

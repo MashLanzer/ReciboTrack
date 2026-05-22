@@ -4,6 +4,7 @@ import { useState } from "react"
 import { format, subMonths } from "date-fns"
 import { es } from "date-fns/locale"
 import { TrendingUp, TrendingDown, Scale, Plus, Trash2, RefreshCw } from "lucide-react"
+import { toast } from "sonner"
 import { useIncome, useAddIncome, useDeleteIncome } from "@/hooks/use-income"
 import { useExpensesForMonth } from "@/hooks/use-expenses"
 import { useUIStore } from "@/stores/ui-store"
@@ -26,6 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Progress } from "@/components/ui/progress"
 
 const INCOME_SOURCES = ["Nómina", "Freelance", "Alquiler", "Inversiones", "Otro"] as const
@@ -153,6 +155,7 @@ export function IncomeBalance({ year, month }: IncomeBalanceProps) {
   const addIncome = useAddIncome()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [carryLoading, setCarryLoading] = useState(false)
+  const [deleteIncomeTarget, setDeleteIncomeTarget] = useState<string | null>(null)
 
   // Recurring incomes from last month that haven't been added this month yet
   const recurringToCarry = prevIncomeList.filter((prev) => {
@@ -206,6 +209,21 @@ export function IncomeBalance({ year, month }: IncomeBalanceProps) {
   }
 
   return (
+    <>
+    <ConfirmDialog
+      open={!!deleteIncomeTarget}
+      onOpenChange={(o) => { if (!o) setDeleteIncomeTarget(null) }}
+      title="¿Eliminar este ingreso?"
+      description="Esta acción no se puede deshacer."
+      confirmLabel="Eliminar"
+      onConfirm={async () => {
+        if (!deleteIncomeTarget) return
+        try {
+          await deleteIncome.mutateAsync(deleteIncomeTarget)
+          toast.success("Ingreso eliminado")
+        } catch { toast.error("Error al eliminar") }
+      }}
+    />
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
@@ -347,7 +365,7 @@ export function IncomeBalance({ year, month }: IncomeBalanceProps) {
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-muted-foreground hover:text-destructive"
-                  onClick={() => deleteIncome.mutate(inc.id)}
+                  onClick={() => setDeleteIncomeTarget(inc.id)}
                 >
                   <Trash2 className="h-3 w-3" />
                 </Button>
@@ -365,5 +383,6 @@ export function IncomeBalance({ year, month }: IncomeBalanceProps) {
         )}
       </CardContent>
     </Card>
+    </>
   )
 }

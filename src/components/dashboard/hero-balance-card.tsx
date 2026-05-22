@@ -13,6 +13,8 @@ import { useUIStore } from "@/stores/ui-store"
 import { formatCurrency, cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { toast } from "sonner"
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -65,6 +67,7 @@ export function HeroBalanceCard() {
   const { data: prevExpensesRaw = [] } = useExpensesForMonth(prevY, prevM)
   const addIncome = useAddIncome()
   const [carryLoading, setCarryLoading] = useState(false)
+  const [deleteIncomeTarget, setDeleteIncomeTarget] = useState<string | null>(null)
 
   const recurringToCarry = useMemo(() =>
     prevIncomeList.filter(prev =>
@@ -122,6 +125,21 @@ export function HeroBalanceCard() {
   }
 
   return (
+    <>
+    <ConfirmDialog
+      open={!!deleteIncomeTarget}
+      onOpenChange={(o) => { if (!o) setDeleteIncomeTarget(null) }}
+      title="¿Eliminar este ingreso?"
+      description="Esta acción no se puede deshacer."
+      confirmLabel="Eliminar"
+      onConfirm={async () => {
+        if (!deleteIncomeTarget) return
+        try {
+          await deleteIncome.mutateAsync(deleteIncomeTarget)
+          toast.success("Ingreso eliminado")
+        } catch { toast.error("Error al eliminar") }
+      }}
+    />
     <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/8 via-card to-primary/4 shadow-xl shadow-primary/5">
       {/* Background glow */}
       <div className="pointer-events-none absolute -top-16 -right-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
@@ -322,7 +340,7 @@ export function HeroBalanceCard() {
                 +{formatCurrency(inc.amount, inc.currency)}
               </p>
               <button
-                onClick={() => deleteIncome.mutate(inc.id)}
+                onClick={() => setDeleteIncomeTarget(inc.id)}
                 className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-all shrink-0 md:opacity-0 md:group-hover:opacity-100"
                 aria-label="Eliminar ingreso"
               >
@@ -348,5 +366,6 @@ export function HeroBalanceCard() {
         </div>
       )}
     </div>
+    </>
   )
 }
