@@ -55,6 +55,7 @@ export function QuickAddSheet() {
   useEffect(() => {
     if (quickAddOpen) {
       setForm({ merchant: "", total: "", category: "otros", currency: "USD", date: today, notes: "", paymentMethod: "", tags: "" })
+      setGeo(null)
       setTimeout(() => merchantRef.current?.focus(), 150)
     }
   }, [quickAddOpen, today])
