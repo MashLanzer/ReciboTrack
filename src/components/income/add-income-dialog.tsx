@@ -12,7 +12,7 @@ import { useAddIncome } from "@/hooks/use-income"
 import { useIncomeCategories, DEFAULT_INCOME_CATEGORIES } from "@/hooks/use-income-categories"
 import { ManageIncomeCategoriesDialog } from "./manage-income-categories-dialog"
 import { CURRENCIES } from "@/lib/constants"
-import { TrendingUp, Settings2 } from "lucide-react"
+import { TrendingUp, Settings2, Loader2 } from "lucide-react"
 
 function emptyForm(defaultSource = "Nómina") {
   return {
@@ -169,7 +169,9 @@ export function AddIncomeDialog() {
             onClick={handleSave}
             disabled={addIncome.isPending || !form.amount || parseFloat(form.amount) <= 0}
           >
-            Guardar ingreso
+            {addIncome.isPending ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Guardando…</>
+            ) : "Guardar ingreso"}
           </Button>
         </div>
       </DialogContent>

@@ -755,7 +755,7 @@ export function ExpenseList() {
             const groupCat = groupBy === "cat" ? categories.find((c) => c.id === groupKey) : null
             return (
               <div key={groupKey}>
-                <div className="flex items-center justify-between py-2 mb-2 border-b">
+                <div className="flex items-center justify-between py-2 mb-2 border-b sticky top-[var(--list-toolbar-h,8rem)] z-10 bg-background/95 backdrop-blur-sm -mx-1 px-1">
                   <div className="flex items-center gap-2">
                     {selectMode && (
                       <button

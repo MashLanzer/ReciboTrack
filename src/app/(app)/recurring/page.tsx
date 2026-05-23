@@ -57,6 +57,7 @@ import { es } from "date-fns/locale"
 import { PAYMENT_METHODS, CURRENCIES, DEFAULT_CATEGORIES } from "@/lib/constants"
 import type { RecurringTemplate, RecurringFrequency, Expense } from "@/types"
 import { Timestamp } from "firebase/firestore"
+import { EmptyState } from "@/components/ui/empty-state"
 
 const FREQUENCY_LABELS: Record<RecurringFrequency, string> = {
   weekly: "Semanal",
@@ -436,21 +437,12 @@ export default function RecurringPage() {
 
       {/* Empty state */}
       {!isLoading && templates.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-            <RefreshCw className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <div>
-            <p className="font-medium">Sin gastos recurrentes</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Registra suscripciones, renta o servicios para que te recuerden cuándo pagarlos.
-            </p>
-          </div>
-          <Button onClick={openCreate} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Crear el primero
-          </Button>
-        </div>
+        <EmptyState
+          icon={RefreshCw}
+          title="Sin gastos recurrentes"
+          description="Registra suscripciones, renta o servicios para que te recuerden cuándo pagarlos."
+          actions={[{ label: "Crear el primero", onClick: openCreate, icon: <Plus className="h-4 w-4" /> }]}
+        />
       )}
 
       {/* #20 — All clear banner */}
@@ -485,26 +477,23 @@ export default function RecurringPage() {
 
       {/* Empty state — no results */}
       {viewMode === "list" && filteredTemplates.length === 0 && !isLoading && (
-        <div className="rounded-2xl border border-dashed bg-card/50 p-8 text-center space-y-2">
-          {search ? (
-            <>
-              <p className="text-2xl">🔍</p>
-              <p className="text-sm font-semibold">Sin resultados para &ldquo;{search}&rdquo;</p>
-              <p className="text-xs text-muted-foreground">Prueba con otro término de búsqueda</p>
-              <Button variant="outline" size="sm" onClick={() => setSearch("")}>Limpiar búsqueda</Button>
-            </>
-          ) : (
-            <>
-              <p className="text-2xl">🔄</p>
-              <p className="text-sm font-semibold">Sin gastos recurrentes</p>
-              <p className="text-xs text-muted-foreground">Añade tus suscripciones y pagos fijos</p>
-              <Button size="sm" onClick={openCreate}>
-                <Plus className="h-4 w-4 mr-1" />
-                Añadir recurrente
-              </Button>
-            </>
-          )}
-        </div>
+        search ? (
+          <EmptyState
+            icon={Search}
+            title={`Sin resultados para "${search}"`}
+            description="Prueba con otro término de búsqueda"
+            actions={[{ label: "Limpiar búsqueda", onClick: () => setSearch(""), variant: "outline" }]}
+            compact
+          />
+        ) : (
+          <EmptyState
+            icon={RefreshCw}
+            title="Sin gastos recurrentes"
+            description="Añade tus suscripciones y pagos fijos"
+            actions={[{ label: "Añadir recurrente", onClick: openCreate, icon: <Plus className="h-4 w-4" /> }]}
+            compact
+          />
+        )
       )}
 
       {/* List sections */}

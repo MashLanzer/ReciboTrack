@@ -53,6 +53,7 @@ import {
   CartesianGrid,
 } from "recharts"
 import { cn } from "@/lib/utils"
+import { EmptyState } from "@/components/ui/empty-state"
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -910,10 +911,12 @@ function BalanceTab({
       )}
 
       {expenses.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          <Receipt className="h-8 w-8 mx-auto mb-2 opacity-30" />
-          <p className="text-sm">Sin gastos registrados aún.</p>
-        </div>
+        <EmptyState
+          icon={Receipt}
+          title="Sin gastos aún"
+          description="Añade el primer gasto del grupo arriba"
+          compact
+        />
       )}
 
       {/* Liquidación mínima */}
@@ -1696,13 +1699,12 @@ function GroupDetail({
           {isLoading ? (
             [...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)
           ) : filteredExpenses.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Receipt className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">{expenses.length === 0 ? "Sin gastos en el grupo" : "Sin resultados"}</p>
-              <p className="text-xs mt-1">
-                {expenses.length === 0 ? "Añade el primero con el botón de arriba" : "Prueba cambiando los filtros"}
-              </p>
-            </div>
+            <EmptyState
+              icon={Receipt}
+              title={expenses.length === 0 ? "Sin gastos en el grupo" : "Sin resultados"}
+              description={expenses.length === 0 ? "Añade el primero con el botón de arriba" : "Prueba cambiando los filtros"}
+              compact
+            />
           ) : filteredExpenses.map((e) => {
             const cat = allCats.find((c) => c.id === e.category)
             const isMyExpense = e.paidByUid === currentUid
@@ -2249,25 +2251,15 @@ export default function GroupsPage() {
           {[1, 2].map((i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
         </div>
       ) : activeGroups.length === 0 && archivedGroups.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-6 text-center">
-          <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center text-3xl">👨‍👩‍👧‍👦</div>
-          <div>
-            <p className="font-semibold">Sin grupos todavía</p>
-            <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-              Crea un grupo con tu familia o amigos para controlar gastos compartidos y saber quién debe qué
-            </p>
-          </div>
-          <div className="flex gap-3 flex-wrap justify-center">
-            <Button variant="outline" onClick={() => setJoinOpen(true)} className="gap-2">
-              <UserPlus className="h-4 w-4" />
-              Unirme con código
-            </Button>
-            <Button onClick={() => setCreateOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Crear grupo
-            </Button>
-          </div>
-        </div>
+        <EmptyState
+          icon={Users}
+          title="Sin grupos todavía"
+          description="Crea un grupo con familia o amigos para controlar gastos compartidos"
+          actions={[
+            { label: "Crear grupo", onClick: () => setCreateOpen(true), icon: <Plus className="h-4 w-4" /> },
+            { label: "Unirme con código", onClick: () => setJoinOpen(true), icon: <UserPlus className="h-4 w-4" />, variant: "outline" },
+          ]}
+        />
       ) : (
         <div className="space-y-3">
           {activeGroups.map((group) => (

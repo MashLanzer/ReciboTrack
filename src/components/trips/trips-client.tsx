@@ -34,9 +34,11 @@ import {
   ChevronUp,
   Loader2,
   Pencil,
+  MapPin,
 } from "lucide-react"
 import { format, differenceInDays, isWithinInterval } from "date-fns"
 import { es } from "date-fns/locale"
+import { EmptyState } from "@/components/ui/empty-state"
 
 const TRAVEL_EMOJIS = ["✈️", "🏖️", "🏔️", "🎡", "🎭", "🏕️", "🚢", "🗺️", "🎒", "💼", "🏨", "🎪"]
 
@@ -456,19 +458,12 @@ export function TripsClient() {
 
       {/* Empty state */}
       {budgets.length === 0 ? (
-        <div className="rounded-2xl border border-dashed bg-card p-12 text-center space-y-3">
-          <span className="text-5xl">✈️</span>
-          <div>
-            <p className="font-semibold">No tienes viajes aún</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Crea tu primer viaje para controlar el gasto
-            </p>
-          </div>
-          <Button onClick={() => setOpen(true)} className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            Crea tu primer viaje
-          </Button>
-        </div>
+        <EmptyState
+          icon={MapPin}
+          title="No tienes viajes aún"
+          description="Crea tu primer viaje para controlar el presupuesto de gastos"
+          actions={[{ label: "Crea tu primer viaje", onClick: () => setOpen(true), icon: <Plus className="h-4 w-4" /> }]}
+        />
       ) : (
         <div className="space-y-4">
           {active.map(b => (

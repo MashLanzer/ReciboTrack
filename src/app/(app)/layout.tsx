@@ -20,6 +20,7 @@ import { RoundUpWatcher } from "@/components/expenses/round-up-watcher"
 import { AutomationWatcher } from "@/components/automations/automation-watcher"
 import { GeolocationWatcher } from "@/components/notifications/geolocation-watcher"
 import { PullToRefresh } from "@/components/shared/pull-to-refresh"
+import { ScrollToTop } from "@/components/shared/scroll-to-top"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -49,6 +50,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
           {children}
         </main>
+        <ScrollToTop />
         <BottomNav />
       </div>
       </AppLock>
