@@ -145,11 +145,19 @@ export function useExpensesForMonth(year: number, month: number) {
   })
 }
 
-/** Fetches ALL expenses in a date range (no pagination). Used for history tables. */
+/** Fetches ALL expenses in a date range (no pagination). Used for history tables.
+ *
+ * The query key uses day-level precision (YYYY-MM-DD) so that callers that
+ * construct dates with new Date() without useMemo don't create a new cache
+ * entry on every render (milliseconds would differ on each render, causing an
+ * infinite refetch loop). */
 export function useExpensesPeriod(start: Date, end: Date) {
   const { user } = useAuth()
+  // Day-level key: stable even if caller passes new Date() without useMemo
+  const startKey = `${start.getFullYear()}-${start.getMonth()}-${start.getDate()}`
+  const endKey   = `${end.getFullYear()}-${end.getMonth()}-${end.getDate()}`
   return useQuery({
-    queryKey: ["expenses-period", user?.uid, start.toISOString(), end.toISOString()],
+    queryKey: ["expenses-period", user?.uid, startKey, endKey],
     enabled: !!user,
     queryFn: async () => {
       if (!user) return [] as Expense[]

@@ -11,7 +11,9 @@ import type { Expense } from "@/types"
 
 export function MemoriesWidget() {
   const { activeAccount } = useUIStore()
-  const now = new Date()
+  // useMemo evita que new Date() genere un nuevo objeto en cada render,
+  // lo que causaría que la query key cambie y dispare un loop infinito de fetches.
+  const now = useMemo(() => new Date(), [])
 
   // ── Last year ±2 days window ──────────────────────────────────────────────
   const lastYearCenter = subYears(now, 1)
