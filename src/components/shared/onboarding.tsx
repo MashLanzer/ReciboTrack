@@ -89,7 +89,7 @@ interface Slide {
 
 const SLIDES: Slide[] = [
   {
-    gradient: "from-violet-600 via-primary to-blue-600",
+    gradient: "from-violet-600 via-indigo-600 to-blue-600",
     icon: <Sparkles className="h-10 w-10 text-white/90" />,
     emoji: "✨",
     eyebrow: "Bienvenido a",
@@ -236,6 +236,8 @@ function PermissionsSlide({ onDone }: { onDone: () => void }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+const LS_KEY = "recibotrack_onboarding_done"
+
 export function Onboarding() {
   const { data: settings, isLoading } = useUserSettings()
   const updateSettings = useUpdateUserSettings()
@@ -247,8 +249,13 @@ export function Onboarding() {
   const [direction, setDirection] = useState<"forward" | "back">("forward")
   const [animating, setAnimating] = useState(false)
 
-  // Show onboarding only when settings loaded + not completed
+  // Show onboarding only when settings loaded + not completed.
+  // localStorage is the primary gate so the onboarding never re-appears
+  // even if the API call to save `onboardingCompleted` fails.
   useEffect(() => {
+    // Fast path: already completed on this device
+    if (typeof window !== "undefined" && localStorage.getItem(LS_KEY)) return
+
     if (!isLoading && settings && !settings.onboardingCompleted) {
       const t = setTimeout(() => setVisible(true), 600)
       return () => clearTimeout(t)
@@ -262,6 +269,8 @@ export function Onboarding() {
   const currentSlide = isPermissions ? null : SLIDES[step]
 
   function complete() {
+    // Persist locally first (reliable, instant) then sync to server
+    localStorage.setItem(LS_KEY, "1")
     updateSettings.mutate({ onboardingCompleted: true })
     setVisible(false)
   }
