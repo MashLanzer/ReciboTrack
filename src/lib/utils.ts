@@ -60,6 +60,23 @@ export function stripUndefined<T extends Record<string, unknown>>(obj: T): Parti
   ) as Partial<T>
 }
 
+/**
+ * Compact currency format — shows K/M suffix for large numbers on mobile.
+ * Falls back to full precision for amounts < 10 000.
+ */
+export function formatCompact(amount: number, currency = "USD"): string {
+  const abs = Math.abs(amount)
+  if (abs >= 10_000) {
+    return new Intl.NumberFormat("es-ES", {
+      style: "currency",
+      currency,
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(amount)
+  }
+  return formatCurrency(amount, currency)
+}
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()

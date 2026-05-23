@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { useCountUp } from "@/hooks/use-count-up"
 import { format, subMonths, addMonths } from "date-fns"
 import { es } from "date-fns/locale"
 import {
@@ -120,6 +121,11 @@ export function HeroBalanceCard() {
 
   const monthLabel = format(new Date(y, m - 1), "MMMM yyyy", { locale: es })
 
+  // ── Animated countup — smooth transition when values change ───────────────
+  const animBalance  = useCountUp(balance, 550)
+  const animIncome   = useCountUp(totalIncome, 420)
+  const animExpenses = useCountUp(totalExpenses, 420)
+
   if (incLoading || expLoading) {
     return <Skeleton className="h-52 rounded-3xl" />
   }
@@ -194,7 +200,7 @@ export function HeroBalanceCard() {
               ? "text-emerald-500 dark:text-emerald-400"
               : "text-destructive"
           )}>
-            {isPositive ? "+" : "-"}{formatCurrency(Math.abs(balance))}
+            {animBalance >= 0 ? "+" : "-"}{formatCurrency(Math.abs(animBalance))}
           </p>
           {totalIncome > 0 && (
             <p className={cn(
@@ -262,7 +268,7 @@ export function HeroBalanceCard() {
               <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Ingresos</span>
             </div>
             <p className="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
-              {formatCurrency(totalIncome)}
+              {formatCurrency(animIncome)}
             </p>
             {incomeList.length > 0 && (
               <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -278,7 +284,7 @@ export function HeroBalanceCard() {
               <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Gastos</span>
             </div>
             <p className="text-lg font-bold tabular-nums text-destructive">
-              {formatCurrency(totalExpenses)}
+              {formatCurrency(animExpenses)}
             </p>
             {filteredExpenses.length > 0 && (
               <p className="text-[10px] text-muted-foreground mt-0.5">

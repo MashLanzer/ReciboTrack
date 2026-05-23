@@ -104,10 +104,14 @@ export function ExpenseList() {
   }
 
   // ── Undo-delete tracking ────────────────────────────────────────────────────
-  // IDs hidden optimistically while deletion is pending (within undo window)
+  // exitingIds: currently playing the exit animation (still in DOM, 280ms)
+  const [exitingIds, setExitingIds] = useState<Set<string>>(new Set())
+  // pendingDeleteIds: hidden from DOM, awaiting undo window to expire (5 s)
   const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set())
-  // Map of id → timeout handle so we can cancel on undo
+  // Map of id → delete-API timeout handle (cancelled on undo)
   const deleteTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  // Map of id → animation timeout handle (cancelled on fast undo)
+  const animTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   // ── Long-press → enter select mode ──────────────────────────────────────
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -119,6 +123,8 @@ export function ExpenseList() {
     return () => {
       deleteTimers.current.forEach((timer) => clearTimeout(timer))
       deleteTimers.current.clear()
+      animTimers.current.forEach((timer) => clearTimeout(timer))
+      animTimers.current.clear()
       if (longPressTimer.current) clearTimeout(longPressTimer.current)
     }
   }, [])
@@ -277,11 +283,21 @@ export function ExpenseList() {
   const selectedExpenses = expenses.filter((e) => selectedIds.has(e.id))
 
   function scheduleDelete(ids: string[]) {
-    // Optimistically hide items
-    setPendingDeleteIds((prev) => {
+    // ① Start exit animation (item stays in DOM for 280 ms)
+    setExitingIds((prev) => {
       const next = new Set(prev)
       ids.forEach((id) => next.add(id))
       return next
+    })
+
+    // ② After animation completes, remove from DOM
+    ids.forEach((id) => {
+      const aTimer = setTimeout(() => {
+        animTimers.current.delete(id)
+        setPendingDeleteIds((prev) => { const next = new Set(prev); next.add(id); return next })
+        setExitingIds((prev) => { const next = new Set(prev); next.delete(id); return next })
+      }, 280)
+      animTimers.current.set(id, aTimer)
     })
 
     const label = ids.length === 1 ? "Gasto eliminado" : `${ids.length} gastos eliminados`
@@ -291,12 +307,19 @@ export function ExpenseList() {
       action: {
         label: "Deshacer",
         onClick: () => {
-          // Cancel all pending timers for these ids
+          // Cancel animation + API timers
           ids.forEach((id) => {
-            const timer = deleteTimers.current.get(id)
-            if (timer) { clearTimeout(timer); deleteTimers.current.delete(id) }
+            const aTimer = animTimers.current.get(id)
+            if (aTimer) { clearTimeout(aTimer); animTimers.current.delete(id) }
+            const dTimer = deleteTimers.current.get(id)
+            if (dTimer) { clearTimeout(dTimer); deleteTimers.current.delete(id) }
           })
-          // Restore items
+          // Restore items from both sets
+          setExitingIds((prev) => {
+            const next = new Set(prev)
+            ids.forEach((id) => next.delete(id))
+            return next
+          })
           setPendingDeleteIds((prev) => {
             const next = new Set(prev)
             ids.forEach((id) => next.delete(id))
@@ -308,7 +331,7 @@ export function ExpenseList() {
       },
     })
 
-    // Schedule actual deletion after 5 s
+    // ③ Schedule actual API deletion after 5 s
     ids.forEach((id) => {
       const timer = setTimeout(async () => {
         deleteTimers.current.delete(id)
@@ -786,8 +809,8 @@ export function ExpenseList() {
                     const isFirstRow = groupIdx === 0 && itemIdx === 0
                     const staggerIdx = groupIdx * 20 + itemIdx
                     return (
+                      <div key={expense.id} className={exitingIds.has(expense.id) ? "item-exiting" : undefined}>
                       <SwipeableRow
-                        key={expense.id}
                         onEdit={() => setEditExpense(expense)}
                         onDelete={() => handleDelete(expense.id)}
                         disabled={selectMode}
@@ -838,7 +861,13 @@ export function ExpenseList() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{expense.merchant}</p>
                             <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                {groupBy !== "cat" && cat?.color && (
+                                  <span
+                                    className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
+                                    style={{ backgroundColor: cat.color }}
+                                  />
+                                )}
                                 {groupBy === "cat"
                                   ? formatDate(toDate(expense.date), "dd MMM")
                                   : (cat?.name ?? expense.category)}
@@ -899,6 +928,7 @@ export function ExpenseList() {
                         )}
                       </div>
                       </SwipeableRow>
+                      </div>
                     )
                   })}
                 </div>

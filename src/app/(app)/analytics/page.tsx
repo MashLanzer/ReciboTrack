@@ -132,6 +132,24 @@ export default function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<"resumen" | "metas" | "finanzas" | "informes">("resumen")
   const [animatingTab, setAnimatingTab] = useState<string | null>(null)
   const prevTabRef = useRef(activeTab)
+
+  // ── Swipe between tabs on touch devices ───────────────────────────────────
+  const TABS_ORDER = ["resumen", "metas", "finanzas", "informes"] as const
+  const tabSwipeStartX = useRef<number | null>(null)
+
+  function onTabAreaTouchStart(e: React.TouchEvent) {
+    tabSwipeStartX.current = e.touches[0].clientX
+  }
+
+  function onTabAreaTouchEnd(e: React.TouchEvent) {
+    if (tabSwipeStartX.current === null) return
+    const dx = e.changedTouches[0].clientX - tabSwipeStartX.current
+    tabSwipeStartX.current = null
+    if (Math.abs(dx) < 60) return
+    const idx = TABS_ORDER.indexOf(activeTab)
+    if (dx < -60 && idx < TABS_ORDER.length - 1) setActiveTab(TABS_ORDER[idx + 1])
+    else if (dx > 60 && idx > 0) setActiveTab(TABS_ORDER[idx - 1])
+  }
   useEffect(() => {
     if (prevTabRef.current === activeTab) return
     prevTabRef.current = activeTab
@@ -466,6 +484,14 @@ export default function AnalyticsPage() {
           )
         })}
       </div>
+
+      {/* ════ Swipeable tab content area ════════════════════════════════════ */}
+      {/* onTouchStart/End on mobile lets you swipe left/right to change tabs  */}
+      <div
+        onTouchStart={onTabAreaTouchStart}
+        onTouchEnd={onTabAreaTouchEnd}
+        className="space-y-5"
+      >
 
       {/* ════════════════════ TAB: RESUMEN ════════════════════ */}
       {activeTab === "resumen" && (<>
@@ -1054,6 +1080,8 @@ export default function AnalyticsPage() {
           </div>
         </Suspense>
       )}
+
+      </div>{/* /swipeable tab content */}
 
       {/* ── Dialogs — montados solo cuando están abiertos para ahorrar memoria ── */}
 

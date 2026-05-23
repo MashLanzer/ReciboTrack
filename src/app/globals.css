@@ -313,6 +313,23 @@ body {
   }
 }
 
+/* ── Delete exit animation ───────────────────────────────────────────────── */
+@keyframes exit-delete {
+  0%   { opacity: 1; transform: translateX(0)    scale(1);    max-height: 80px; }
+  40%  { opacity: 0; transform: translateX(-28px) scale(0.97); max-height: 80px; }
+  100% { opacity: 0; transform: translateX(-28px) scale(0.97); max-height: 0; padding: 0; margin: 0; }
+}
+
+.item-exiting {
+  animation: exit-delete 0.3s cubic-bezier(0.4, 0, 0.6, 1) both;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item-exiting { animation: none; opacity: 0; }
+}
+
 /* ── Stagger animation para listas ──────────────────────────────────────── */
 /*
  * Uso:  style={{ "--i": index } as React.CSSProperties}
