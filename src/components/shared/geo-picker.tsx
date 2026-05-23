@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { MapPin, Loader2, X, ShieldOff, WifiOff } from "lucide-react"
+import { useState, useEffect } from "react"
+import { MapPin, Loader2, X, ShieldOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { requestGeolocation, reverseGeocode } from "@/lib/geocoding"
 import { toast } from "sonner"
@@ -26,16 +26,27 @@ function getPermissionHint(): string {
   if (typeof navigator === "undefined") return ""
   const ua = navigator.userAgent
   if (/iPhone|iPad|iPod/.test(ua)) {
-    return "Ajustes → Privacidad y seguridad → Localización → Safari/Chrome → Mientras uso la app"
+    return "Ajustes del iPhone → Privacidad → Localización → Safari → Permitir"
   }
   if (/Android/.test(ua)) {
-    return "Toca el candado 🔒 en la barra de dirección → Permisos → Ubicación → Permitir"
+    return "Toca el candado 🔒 en la barra de dirección → Permisos del sitio → Ubicación → Permitir"
   }
   return "Haz clic en el candado 🔒 en la barra de dirección → Permisos del sitio → Ubicación → Permitir"
 }
 
 export function GeoPicker({ value, onChange, compact }: Props) {
   const [loading, setLoading] = useState(false)
+  // "denied" = already blocked, show settings link instead of request button
+  const [permDenied, setPermDenied] = useState(false)
+
+  // Check permission state on mount (where Permissions API is available)
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.permissions) return
+    navigator.permissions.query({ name: "geolocation" }).then((status) => {
+      setPermDenied(status.state === "denied")
+      status.addEventListener("change", () => setPermDenied(status.state === "denied"))
+    }).catch(() => { /* permissions API not available */ })
+  }, [])
 
   async function capture() {
     setLoading(true)
@@ -44,34 +55,41 @@ export function GeoPicker({ value, onChange, compact }: Props) {
 
       if (!coords) {
         if (error === "denied") {
+          setPermDenied(true)
           toast.error("Permiso de ubicación bloqueado", {
             description: getPermissionHint(),
-            duration: 7000,
+            duration: 8000,
           })
         } else if (error === "timeout") {
-          toast.warning("Ubicación tardó demasiado", {
-            description: "Intenta de nuevo en un lugar con mejor señal GPS.",
-            duration: 4000,
+          toast.warning("GPS tardó demasiado", {
+            description: "Intenta en un lugar con mejor señal o al aire libre.",
+            duration: 5000,
           })
         } else if (error === "unsupported") {
-          toast.info("Ubicación no disponible", {
-            description: "Tu navegador no soporta geolocalización.",
+          toast.info("Ubicación no disponible en este navegador", {
             duration: 4000,
           })
         } else {
           toast.warning("No se pudo detectar la ubicación", {
             description: "Verifica que el GPS esté activo en tu dispositivo.",
-            duration: 4000,
+            duration: 5000,
           })
         }
         return
       }
 
-      // Reverse geocode in background — don't block the UI
+      // Save coords immediately, reverse-geocode in background
+      onChange({
+        lat:         coords.lat,
+        lng:         coords.lng,
+        accuracy:    coords.accuracy,
+        cityName:    null,
+        countryCode: null,
+      })
+
       const geo = await reverseGeocode(coords.lat, coords.lng).catch(() => ({
         cityName: null, countryCode: null, countryName: null, displayName: null,
       }))
-
       onChange({
         lat:         coords.lat,
         lng:         coords.lng,
@@ -103,6 +121,15 @@ export function GeoPicker({ value, onChange, compact }: Props) {
               <X className="h-3 w-3" />
             </button>
           </span>
+        ) : permDenied ? (
+          <button
+            type="button"
+            onClick={() => toast.error("Permiso de ubicación bloqueado", { description: getPermissionHint(), duration: 8000 })}
+            className="inline-flex items-center gap-1 rounded-full border border-destructive/40 px-2 py-0.5 text-xs text-destructive/70"
+          >
+            <ShieldOff className="h-3 w-3" />
+            Ubicación bloqueada
+          </button>
         ) : (
           <button
             type="button"
@@ -111,7 +138,7 @@ export function GeoPicker({ value, onChange, compact }: Props) {
             className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
           >
             {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <MapPin className="h-3 w-3" />}
-            Ubicación
+            {loading ? "Detectando…" : "Ubicación"}
           </button>
         )}
       </div>
@@ -136,6 +163,17 @@ export function GeoPicker({ value, onChange, compact }: Props) {
             <X className="h-4 w-4" />
           </Button>
         </>
+      ) : permDenied ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-2 text-destructive/70 border-destructive/30"
+          onClick={() => toast.error("Permiso de ubicación bloqueado", { description: getPermissionHint(), duration: 8000 })}
+        >
+          <ShieldOff className="h-4 w-4" />
+          Ubicación bloqueada — toca para ver cómo activarla
+        </Button>
       ) : (
         <Button
           type="button"
@@ -146,7 +184,7 @@ export function GeoPicker({ value, onChange, compact }: Props) {
           disabled={loading}
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
-          {loading ? "Obteniendo ubicación…" : "Añadir ubicación"}
+          {loading ? "Detectando ubicación…" : "Añadir ubicación"}
         </Button>
       )}
     </div>

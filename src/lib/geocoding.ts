@@ -57,31 +57,44 @@ export interface GeoResult {
 }
 
 /** Request geolocation from the browser — always resolves, never rejects.
+ *  Tries high-accuracy (GPS) first; if that times out, falls back to
+ *  network-based positioning. This is critical on mobile where
+ *  enableHighAccuracy:false often returns immediately with no result.
  *  Returns { coords, error } so callers can show specific error messages. */
 export function requestGeolocation(): Promise<GeoResult> {
   if (typeof window === "undefined" || !navigator.geolocation) {
     return Promise.resolve({ coords: null, error: "unsupported" })
   }
 
-  return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({
-        coords: {
-          lat:      pos.coords.latitude,
-          lng:      pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
+  function attempt(highAccuracy: boolean, timeoutMs: number): Promise<GeoResult> {
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({
+          coords: {
+            lat:      pos.coords.latitude,
+            lng:      pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+          },
+          error: null,
+        }),
+        (err) => {
+          const error: GeoError =
+            err.code === 1 ? "denied" :
+            err.code === 3 ? "timeout" :
+            "unavailable"
+          resolve({ coords: null, error })
         },
-        error: null,
-      }),
-      (err) => {
-        const error: GeoError =
-          err.code === 1 ? "denied" :
-          err.code === 3 ? "timeout" :
-          "unavailable"
-        resolve({ coords: null, error })
-      },
-      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
-    )
+        { enableHighAccuracy: highAccuracy, timeout: timeoutMs, maximumAge: 30_000 },
+      )
+    })
+  }
+
+  return attempt(true, 10_000).then((result) => {
+    // If GPS timed out (not denied), retry with network-based positioning
+    if (result.error === "timeout") {
+      return attempt(false, 8_000)
+    }
+    return result
   })
 }
 
