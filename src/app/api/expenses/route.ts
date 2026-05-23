@@ -51,6 +51,12 @@ function rowToExpense(row: Record<string, unknown>) {
     recurringId:      row.recurring_id ?? null,
     createdAt:        row.created_at,
     updatedAt:        row.updated_at,
+    // Geolocalización
+    geo:         row.geo_lat != null
+      ? { lat: Number(row.geo_lat), lng: Number(row.geo_lng), accuracy: row.geo_accuracy != null ? Number(row.geo_accuracy) : undefined }
+      : undefined,
+    cityName:    row.geo_city ?? null,
+    countryCode: row.geo_country_code ?? null,
   }
 }
 
@@ -177,6 +183,12 @@ export async function POST(req: NextRequest) {
       flagged:           body.flagged ?? false,
       created_at:        now,
       updated_at:        now,
+      // Geolocalización (opcional)
+      geo_lat:           (body.geo as { lat?: number } | undefined)?.lat ?? null,
+      geo_lng:           (body.geo as { lng?: number } | undefined)?.lng ?? null,
+      geo_accuracy:      (body.geo as { accuracy?: number } | undefined)?.accuracy ?? null,
+      geo_city:          (body.cityName as string | null | undefined) ?? null,
+      geo_country_code:  (body.countryCode as string | null | undefined) ?? null,
     })
     .select("id")
     .single()

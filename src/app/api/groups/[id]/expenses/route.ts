@@ -42,12 +42,12 @@ export async function GET(
   const { uid } = auth
   const { id: groupId } = await params
 
-  // Verificar membresía
+  // Verificar membresía (JSONB @> filter — no usa member_uids legacy)
   const { data: group } = await getSupabase()
     .from("groups")
     .select("id")
     .eq("id", groupId)
-    .contains("member_uids", [uid])
+    .filter("members", "cs", JSON.stringify([{ uid }]))
     .single()
 
   if (!group) return NextResponse.json({ error: "Sin acceso al grupo" }, { status: 403 })

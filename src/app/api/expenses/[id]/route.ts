@@ -46,11 +46,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     flagged:         "flagged",
     flaggedAt:       "flagged_at",
     recurringId:     "recurring_id",
+    cityName:        "geo_city",
+    countryCode:     "geo_country_code",
   }
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
   for (const [camel, snake] of Object.entries(allowed)) {
     if (camel in body) patch[snake] = body[camel]
+  }
+  // Geolocalización — objeto anidado → columnas planas
+  if ("geo" in body) {
+    const geo = body.geo as { lat?: number; lng?: number; accuracy?: number } | null
+    patch.geo_lat      = geo?.lat ?? null
+    patch.geo_lng      = geo?.lng ?? null
+    patch.geo_accuracy = geo?.accuracy ?? null
   }
 
   const { error } = await getSupabase()

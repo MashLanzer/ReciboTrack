@@ -41,6 +41,10 @@ export interface Expense {
   recurringId?: string
   createdAt: Timestamp
   updatedAt: Timestamp
+  // Geolocalización (opcional — solo si el usuario activó ubicación)
+  geo?: { lat: number; lng: number; accuracy?: number }
+  cityName?: string | null
+  countryCode?: string | null
 }
 
 export interface ExpenseInput {
@@ -62,6 +66,10 @@ export interface ExpenseInput {
   privacy?: "private" | "group" | "public"
   archived?: boolean
   flagged?: boolean
+  // Geolocalización capturada con GeoPicker
+  geo?: { lat: number; lng: number; accuracy?: number }
+  cityName?: string | null
+  countryCode?: string | null
 }
 
 export interface CategoryDoc {

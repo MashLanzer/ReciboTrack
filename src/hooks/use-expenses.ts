@@ -51,6 +51,10 @@ function rowToExpense(row: Record<string, unknown>): Expense {
     recurringId:     (row.recurringId as string) ?? undefined,
     createdAt:       isoToTimestamp(row.createdAt as string),
     updatedAt:       isoToTimestamp(row.updatedAt as string),
+    // Geolocalización (ya viene mapeada desde el route del servidor)
+    geo:         row.geo as { lat: number; lng: number; accuracy?: number } | undefined,
+    cityName:    (row.cityName as string | null | undefined) ?? null,
+    countryCode: (row.countryCode as string | null | undefined) ?? null,
   }
 }
 
