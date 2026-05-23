@@ -401,7 +401,7 @@ export function GroupBets({ groupId, members }: Props) {
               <div className="space-y-1.5">
                 <Label>Monto objetivo *</Label>
                 <Input
-                  type="number"
+                  type="number" inputMode="decimal"
                   step="0.01"
                   placeholder="500.00"
                   value={amount}

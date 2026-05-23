@@ -311,7 +311,7 @@ function ManageDialog({
               <div>
                 <Label className="text-xs mb-1 block">Importe *</Label>
                 <Input
-                  type="number"
+                  type="number" inputMode="decimal"
                   placeholder="4.50"
                   min="0"
                   step="0.01"

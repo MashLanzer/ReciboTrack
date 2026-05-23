@@ -121,7 +121,7 @@ export function CategoryWatchlist() {
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] text-muted-foreground shrink-0">Límite mes:</span>
                   <Input
-                    type="number"
+                    type="number" inputMode="decimal"
                     placeholder="Sin límite"
                     defaultValue={alertThreshold ?? ""}
                     className="h-6 text-[10px] px-2"
@@ -154,7 +154,7 @@ export function CategoryWatchlist() {
                 </SelectContent>
               </Select>
               <Input
-                type="number"
+                type="number" inputMode="decimal"
                 placeholder="Límite"
                 value={addThreshold}
                 onChange={(e) => setAddThreshold(e.target.value)}

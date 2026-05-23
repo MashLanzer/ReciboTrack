@@ -108,7 +108,7 @@ export function CategoryLimitsSettings() {
                   <span className="flex-1 text-sm font-medium min-w-0 truncate">{cat.name}</span>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <Input
-                      type="number"
+                      type="number" inputMode="decimal"
                       min="0"
                       step="0.01"
                       placeholder="Sin límite"

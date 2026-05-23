@@ -190,7 +190,7 @@ function RuleDialog({
                   form.trigger === "recurring_due" ? "Días antes" : "Importe"}
               </Label>
               <Input
-                type="number"
+                type="number" inputMode="decimal"
                 value={form.triggerValue}
                 onChange={(e) => set("triggerValue", e.target.value)}
                 className="h-8 text-sm tabular-nums"

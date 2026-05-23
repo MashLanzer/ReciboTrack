@@ -329,7 +329,7 @@ function ExpenseForm({
         </div>
         <div className="space-y-1.5">
           <Label>Total *</Label>
-          <Input type="number" step="0.01" placeholder="0.00" value={form.total}
+          <Input type="number" inputMode="decimal" step="0.01" placeholder="0.00" value={form.total}
             className="tabular-nums"
             onChange={(e) => setForm({ ...form, total: e.target.value })} />
         </div>
@@ -390,7 +390,7 @@ function ExpenseForm({
                     {m.displayName}{m.uid === currentUid ? " (tú)" : ""}
                   </span>
                   {form.splitType === "custom" && checked && (
-                    <Input type="number" step="0.01" min={0}
+                    <Input type="number" inputMode="decimal" step="0.01" min={0}
                       value={form.customShares[m.uid] ?? ""}
                       onChange={(e) => setForm({
                         ...form,
@@ -400,7 +400,7 @@ function ExpenseForm({
                   )}
                   {form.splitType === "percentage" && checked && (
                     <div className="flex items-center gap-1 shrink-0">
-                      <Input type="number" step="1" min={0} max={100}
+                      <Input type="number" inputMode="decimal" step="1" min={0} max={100}
                         value={form.percentageShares[m.uid] ?? ""}
                         onChange={(e) => setForm({
                           ...form,
@@ -1113,7 +1113,7 @@ function BalanceTab({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Monto</Label>
-                  <Input type="number" step="0.01" className="tabular-nums"
+                  <Input type="number" inputMode="decimal" step="0.01" className="tabular-nums"
                     value={settleAmount}
                     onChange={(e) => setSettleAmount(e.target.value)} />
                 </div>
@@ -2127,7 +2127,7 @@ function GroupDetail({
               <div className="relative">
                 <Target className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
-                  type="number" step="0.01" min="0"
+                  type="number" inputMode="decimal" step="0.01" min="0"
                   placeholder="0.00 — sin límite"
                   className="pl-8 tabular-nums"
                   value={editGroupBudget}

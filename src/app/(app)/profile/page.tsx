@@ -674,7 +674,7 @@ export default function ProfilePage() {
                   <SettingRow label="Presupuesto mensual" description="Límite de gasto total mensual">
                     <div className="flex items-center gap-1.5">
                       <Input
-                        type="number" min={0} step={10}
+                        type="number" inputMode="decimal" min={0} step={10}
                         value={settings?.monthlyBudget ?? ""}
                         placeholder="Sin límite"
                         onChange={(e) => { const v = parseFloat(e.target.value); save({ monthlyBudget: isNaN(v) || v === 0 ? null : v }) }}
@@ -687,7 +687,7 @@ export default function ProfilePage() {
                   <SettingRow label="Día de inicio del mes" description="¿Cuándo empieza tu mes de gastos?">
                     <div className="flex items-center gap-1.5">
                       <Input
-                        type="number" min={1} max={28}
+                        type="number" inputMode="decimal" min={1} max={28}
                         value={settings?.monthStartDay ?? 1}
                         onChange={(e) => { const v = parseInt(e.target.value); if (v >= 1 && v <= 28) save({ monthStartDay: v }) }}
                         className="w-16 h-8 text-xs text-center tabular-nums"
@@ -773,7 +773,7 @@ export default function ProfilePage() {
                   <SettingRow label="Días de aviso anticipado" description="Cuántos días antes de vencer un recurrente">
                     <div className="flex items-center gap-1.5">
                       <Input
-                        type="number" min={0} max={30}
+                        type="number" inputMode="decimal" min={0} max={30}
                         value={settings?.reminderDaysBefore ?? 3}
                         onChange={(e) => save({ reminderDaysBefore: parseInt(e.target.value) || 0 })}
                         className="w-16 h-8 text-xs text-center tabular-nums"

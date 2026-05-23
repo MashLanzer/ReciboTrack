@@ -80,7 +80,7 @@ function AddIncomeForm({ onSuccess }: AddIncomeFormProps) {
           <Label htmlFor="income-amount">Importe</Label>
           <Input
             id="income-amount"
-            type="number"
+            type="number" inputMode="decimal"
             min="0"
             step="0.01"
             placeholder="0.00"

@@ -333,7 +333,7 @@ export function CategoryBudgetsClient() {
                 <div className="flex items-center gap-1.5 shrink-0">
                   <Input
                     ref={inputRef}
-                    type="number"
+                    type="number" inputMode="decimal"
                     step="0.01"
                     min="0.01"
                     value={editValue}

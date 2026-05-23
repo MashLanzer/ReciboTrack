@@ -591,7 +591,7 @@ export default function RecurringPage() {
               <div className="space-y-1.5">
                 <Label>Total *</Label>
                 <Input
-                  type="number"
+                  type="number" inputMode="decimal"
                   step="0.01"
                   placeholder="0.00"
                   value={form.total}
@@ -625,7 +625,7 @@ export default function RecurringPage() {
                 <div className="space-y-1.5">
                   <Label>Subtotal</Label>
                   <Input
-                    type="number"
+                    type="number" inputMode="decimal"
                     step="0.01"
                     placeholder="0.00"
                     value={form.subtotal}
@@ -645,7 +645,7 @@ export default function RecurringPage() {
                 <div className="space-y-1.5">
                   <Label>Impuestos</Label>
                   <Input
-                    type="number"
+                    type="number" inputMode="decimal"
                     step="0.01"
                     placeholder="0.00"
                     value={form.tax}

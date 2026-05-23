@@ -849,7 +849,7 @@ export function ReceiptScanner() {
                             {form.currency}
                           </span>
                           <Input
-                            type="number"
+                            type="number" inputMode="decimal"
                             step="0.01"
                             value={form.total}
                             onChange={(e) => setForm({ ...form, total: e.target.value })}
@@ -900,12 +900,12 @@ export function ReceiptScanner() {
                           <div className="p-3 grid grid-cols-2 gap-3 border-t">
                             <div className="space-y-1.5">
                               <Label>Subtotal</Label>
-                              <Input type="number" step="0.01" value={form.subtotal}
+                              <Input type="number" inputMode="decimal" step="0.01" value={form.subtotal}
                                 onChange={(e) => setForm({ ...form, subtotal: e.target.value })} className="tabular-nums" />
                             </div>
                             <div className="space-y-1.5">
                               <Label>IVA / Impuesto</Label>
-                              <Input type="number" step="0.01" value={form.tax}
+                              <Input type="number" inputMode="decimal" step="0.01" value={form.tax}
                                 onChange={(e) => setForm({ ...form, tax: e.target.value })} className="tabular-nums" />
                             </div>
                             <div className="col-span-2 space-y-1.5">

@@ -85,7 +85,7 @@ export function GroupWishlist({ groupId, currency }: GroupWishlistProps) {
               className="h-8 text-xs"
             />
             <Input
-              type="number"
+              type="number" inputMode="decimal"
               step="0.01"
               value={form.estimatedPrice}
               onChange={(e) => setForm((f) => ({ ...f, estimatedPrice: e.target.value }))}

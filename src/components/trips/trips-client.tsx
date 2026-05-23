@@ -289,7 +289,7 @@ function TripCard({ budget, onDelete }: { budget: TravelBudget; onDelete: () => 
             {/* Budget + currency */}
             <div className="flex gap-2">
               <Input
-                type="number"
+                type="number" inputMode="decimal"
                 placeholder="Presupuesto"
                 value={editForm.totalLimit}
                 onChange={(e) => setEditForm(f => ({ ...f, totalLimit: e.target.value }))}
@@ -541,7 +541,7 @@ export function TripsClient() {
               <div>
                 <Label className="text-xs mb-1 block">Presupuesto total *</Label>
                 <Input
-                  type="number"
+                  type="number" inputMode="decimal"
                   placeholder="800"
                   min="0"
                   step="0.01"

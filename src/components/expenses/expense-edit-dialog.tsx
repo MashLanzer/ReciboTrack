@@ -228,15 +228,15 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
             </div>
             <div className="space-y-1.5">
               <Label>Total</Label>
-              <Input type="number" step="0.01" value={form.total} onChange={(e) => setForm({ ...form, total: e.target.value })} className="tabular-nums" />
+              <Input type="number" inputMode="decimal" step="0.01" value={form.total} onChange={(e) => setForm({ ...form, total: e.target.value })} className="tabular-nums" />
             </div>
             <div className="space-y-1.5">
               <Label>Subtotal</Label>
-              <Input type="number" step="0.01" value={form.subtotal} onChange={(e) => setForm({ ...form, subtotal: e.target.value })} className="tabular-nums" />
+              <Input type="number" inputMode="decimal" step="0.01" value={form.subtotal} onChange={(e) => setForm({ ...form, subtotal: e.target.value })} className="tabular-nums" />
             </div>
             <div className="space-y-1.5">
               <Label>Impuestos</Label>
-              <Input type="number" step="0.01" value={form.tax} onChange={(e) => setForm({ ...form, tax: e.target.value })} className="tabular-nums" />
+              <Input type="number" inputMode="decimal" step="0.01" value={form.tax} onChange={(e) => setForm({ ...form, tax: e.target.value })} className="tabular-nums" />
             </div>
             <div className="space-y-1.5">
               <Label>Categoría</Label>
@@ -392,7 +392,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
                       className="flex-1 h-8 text-xs"
                     />
                     <Input
-                      type="number"
+                      type="number" inputMode="decimal"
                       min={1}
                       value={item.quantity}
                       onChange={(e) => updateItem(idx, "quantity", parseInt(e.target.value) || 1)}
@@ -400,7 +400,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
                       title="Cantidad"
                     />
                     <Input
-                      type="number"
+                      type="number" inputMode="decimal"
                       step="0.01"
                       value={item.price}
                       onChange={(e) => updateItem(idx, "price", parseFloat(e.target.value) || 0)}

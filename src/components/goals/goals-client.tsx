@@ -310,7 +310,7 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
 
                 <div className="flex gap-2 items-center">
                   <Input
-                    type="number"
+                    type="number" inputMode="decimal"
                     step="0.01"
                     min={0}
                     placeholder="0.00"
@@ -351,7 +351,7 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
                 <div className="space-y-2">
                   <div className="flex gap-2 items-center">
                     <Input
-                      type="number"
+                      type="number" inputMode="decimal"
                       step="0.01"
                       min={0.01}
                       placeholder="Cuánto por día"
@@ -605,7 +605,7 @@ export function GoalsClient() {
               <div>
                 <Label className="text-xs mb-1 block">Importe objetivo *</Label>
                 <Input
-                  type="number"
+                  type="number" inputMode="decimal"
                   placeholder="1000"
                   min="0"
                   step="0.01"

@@ -1080,7 +1080,7 @@ export default function AnalyticsPage() {
               <div className="space-y-1.5">
                 <Label>{goalForm.type === "saving" ? "Monto objetivo" : "Límite por día"}</Label>
                 <Input
-                  type="number" step="0.01" min="0"
+                  type="number" inputMode="decimal" step="0.01" min="0"
                   value={goalForm.targetAmount || ""}
                   onChange={(e) => setGoalForm((f) => ({ ...f, targetAmount: parseFloat(e.target.value) || 0 }))}
                   className="tabular-nums"
@@ -1101,7 +1101,7 @@ export default function AnalyticsPage() {
                 <div className="space-y-1.5">
                   <Label>Ahorro inicial (opcional)</Label>
                   <Input
-                    type="number" step="0.01" min="0"
+                    type="number" inputMode="decimal" step="0.01" min="0"
                     value={goalForm.currentAmount || ""}
                     onChange={(e) => setGoalForm((f) => ({ ...f, currentAmount: parseFloat(e.target.value) || 0 }))}
                     className="tabular-nums" placeholder="0.00"
@@ -1142,7 +1142,7 @@ export default function AnalyticsPage() {
             <div className="space-y-1.5">
               <Label>Cantidad a añadir</Label>
               <Input
-                type="number" step="0.01" min="0"
+                type="number" inputMode="decimal" step="0.01" min="0"
                 value={progressInput}
                 onChange={(e) => setProgressInput(e.target.value)}
                 className="tabular-nums text-lg"

@@ -78,7 +78,7 @@ export function AddIncomeDialog() {
             <div className="space-y-1.5">
               <Label>Monto *</Label>
               <Input
-                type="number"
+                type="number" inputMode="decimal"
                 step="0.01"
                 min="0.01"
                 placeholder="0.00"

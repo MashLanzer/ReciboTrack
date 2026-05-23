@@ -388,7 +388,7 @@ function TravelBudgetForm({
       <div className="grid grid-cols-2 gap-2">
         <div>
           <Label className="text-xs mb-1 block">Presupuesto total *</Label>
-          <Input type="number" placeholder="800" min="0" step="0.01"
+          <Input type="number" inputMode="decimal" placeholder="800" min="0" step="0.01"
             value={form.totalLimit} onChange={e => set("totalLimit", e.target.value)}
             className="h-8 text-sm" />
         </div>

@@ -135,7 +135,7 @@ export function BudgetOptimizer({ expenses }: Props) {
         <div className="flex-1">
           <p className="text-xs font-medium mb-1">Ingreso mensual estimado</p>
           <Input
-            type="number"
+            type="number" inputMode="decimal"
             min={0}
             step={100}
             placeholder="Ej. 3000"

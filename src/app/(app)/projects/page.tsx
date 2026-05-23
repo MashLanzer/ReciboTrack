@@ -233,7 +233,7 @@ export default function ProjectsPage() {
               <div>
                 <Label className="text-xs mb-1 block">Presupuesto (0 = sin límite)</Label>
                 <Input
-                  type="number"
+                  type="number" inputMode="decimal"
                   min={0}
                   step={10}
                   value={budgetInput}

@@ -24,7 +24,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
         {children}
-        <Toaster richColors position="top-right" />
+        {/* bottom-center keeps toasts visible above the mobile nav bar */}
+        <Toaster
+          richColors
+          position="bottom-center"
+          offset="80px"
+          toastOptions={{ style: { marginBottom: "env(safe-area-inset-bottom, 0px)" } }}
+        />
       </ThemeProvider>
     </QueryClientProvider>
   )

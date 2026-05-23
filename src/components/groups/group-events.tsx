@@ -186,7 +186,7 @@ export function GroupEvents({ groupId, members }: Props) {
               </div>
               <div className="space-y-1.5">
                 <Label>Costo total *</Label>
-                <Input type="number" step="0.01" placeholder="0.00" className="tabular-nums" value={totalCost} onChange={(e) => setTotalCost(e.target.value)} />
+                <Input type="number" inputMode="decimal" step="0.01" placeholder="0.00" className="tabular-nums" value={totalCost} onChange={(e) => setTotalCost(e.target.value)} />
               </div>
             </div>
             <div className="space-y-1.5">

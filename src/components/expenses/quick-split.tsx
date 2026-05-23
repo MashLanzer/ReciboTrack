@@ -174,7 +174,7 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo", initialAmoun
             <div className="space-y-1.5">
               <Label>Importe total</Label>
               <Input
-                type="number"
+                type="number" inputMode="decimal"
                 step="0.01"
                 placeholder="0.00"
                 value={total}
@@ -227,7 +227,7 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo", initialAmoun
                 )}
                 {mode === "custom" && (
                   <Input
-                    type="number"
+                    type="number" inputMode="decimal"
                     step="0.01"
                     min={0}
                     placeholder="0.00"
