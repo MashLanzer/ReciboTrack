@@ -29,7 +29,7 @@ const store = new Map<string, RateRecord>()
 const LIMITS: Record<string, { maxReqs: number; windowMs: number }> = {
   ai:  { maxReqs: 20, windowMs: 60_000 }, // AI routes: 20 req/min
   ocr: { maxReqs: 10, windowMs: 60_000 }, // OCR route: 10 req/min
-  pay: { maxReqs: 60, windowMs: 60_000 }, // Data routes: 60 req/min
+  pay: { maxReqs: 200, windowMs: 60_000 }, // Data routes: 200 req/min
 }
 
 /**
