@@ -222,3 +222,65 @@ button, a {
 .nav-label-in   { animation: nav-label-in  0.22s ease-out 0.06s both; }
 .nav-dot-grow   { animation: nav-dot-grow  0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 .nav-fab-ring   { animation: nav-fab-ring  0.5s ease-out both; }
+
+/* ── View Transitions API — página a página ───────────────────────────────── */
+/* Progresivo: solo activo en Chrome 126+. En otros navegadores es un no-op. */
+
+@view-transition {
+  navigation: auto;
+}
+
+/* Slide suave al navegar entre páginas (reemplaza el flash blanco) */
+@keyframes page-slide-in-right {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes page-slide-out-left {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-12px); }
+}
+@keyframes page-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes page-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+::view-transition-old(root) {
+  animation: 180ms ease-out both page-fade-out;
+}
+::view-transition-new(root) {
+  animation: 220ms ease-out both page-slide-in-right;
+}
+
+/* ── Active press feedback en botones táctiles ────────────────────────────── */
+/* Escala sutil al presionar — feedback inmediato sin JS */
+@media (hover: none) and (pointer: coarse) {
+  button:active:not(:disabled),
+  a:active {
+    transform: scale(0.97);
+    transition: transform 60ms ease;
+  }
+}
+
+/* ── Scroll suave en toda la app ──────────────────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* ── Momentum scroll en contenedores overflow ─────────────────────────────── */
+/* Mejora el feel nativo en iOS */
+.overflow-y-auto,
+.overflow-y-scroll,
+.overflow-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Evitar flash de overscroll en iOS ────────────────────────────────────── */
+body {
+  overscroll-behavior-y: contain;
+}

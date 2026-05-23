@@ -164,9 +164,10 @@ export function BottomNav() {
         className={cn(
           "fixed left-0 right-0 z-40 md:hidden transition-all duration-200 ease-out",
           actionOpen
-            ? "bottom-16 opacity-100 translate-y-0"
-            : "bottom-16 opacity-0 translate-y-3 pointer-events-none"
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 translate-y-3 pointer-events-none"
         )}
+        style={{ bottom: "calc(4rem + env(safe-area-inset-bottom, 0px))" }}
       >
         <div className="mx-3 mb-2 rounded-2xl border bg-background/98 backdrop-blur-md shadow-xl overflow-hidden">
           <div className="p-2 grid grid-cols-3 gap-1.5">
@@ -194,9 +195,10 @@ export function BottomNav() {
         className={cn(
           "fixed left-0 right-0 z-40 md:hidden transition-all duration-300 ease-out",
           moreOpen
-            ? "bottom-16 opacity-100 translate-y-0"
-            : "bottom-16 opacity-0 translate-y-4 pointer-events-none"
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 translate-y-4 pointer-events-none"
         )}
+        style={{ bottom: "calc(4rem + env(safe-area-inset-bottom, 0px))" }}
       >
         <div className="mx-3 mb-2 rounded-2xl border bg-background/98 backdrop-blur-md shadow-xl overflow-hidden">
           {/* Panel header */}
@@ -366,7 +368,11 @@ export function BottomNav() {
       </div>
 
       {/* ── Bottom tab bar ───────────────────────────────────────────────── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 backdrop-blur-sm md:hidden">
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-background/80 backdrop-blur-xl
+          shadow-[0_-1px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_-1px_16px_rgba(0,0,0,0.35)]"
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      >
         <div className="flex h-16 items-center px-1">
 
           {/* Left half: Dashboard + Gastos */}

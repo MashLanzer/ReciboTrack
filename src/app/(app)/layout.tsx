@@ -46,7 +46,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <TopNav />
         <UpdateBanner />
         <PullToRefresh />
-        <main className="flex-1 pb-20 md:pb-0">
+        <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
           {children}
         </main>
         <BottomNav />
