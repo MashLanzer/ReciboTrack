@@ -11,6 +11,7 @@ import { toast } from "sonner"
 import { format } from "date-fns"
 import type { CategoryBudget } from "./use-category-budgets"
 import { apiFetch, isoToTimestamp, dateToIso } from "@/lib/api-client"
+import { haptic } from "@/lib/haptic"
 
 export type ExpenseSort = "date_desc" | "date_asc" | "amount_desc" | "amount_asc" | "merchant_asc" | "merchant_desc" | "category_asc"
 
@@ -227,6 +228,7 @@ export function useAddExpense() {
     },
 
     onSuccess: async (id, input, ctx) => {
+      haptic.success()
       queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
       queryClient.invalidateQueries({ queryKey: ["expenses-month", user?.uid] })
       void ctx
@@ -377,6 +379,7 @@ export function useUpdateExpense() {
       }
     },
     onSuccess: () => {
+      haptic.light()
       queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
       queryClient.invalidateQueries({ queryKey: ["expenses-month", user?.uid] })
     },
@@ -394,6 +397,7 @@ export function useDeleteExpense() {
       if (!res.ok) throw new Error("Error al eliminar")
     },
     onSuccess: () => {
+      haptic.medium()
       queryClient.invalidateQueries({ queryKey: ["expenses", user?.uid] })
       queryClient.invalidateQueries({ queryKey: ["expenses-month", user?.uid] })
     },

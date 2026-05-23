@@ -548,7 +548,11 @@ export function GoalsClient() {
         </div>
       ) : (
         <div className="space-y-3">
-          {active.map(g => <GoalCard key={g.id} goal={g} />)}
+          {active.map((g, i) => (
+            <div key={g.id} className="stagger-item" style={{ "--i": i } as React.CSSProperties}>
+              <GoalCard goal={g} />
+            </div>
+          ))}
         </div>
       )}
 

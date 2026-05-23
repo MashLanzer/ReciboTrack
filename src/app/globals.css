@@ -284,3 +284,51 @@ button, a {
 body {
   overscroll-behavior-y: contain;
 }
+
+/* ── Touch targets mínimos 44 × 44 px (iOS HIG / Android Material) ──────── */
+/*
+ * En dispositivos táctiles agrandamos el área sensible de iconos y botones
+ * pequeños con un pseudo-elemento invisible, sin afectar el layout visual.
+ * Úsalo con class="touch-target" en cualquier botón ícono.
+ */
+@media (hover: none) and (pointer: coarse) {
+  .touch-target {
+    position: relative;
+  }
+  .touch-target::after {
+    content: "";
+    position: absolute;
+    inset: -6px;          /* expande el área táctil ~12 px en cada eje */
+    border-radius: inherit;
+  }
+
+  /* Garantizar mínimo táctil en todos los botones icon del nav y del app */
+  .nav-icon-btn,
+  [data-touch-target] {
+    min-height: 44px;
+    min-width:  44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* ── Stagger animation para listas ──────────────────────────────────────── */
+/*
+ * Uso:  style={{ "--i": index } as React.CSSProperties}
+ * Class: stagger-item
+ * Cap: solo los primeros 10 items animan (delay máx 270ms)
+ */
+@keyframes stagger-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.stagger-item {
+  animation: stagger-in 0.22s ease-out both;
+  animation-delay: min(calc(var(--i, 0) * 35ms), 270ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-item { animation: none; }
+}

@@ -6,6 +6,7 @@ import { addWeeks, addMonths, addYears, format } from "date-fns"
 import { useAuth } from "./use-auth"
 import type { RecurringTemplate, RecurringFrequency } from "@/types"
 import { apiFetch } from "@/lib/api-client"
+import { haptic } from "@/lib/haptic"
 
 interface RecurringInput {
   merchant: string
@@ -111,6 +112,7 @@ export function useAddRecurring() {
       return json.id
     },
     onSuccess: () => {
+      haptic.success()
       queryClient.invalidateQueries({ queryKey: ["recurring", user?.uid] })
       queryClient.invalidateQueries({ queryKey: ["recurring-due", user?.uid] })
     },
@@ -138,6 +140,7 @@ export function useConfirmRecurring() {
       if (!res.ok) throw new Error("Error al confirmar pago")
     },
     onSuccess: () => {
+      haptic.medium()
       queryClient.invalidateQueries({ queryKey: ["recurring", user?.uid] })
       queryClient.invalidateQueries({ queryKey: ["recurring-due", user?.uid] })
     },
@@ -201,6 +204,7 @@ export function useDeleteRecurring() {
       if (!res.ok) throw new Error("Error al eliminar recurrente")
     },
     onSuccess: () => {
+      haptic.heavy()
       queryClient.invalidateQueries({ queryKey: ["recurring", user?.uid] })
       queryClient.invalidateQueries({ queryKey: ["recurring-due", user?.uid] })
     },

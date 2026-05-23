@@ -4,6 +4,7 @@ import { Timestamp } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "./use-auth"
 import { apiFetch } from "@/lib/api-client"
+import { haptic } from "@/lib/haptic"
 
 export type GoalType = "saving" | "daily_limit"
 
@@ -76,7 +77,7 @@ export function useAddGoal() {
       const json = await res.json() as { id: string }
       return json.id
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["goals", user?.uid] }),
+    onSuccess: () => { haptic.success(); queryClient.invalidateQueries({ queryKey: ["goals", user?.uid] }) },
   })
 }
 
@@ -92,7 +93,7 @@ export function useUpdateGoalProgress() {
       })
       if (!res.ok) throw new Error("Error al actualizar progreso")
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["goals", user?.uid] }),
+    onSuccess: () => { haptic.medium(); queryClient.invalidateQueries({ queryKey: ["goals", user?.uid] }) },
   })
 }
 
@@ -105,7 +106,7 @@ export function useDeleteGoal() {
       const res = await apiFetch(`/api/goals/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Error al eliminar meta")
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["goals", user?.uid] }),
+    onSuccess: () => { haptic.heavy(); queryClient.invalidateQueries({ queryKey: ["goals", user?.uid] }) },
   })
 }
 

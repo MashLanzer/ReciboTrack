@@ -30,6 +30,7 @@ import { exportToCSV, exportToPDF } from "./export-utils"
 import { ExportDateRangeDialog } from "./export-date-range-dialog"
 import { exportToGoogleSheets, SheetsRedirectPending } from "@/lib/google-sheets"
 import { SwipeableRow } from "@/components/shared/swipeable-row"
+import { MobileActionSheet } from "@/components/ui/mobile-action-sheet"
 import { useUIStore } from "@/stores/ui-store"
 import { AccountBadge } from "@/components/shared/account-switcher"
 import { useUserSettings, useUpdateUserSettings } from "@/hooks/use-user-settings"
@@ -434,7 +435,7 @@ export function ExpenseList() {
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+          <Input type="search"
             placeholder="Buscar comercio, etiqueta, artículo..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
@@ -783,6 +784,7 @@ export function ExpenseList() {
                   {items.map((expense, itemIdx) => {
                     const cat = categories.find((c) => c.id === expense.category)
                     const isFirstRow = groupIdx === 0 && itemIdx === 0
+                    const staggerIdx = groupIdx * 20 + itemIdx
                     return (
                       <SwipeableRow
                         key={expense.id}
@@ -792,12 +794,12 @@ export function ExpenseList() {
                         showHint={showSwipeHint && isFirstRow && !selectMode}
                       >
                       <div
-                        className={`flex items-center gap-3 ${compactMode ? "py-2.5" : "py-3"} px-1 rounded-lg transition-colors group cursor-pointer ${
+                        className={`stagger-item flex items-center gap-3 ${compactMode ? "py-2.5" : "py-3"} px-1 rounded-lg transition-colors group cursor-pointer ${
                           selectMode && selectedIds.has(expense.id)
                             ? "bg-primary/8 hover:bg-primary/12"
                             : "hover:bg-accent/30"
                         }`}
-                        style={compactMode ? { minHeight: 44 } : undefined}
+                        style={{ "--i": staggerIdx, ...(compactMode ? { minHeight: 44 } : {}) } as React.CSSProperties}
                         onClick={() => selectMode ? toggleSelect(expense.id) : setDetailExpense(expense)}
                         onTouchStart={(e) => onRowTouchStart(e, expense.id)}
                         onTouchMove={onRowTouchMove}
@@ -871,48 +873,29 @@ export function ExpenseList() {
                           {formatCurrency(expense.total, expense.currency)}
                         </p>
                         {!selectMode && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
+                          <MobileActionSheet
+                            trigger={
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 opacity-40 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                                className="h-8 w-8 touch-target opacity-40 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => setDetailExpense(expense)}>
-                                <Receipt className="h-4 w-4" />
-                                Ver detalle
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setEditExpense(expense)}>
-                                <Edit className="h-4 w-4" />
-                                Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDuplicate(expense)}>
-                                <Copy className="h-4 w-4" />
-                                Duplicar
-                              </DropdownMenuItem>
-                              {expense.receiptImageUrl && (
-                                <DropdownMenuItem asChild>
-                                  <a href={expense.receiptImageUrl} target="_blank" rel="noopener noreferrer">
-                                    <Image className="h-4 w-4" />
-                                    Ver foto
-                                  </a>
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => handleDelete(expense.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                Eliminar
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                            }
+                            actions={[
+                              { label: "Ver detalle", icon: <Receipt className="h-5 w-5" />, onClick: () => setDetailExpense(expense) },
+                              { label: "Editar", icon: <Edit className="h-5 w-5" />, onClick: () => setEditExpense(expense) },
+                              { label: "Duplicar", icon: <Copy className="h-5 w-5" />, onClick: () => handleDuplicate(expense) },
+                              ...(expense.receiptImageUrl ? [{
+                                label: "Ver foto",
+                                icon: <Image className="h-5 w-5" />,
+                                onClick: () => window.open(expense.receiptImageUrl!, "_blank"),
+                              }] : []),
+                              { label: "Eliminar", icon: <Trash2 className="h-5 w-5" />, onClick: () => handleDelete(expense.id), destructive: true, separator: true },
+                            ]}
+                          />
                         )}
                       </div>
                       </SwipeableRow>
