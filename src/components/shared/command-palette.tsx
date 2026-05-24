@@ -167,6 +167,7 @@ export function CommandPalette() {
             <ActionGroup heading="Acciones rápidas">
               <ActionItem
                 icon={<ScanLine className="h-4 w-4" />}
+                iconClassName="bg-primary/10 text-primary"
                 label="Escanear recibo"
                 sub="Abrir scanner con IA"
                 value="escanear recibo scanner foto camara"
@@ -174,6 +175,7 @@ export function CommandPalette() {
               />
               <ActionItem
                 icon={<Plus className="h-4 w-4" />}
+                iconClassName="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                 label="Añadir ingreso"
                 sub="Ir a Ingresos y Balance"
                 value="nuevo ingreso salario nomina balance añadir"
@@ -181,6 +183,7 @@ export function CommandPalette() {
               />
               <ActionItem
                 icon={<Plus className="h-4 w-4" />}
+                iconClassName="bg-amber-500/10 text-amber-600 dark:text-amber-400"
                 label="Nuevo gasto recurrente"
                 sub="Ir a Recurrentes"
                 value="nuevo recurrente suscripcion"
@@ -188,15 +191,15 @@ export function CommandPalette() {
               />
               <ActionItem
                 icon={<PiggyBank className="h-4 w-4" />}
+                iconClassName="bg-blue-500/10 text-blue-600 dark:text-blue-400"
                 label="Gestionar presupuestos"
                 sub="Ver y editar límites mensuales"
                 value="presupuesto limite mensual"
                 onSelect={() => go("/budgets")}
               />
               <ActionItem
-                icon={theme === "dark"
-                  ? <Sun className="h-4 w-4" />
-                  : <Moon className="h-4 w-4" />}
+                icon={theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                iconClassName="bg-violet-500/10 text-violet-600 dark:text-violet-400"
                 label={theme === "dark" ? "Modo claro" : "Modo oscuro"}
                 sub="Cambiar tema de la app"
                 value="tema oscuro claro dark light mode"
@@ -224,6 +227,8 @@ export function CommandPalette() {
                 <ActionItem
                   key={cat.id}
                   icon={<span className="text-base leading-none">{cat.icon}</span>}
+                  iconClassName=""
+                  iconStyle={{ backgroundColor: cat.color ? `${cat.color}25` : "hsl(var(--muted))" }}
                   label={cat.name}
                   sub="Ver gastos de esta categoría"
                   value={`categoria ${cat.name.toLowerCase()} ${cat.id}`}
@@ -241,6 +246,8 @@ export function CommandPalette() {
                     <ActionItem
                       key={e.id}
                       icon={<span className="text-base leading-none">{cat?.icon ?? "📦"}</span>}
+                      iconClassName=""
+                      iconStyle={{ backgroundColor: cat?.color ? `${cat.color}25` : "hsl(var(--muted))" }}
                       label={e.merchant}
                       sub={`${formatCurrency(e.total, e.currency)} · ${format(toDate(e.date), "d MMM yyyy", { locale: es })}`}
                       value={`${e.merchant.toLowerCase()} ${e.category} ${e.notes ?? ""} ${e.tags?.join(" ") ?? ""}`}
@@ -258,6 +265,8 @@ export function CommandPalette() {
                   <ActionItem
                     key={g.id}
                     icon={g.emoji ? <span className="text-base leading-none">{g.emoji}</span> : <Users className="h-4 w-4" />}
+                    iconClassName={g.emoji ? "" : "bg-violet-500/10 text-violet-600 dark:text-violet-400"}
+                    iconStyle={g.emoji ? { backgroundColor: "hsl(var(--muted))" } : undefined}
                     label={g.name}
                     sub={`${g.members.length} miembro${g.members.length !== 1 ? "s" : ""}`}
                     value={`grupo ${g.name.toLowerCase()}`}
@@ -275,6 +284,7 @@ export function CommandPalette() {
                   <ActionItem
                     key={g.id}
                     icon={<Target className="h-4 w-4" />}
+                    iconClassName="bg-blue-500/10 text-blue-600 dark:text-blue-400"
                     label={g.name}
                     sub={`${formatCurrency(g.currentAmount, g.currency)} / ${formatCurrency(g.targetAmount, g.currency)}`}
                     value={`meta objetivo ${g.name.toLowerCase()}`}
@@ -292,6 +302,7 @@ export function CommandPalette() {
                   <ActionItem
                     key={r.id}
                     icon={<RefreshCw className="h-4 w-4" />}
+                    iconClassName="bg-amber-500/10 text-amber-600 dark:text-amber-400"
                     label={r.merchant}
                     sub={`${formatCurrency(r.total, r.currency)} · ${r.frequency}`}
                     value={`recurrente suscripcion ${r.merchant.toLowerCase()}`}
@@ -316,7 +327,9 @@ export function CommandPalette() {
                   return (
                     <ActionItem
                       key={b.id}
-                      icon={<PiggyBank className="h-4 w-4" />}
+                      icon={cat?.icon ? <span className="text-base leading-none">{cat.icon}</span> : <PiggyBank className="h-4 w-4" />}
+                      iconClassName={cat?.icon ? "" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"}
+                      iconStyle={cat?.icon ? { backgroundColor: cat.color ? `${cat.color}25` : "hsl(var(--muted))" } : undefined}
                       label={cat?.name ?? b.categoryId}
                       sub={`Límite: ${formatCurrency(b.amount, b.currency)}`}
                       value={`presupuesto limite ${(cat?.name ?? b.categoryId).toLowerCase()}`}
@@ -333,20 +346,20 @@ export function CommandPalette() {
           <div className="flex items-center justify-between px-4 py-2 border-t bg-muted/30">
             <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
               <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 rounded border bg-background font-mono text-[10px]">↑↓</kbd>
+                <kbd className="px-1.5 py-0.5 rounded-md border border-border/60 bg-background shadow-sm font-mono text-[10px]">↑↓</kbd>
                 navegar
               </span>
               <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 rounded border bg-background font-mono text-[10px]">↵</kbd>
+                <kbd className="px-1.5 py-0.5 rounded-md border border-border/60 bg-background shadow-sm font-mono text-[10px]">↵</kbd>
                 seleccionar
               </span>
               <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 rounded border bg-background font-mono text-[10px]">Esc</kbd>
+                <kbd className="px-1.5 py-0.5 rounded-md border border-border/60 bg-background shadow-sm font-mono text-[10px]">Esc</kbd>
                 cerrar
               </span>
             </div>
             <span className="text-[10px] text-muted-foreground">
-              <kbd className="px-1.5 py-0.5 rounded border bg-background font-mono text-[10px]">⌘K</kbd>
+              <kbd className="px-1.5 py-0.5 rounded-md border border-border/60 bg-background shadow-sm font-mono text-[10px]">⌘K</kbd>
             </span>
           </div>
         </Command>
@@ -369,7 +382,7 @@ function ActionGroup({ heading, children }: { heading: string; children: React.R
 }
 
 function ActionItem({
-  icon, label, sub, value, onSelect, badge,
+  icon, label, sub, value, onSelect, badge, iconClassName, iconStyle,
 }: {
   icon: React.ReactNode
   label: string
@@ -377,23 +390,28 @@ function ActionItem({
   value: string
   onSelect: () => void
   badge?: React.ReactNode
+  iconClassName?: string
+  iconStyle?: React.CSSProperties
 }) {
   return (
     <Command.Item
       value={value}
       onSelect={onSelect}
       className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer
-        data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground
-        hover:bg-accent/50 transition-colors"
+        data-[selected=true]:bg-primary/8 data-[selected=true]:text-foreground
+        hover:bg-muted/60 transition-colors"
     >
-      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-muted-foreground shrink-0">
+      <span
+        className={`flex h-8 w-8 items-center justify-center rounded-lg shrink-0 ${iconClassName ?? "bg-muted text-muted-foreground"}`}
+        style={iconStyle}
+      >
         {icon}
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{label}</p>
+        <p className="text-sm font-semibold truncate">{label}</p>
         {sub && <p className="text-[11px] text-muted-foreground truncate">{sub}</p>}
       </div>
-      {badge && <span className="shrink-0">{badge}</span>}
+      {badge && <span className="shrink-0 text-muted-foreground">{badge}</span>}
     </Command.Item>
   )
 }
