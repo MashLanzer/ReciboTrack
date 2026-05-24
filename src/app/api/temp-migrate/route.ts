@@ -9,6 +9,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
+
+export const maxDuration = 60 // segundos — esta ruta necesita tiempo para conectar al DB
 import pg from "pg"
 import { readFileSync } from "fs"
 import { join } from "path"
