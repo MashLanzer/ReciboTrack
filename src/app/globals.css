@@ -28,6 +28,8 @@
   --info-foreground: hsl(0 0% 100%);
   --warning: hsl(38 92% 45%);
   --warning-foreground: hsl(0 0% 100%);
+  --business: hsl(263 85% 58%);
+  --business-foreground: hsl(0 0% 100%);
 }
 
 .dark {
@@ -56,6 +58,8 @@
   --info-foreground: hsl(0 0% 100%);
   --warning: hsl(38 92% 60%);
   --warning-foreground: hsl(0 0% 100%);
+  --business: hsl(263 80% 70%);
+  --business-foreground: hsl(0 0% 100%);
 }
 
 @theme inline {
@@ -84,6 +88,8 @@
   --color-info-foreground: var(--info-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-business: var(--business);
+  --color-business-foreground: var(--business-foreground);
   --font-sans: "Inter", system-ui, sans-serif;
   --font-serif: "Instrument Serif", Georgia, serif;
   --font-mono: "JetBrains Mono", monospace;
@@ -152,6 +158,13 @@ body {
 .kpi-stagger > *:nth-child(2) { animation: fadeSlideUp 0.35s ease-out 80ms  both; }
 .kpi-stagger > *:nth-child(3) { animation: fadeSlideUp 0.35s ease-out 160ms both; }
 .kpi-stagger > *:nth-child(n+4) { animation: fadeSlideUp 0.35s ease-out 240ms both; }
+
+/* ── Dashboard section stagger — entrance animation para secciones ─────────── */
+.section-stagger > *:nth-child(1) { animation: fadeSlideUp 0.3s ease-out 0ms   both; }
+.section-stagger > *:nth-child(2) { animation: fadeSlideUp 0.3s ease-out 60ms  both; }
+.section-stagger > *:nth-child(3) { animation: fadeSlideUp 0.3s ease-out 120ms both; }
+.section-stagger > *:nth-child(4) { animation: fadeSlideUp 0.3s ease-out 180ms both; }
+.section-stagger > *:nth-child(n+5) { animation: fadeSlideUp 0.3s ease-out 240ms both; }
 
 /* ── Checkbox scale-pop when selected ────────────────────────────────────── */
 @keyframes checkPop {
@@ -420,4 +433,14 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .card-lift { transition: none; }
   .card-lift:hover { transform: none; box-shadow: none; }
+}
+
+/* ── Respeta la preferencia de reducción de movimiento ───────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
