@@ -372,7 +372,7 @@ export function BottomNav() {
       {/* This guarantees the full circle is always above the tab bar.        */}
       <div
         className="fixed left-1/2 -translate-x-1/2 z-50 md:hidden"
-        style={{ bottom: "calc(4rem + env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
+        style={{ bottom: "calc(4rem + env(safe-area-inset-bottom, 0px) - 1.75rem)" }}
       >
         <button
           onClick={() => { setActionOpen((o) => !o); setMoreOpen(false) }}
