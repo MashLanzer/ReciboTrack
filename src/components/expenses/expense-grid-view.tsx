@@ -90,7 +90,18 @@ export function ExpenseGridView() {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {Array.from({ length: 12 }, (_, i) => (
-          <Skeleton key={i} className="h-36 rounded-xl" />
+          <div key={i} className="rounded-xl border bg-card p-3 pt-3.5 space-y-2 overflow-hidden relative">
+            {/* Top stripe */}
+            <Skeleton className="absolute top-0 left-0 right-0 h-1 rounded-none rounded-t-xl" />
+            {/* Icon */}
+            <Skeleton className="h-10 w-10 rounded-xl" />
+            {/* Merchant */}
+            <Skeleton className="h-3.5" style={{ width: `${50 + (i % 4) * 12}%` }} />
+            {/* Amount */}
+            <Skeleton className="h-4 w-20" />
+            {/* Date */}
+            <Skeleton className="h-3 w-16" />
+          </div>
         ))}
       </div>
     )
