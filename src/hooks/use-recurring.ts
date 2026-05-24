@@ -4,7 +4,7 @@ import { Timestamp } from "firebase/firestore"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { addWeeks, addMonths, addYears, format } from "date-fns"
 import { useAuth } from "./use-auth"
-import type { RecurringTemplate, RecurringFrequency } from "@/types"
+import type { RecurringTemplate, RecurringFrequency, PriceHistoryEntry } from "@/types"
 import { apiFetch } from "@/lib/api-client"
 import { haptic } from "@/lib/haptic"
 
@@ -51,6 +51,7 @@ function rowToRecurring(row: Record<string, unknown>): RecurringTemplate {
     lastLinkedAt:         row.lastLinkedAt
       ? Timestamp.fromDate(new Date(row.lastLinkedAt as string))
       : undefined,
+    priceHistory:         (row.priceHistory as PriceHistoryEntry[]) ?? [],
   }
 }
 

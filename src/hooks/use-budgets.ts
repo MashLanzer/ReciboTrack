@@ -8,10 +8,11 @@ import { apiFetch } from "@/lib/api-client"
 
 function rowToBudget(row: Record<string, unknown>): Budget {
   return {
-    id:           row.id as string,
-    categoryId:   row.categoryId as string,
-    monthlyLimit: Number(row.monthlyLimit),
-    currency:     row.currency as string,
+    id:              row.id as string,
+    categoryId:      row.categoryId as string,
+    monthlyLimit:    Number(row.monthlyLimit),
+    currency:        row.currency as string,
+    rolloverEnabled: (row.rolloverEnabled as boolean) ?? false,
   }
 }
 
@@ -64,5 +65,21 @@ export function useDeleteBudget() {
       if (!res.ok) throw new Error("Error al eliminar presupuesto")
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["budgets", user?.uid] }),
+  })
+}
+
+export function useSetBudgetRollover() {
+  const { user } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, rolloverEnabled }: { id: string; rolloverEnabled: boolean }) => {
+      const res = await apiFetch(`/api/budgets/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ rolloverEnabled }),
+      })
+      if (!res.ok) throw new Error("Error")
+      return res.json()
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["budgets", user?.uid] }),
   })
 }

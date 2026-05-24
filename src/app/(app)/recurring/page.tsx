@@ -58,6 +58,7 @@ import { PAYMENT_METHODS, CURRENCIES, DEFAULT_CATEGORIES } from "@/lib/constants
 import type { RecurringTemplate, RecurringFrequency, Expense } from "@/types"
 import { Timestamp } from "firebase/firestore"
 import { EmptyState } from "@/components/ui/empty-state"
+import { RecurringCalendar } from "@/components/recurring/recurring-calendar"
 
 const FREQUENCY_LABELS: Record<RecurringFrequency, string> = {
   weekly: "Semanal",
@@ -417,7 +418,12 @@ export default function RecurringPage() {
       {/* Subscription detector */}
       {!isLoading && <SubscriptionDetector />}
 
-      {/* Calendar view */}
+      {/* Calendar view — monthly grid */}
+      {!isLoading && viewMode === "calendar" && templates.length > 0 && (
+        <RecurringCalendar templates={templates.filter((t) => t.isActive)} />
+      )}
+
+      {/* Calendar view — 30-day timeline */}
       {!isLoading && viewMode === "calendar" && templates.length > 0 && (
         <CalendarView
           templates={templates}

@@ -9,10 +9,11 @@ import { getSupabase } from "@/lib/supabase/server"
 
 function rowToBudget(row: Record<string, unknown>) {
   return {
-    id:           row.id,
-    categoryId:   row.category_id,
-    monthlyLimit: Number(row.monthly_limit),
-    currency:     row.currency,
+    id:              row.id,
+    categoryId:      row.category_id,
+    monthlyLimit:    Number(row.monthly_limit),
+    currency:        row.currency,
+    rolloverEnabled: (row.rollover_enabled as boolean) ?? false,
   }
 }
 
@@ -50,8 +51,9 @@ export async function POST(req: NextRequest) {
     const { error } = await sb
       .from("budgets")
       .update({
-        monthly_limit: body.monthlyLimit,
-        currency:      body.currency ?? "USD",
+        monthly_limit:    body.monthlyLimit,
+        currency:         body.currency ?? "USD",
+        rollover_enabled: body.rolloverEnabled ?? false,
       })
       .eq("id", body.id)
       .eq("uid", uid)
@@ -72,8 +74,9 @@ export async function POST(req: NextRequest) {
     const { error } = await sb
       .from("budgets")
       .update({
-        monthly_limit: body.monthlyLimit,
-        currency:      body.currency ?? "USD",
+        monthly_limit:    body.monthlyLimit,
+        currency:         body.currency ?? "USD",
+        rollover_enabled: body.rolloverEnabled ?? false,
       })
       .eq("id", existing.id)
 
@@ -86,10 +89,11 @@ export async function POST(req: NextRequest) {
     .from("budgets")
     .insert({
       uid,
-      category_id:   body.categoryId,
-      monthly_limit: body.monthlyLimit,
-      currency:      body.currency ?? "USD",
-      created_at:    new Date().toISOString(),
+      category_id:      body.categoryId,
+      monthly_limit:    body.monthlyLimit,
+      currency:         body.currency ?? "USD",
+      rollover_enabled: body.rolloverEnabled ?? false,
+      created_at:       new Date().toISOString(),
     })
     .select("id")
     .single()

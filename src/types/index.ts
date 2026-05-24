@@ -34,6 +34,7 @@ export interface Expense {
   tags: string[]
   receiptImageUrl: string | null
   project?: string  // nombre del cliente/proyecto
+  projectId?: string | null  // ID de proyecto real (entidad)
   privacy?: "private" | "group" | "public"
   archived?: boolean
   flagged?: boolean
@@ -63,6 +64,7 @@ export interface ExpenseInput {
   receiptImageUrl: string | null
   account?: "personal" | "business"  // defaults to "personal" when absent
   project?: string  // nombre del cliente/proyecto
+  projectId?: string | null  // ID de proyecto real (entidad)
   privacy?: "private" | "group" | "public"
   archived?: boolean
   flagged?: boolean
@@ -85,6 +87,7 @@ export interface Budget {
   categoryId: string
   monthlyLimit: number
   currency: string
+  rolloverEnabled?: boolean
 }
 
 export interface TravelBudget {
@@ -100,6 +103,12 @@ export interface TravelBudget {
 }
 
 export type RecurringFrequency = "weekly" | "biweekly" | "monthly" | "yearly"
+
+export interface PriceHistoryEntry {
+  date: string          // "YYYY-MM-DD"
+  previousTotal: number
+  newTotal: number
+}
 
 export interface RecurringTemplate {
   id: string
@@ -118,6 +127,7 @@ export interface RecurringTemplate {
   createdAt: Timestamp
   lastLinkedExpenseId?: string
   lastLinkedAt?: Timestamp
+  priceHistory?: PriceHistoryEntry[]
 }
 
 export interface UserProfile {
@@ -292,4 +302,30 @@ export interface ClientInput {
   notes?: string
   color: string
   isActive: boolean
+}
+
+// ─── Projects ─────────────────────────────────────────────────────────────────
+
+export interface Project {
+  id: string
+  name: string
+  clientId: string | null
+  clientName: string | null
+  description: string | null
+  budget: number | null
+  currency: string
+  status: "active" | "completed" | "archived"
+  color: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProjectInput {
+  name: string
+  clientId?: string | null
+  description?: string | null
+  budget?: number | null
+  currency?: string
+  status?: "active" | "completed" | "archived"
+  color?: string
 }
