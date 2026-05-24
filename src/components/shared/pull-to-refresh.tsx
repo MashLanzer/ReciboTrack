@@ -126,10 +126,10 @@ export function PullToRefresh() {
       <div className={cn(
         "h-9 w-9 -translate-y-1/2 rounded-full bg-background border shadow-md",
         "flex items-center justify-center",
-        "transition-[border-color,color] duration-150",
+        "transition-[border-color,color,transform,box-shadow] duration-200",
         isReady || isRefreshing
-          ? "border-primary/40 text-primary"
-          : "border-border text-muted-foreground"
+          ? "border-primary/40 text-primary scale-110 shadow-primary/20 shadow-lg"
+          : "border-border text-muted-foreground scale-100"
       )}>
         <PTRSpinner progress={progress} spinning={isRefreshing} />
       </div>

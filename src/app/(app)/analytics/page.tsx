@@ -22,6 +22,7 @@ import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { TrendingUp, TrendingDown, Minus, Plus, Trash2, Target, AlertTriangle, Check, FileDown, Loader2, BarChart2, Landmark, FileText } from "lucide-react"
+import { haptic } from "@/lib/haptic"
 import { exportMonthlyPDF } from "@/components/expenses/export-utils"
 import { useUpdateUserSettings } from "@/hooks/use-user-settings"
 import { ShareSummary } from "@/components/expenses/share-summary"
@@ -147,8 +148,8 @@ export default function AnalyticsPage() {
     tabSwipeStartX.current = null
     if (Math.abs(dx) < 60) return
     const idx = TABS_ORDER.indexOf(activeTab)
-    if (dx < -60 && idx < TABS_ORDER.length - 1) setActiveTab(TABS_ORDER[idx + 1])
-    else if (dx > 60 && idx > 0) setActiveTab(TABS_ORDER[idx - 1])
+    if (dx < -60 && idx < TABS_ORDER.length - 1) { haptic.light(); setActiveTab(TABS_ORDER[idx + 1]) }
+    else if (dx > 60 && idx > 0) { haptic.light(); setActiveTab(TABS_ORDER[idx - 1]) }
   }
   useEffect(() => {
     if (prevTabRef.current === activeTab) return
@@ -464,7 +465,7 @@ export default function AnalyticsPage() {
           return (
             <button
               key={t.id}
-              onClick={() => setActiveTab(t.id)}
+              onClick={() => { haptic.light(); setActiveTab(t.id) }}
               className={cn(
                 "flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg text-xs font-semibold transition-all",
                 isActive
@@ -483,6 +484,22 @@ export default function AnalyticsPage() {
             </button>
           )
         })}
+      </div>
+
+      {/* ── Tab position dots (mobile only) ─────────────────────────────── */}
+      <div className="flex justify-center gap-1.5 -mt-1 md:hidden" aria-hidden>
+        {TABS_ORDER.map((t) => (
+          <button
+            key={t}
+            onClick={() => { haptic.light(); setActiveTab(t) }}
+            className={cn(
+              "rounded-full transition-all duration-300",
+              activeTab === t
+                ? "h-1.5 w-4 bg-foreground"
+                : "h-1.5 w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/50"
+            )}
+          />
+        ))}
       </div>
 
       {/* ════ Swipeable tab content area ════════════════════════════════════ */}

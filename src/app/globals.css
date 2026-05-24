@@ -349,3 +349,31 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .stagger-item { animation: none; }
 }
+
+/* ── Skeleton shimmer — moving light sweep instead of flat pulse ─────────── */
+@keyframes shimmer {
+  from { background-position: -200% center; }
+  to   { background-position:  200% center; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted))              0%,
+    hsl(var(--muted-foreground) / 0.10) 45%,
+    hsl(var(--muted-foreground) / 0.15) 50%,
+    hsl(var(--muted-foreground) / 0.10) 55%,
+    hsl(var(--muted))             100%
+  );
+  background-size: 300% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer { animation: none; background: hsl(var(--muted)); }
+}
+
+/* ── Sonner toast icon — pop animation on mount ──────────────────────────── */
+[data-sonner-toast] [data-icon] {
+  animation: checkPop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}

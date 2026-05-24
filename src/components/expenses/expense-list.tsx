@@ -5,6 +5,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import { useExpenses, useDeleteExpense, useAddExpense, useUpdateExpense, type ExpenseSort } from "@/hooks/use-expenses"
 import { useCategories } from "@/hooks/use-categories"
 import { formatCurrency, formatDate, toDate, cn } from "@/lib/utils"
+import { haptic } from "@/lib/haptic"
 import { EXPENSES_PER_PAGE } from "@/lib/constants"
 import type { Expense } from "@/types"
 import { Button } from "@/components/ui/button"
@@ -75,6 +76,12 @@ export function ExpenseList() {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const { activeAccount, setScannerOpen, setQuickAddOpen } = useUIStore()
+
+  // ── Touch device detection (for filter sheet vs inline panel) ──────────
+  const [isTouchDevice, setIsTouchDevice] = useState(false)
+  useEffect(() => {
+    setIsTouchDevice(window.matchMedia("(hover: none) and (pointer: coarse)").matches)
+  }, [])
 
   // ── Swipe hint — shown once per session on the first row ────────────────
   const [showSwipeHint, setShowSwipeHint] = useState(false)
@@ -209,6 +216,7 @@ export function ExpenseList() {
   const totalPages = Math.ceil(total / EXPENSES_PER_PAGE)
 
   function toggleTag(tag: string) {
+    haptic.light()
     const next = activeTags.includes(tag)
       ? activeTags.filter((t) => t !== tag)
       : [...activeTags, tag]
@@ -471,7 +479,7 @@ export function ExpenseList() {
           variant={filtersOpen || activeFilterCount > 0 ? "default" : "outline"}
           size="sm"
           className="gap-1.5 shrink-0 h-9 px-3"
-          onClick={() => setFiltersOpen((o) => !o)}
+          onClick={() => { haptic.light(); setFiltersOpen((o) => !o) }}
         >
           <SlidersHorizontal className="h-3.5 w-3.5" />
           {activeFilterCount > 0 && (
@@ -523,13 +531,161 @@ export function ExpenseList() {
         </DropdownMenu>
       </div>
 
-      {/* ── Row 2: Collapsible filters ────────────────────────────────── */}
-      {filtersOpen && (
+      {/* ── Row 2: Filters — bottom sheet on mobile, inline on desktop ────── */}
+
+      {/* MOBILE: filter bottom sheet overlay */}
+      {filtersOpen && isTouchDevice && (
+        <div className="fixed inset-0 z-50" onClick={() => setFiltersOpen(false)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-150" />
+          <div
+            className="absolute bottom-0 left-0 right-0 bg-background rounded-t-3xl shadow-2xl max-h-[82vh] overflow-y-auto animate-in slide-in-from-bottom duration-250"
+            style={{ paddingBottom: "env(safe-area-inset-bottom, 16px)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="h-1 w-10 rounded-full bg-muted-foreground/25" />
+            </div>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pt-1 pb-3">
+              <p className="text-base font-semibold">Filtros</p>
+              {activeFilterCount > 0 && (
+                <Badge variant="secondary" className="tabular-nums">{activeFilterCount} activos</Badge>
+              )}
+            </div>
+
+            <div className="px-4 space-y-4 pb-4">
+              {/* Category */}
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Categoría</p>
+                <Select value={category || "all"} onValueChange={(v) => { haptic.light(); setParams({ cat: v === "all" ? null : v }) }}>
+                  <SelectTrigger className={`h-11 ${category ? "border-primary text-primary" : ""}`}>
+                    <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                    <SelectValue placeholder="Todas las categorías" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las categorías</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>{cat.icon} {cat.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Sort */}
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Ordenar por</p>
+                <Select value={sort} onValueChange={(v) => { haptic.light(); setUIPref("expenseSort", v); setParams({ sort: v === "date_desc" ? null : v }) }}>
+                  <SelectTrigger className={`h-11 ${sort !== "date_desc" ? "border-primary text-primary" : ""}`}>
+                    <SelectValue placeholder="Ordenar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date_desc">Más reciente</SelectItem>
+                    <SelectItem value="date_asc">Más antiguo</SelectItem>
+                    <SelectItem value="amount_desc">Mayor monto</SelectItem>
+                    <SelectItem value="amount_asc">Menor monto</SelectItem>
+                    <SelectItem value="merchant_asc">Comercio A→Z</SelectItem>
+                    <SelectItem value="merchant_desc">Comercio Z→A</SelectItem>
+                    <SelectItem value="category_asc">Categoría A→Z</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Group-by */}
+              <div className="flex items-center justify-between rounded-xl border px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium">Agrupar por categoría</p>
+                  <p className="text-[11px] text-muted-foreground">En vez de por fecha</p>
+                </div>
+                <button
+                  onClick={() => { haptic.light(); setParams({ group: groupBy === "cat" ? null : "cat" }) }}
+                  className={`relative h-6 w-11 rounded-full transition-colors ${groupBy === "cat" ? "bg-primary" : "bg-muted"}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${groupBy === "cat" ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
+
+              {/* Date presets */}
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Rango de fechas</p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { key: "this-month", label: "Este mes" },
+                    { key: "last-month", label: "Mes pasado" },
+                    { key: "last-30",    label: "30 días" },
+                    { key: "last-90",    label: "90 días" },
+                    { key: "this-year",  label: "Este año" },
+                  ].map(({ key, label }) => (
+                    <button key={key} onClick={() => { haptic.light(); applyPreset(key) }}
+                      className="text-xs px-2 py-2.5 rounded-lg border hover:bg-accent transition-colors font-medium min-h-[44px]">
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-muted-foreground px-1">Desde</p>
+                    <Input type="date" value={fromStr} max={toStr || undefined}
+                      onChange={(e) => setParams({ from: e.target.value || null })}
+                      className="h-10 text-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-muted-foreground px-1">Hasta</p>
+                    <Input type="date" value={toStr} min={fromStr || undefined}
+                      onChange={(e) => setParams({ to: e.target.value || null })}
+                      className="h-10 text-sm" />
+                  </div>
+                </div>
+                {(fromStr || toStr) && (
+                  <button onClick={() => setParams({ from: null, to: null })}
+                    className="text-xs text-destructive flex items-center gap-1 px-1">
+                    <X className="h-3 w-3" /> Quitar fechas
+                  </button>
+                )}
+              </div>
+
+              {/* Tags */}
+              {allTags.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Etiquetas</p>
+                  <div className="flex flex-wrap gap-2">
+                    {allTags.map((tag) => (
+                      <button key={tag} onClick={() => toggleTag(tag)}
+                        className={`text-xs px-3 py-1.5 rounded-full font-medium border transition-colors ${
+                          activeTags.includes(tag)
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background border-border text-foreground"
+                        }`}>
+                        #{tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom actions */}
+            <div className="px-4 pb-2 space-y-2 border-t pt-3">
+              {activeFilterCount > 0 && (
+                <Button variant="outline" className="w-full h-11" onClick={() => { router.replace(pathname); setFiltersOpen(false) }}>
+                  <X className="h-4 w-4 mr-2" /> Limpiar filtros
+                </Button>
+              )}
+              <Button className="w-full h-11" onClick={() => setFiltersOpen(false)}>
+                Aplicar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DESKTOP: inline collapsible panel */}
+      {filtersOpen && !isTouchDevice && (
         <div className="flex gap-2 flex-wrap items-center">
           {/* Category */}
           <Select
             value={category || "all"}
-            onValueChange={(v) => setParams({ cat: v === "all" ? null : v })}
+            onValueChange={(v) => { haptic.light(); setParams({ cat: v === "all" ? null : v }) }}
           >
             <SelectTrigger className={`h-8 w-36 text-xs ${category ? "border-primary text-primary" : ""}`}>
               <Filter className="h-3 w-3 mr-1 text-muted-foreground" />
@@ -625,6 +781,7 @@ export function ExpenseList() {
           <Select
             value={sort}
             onValueChange={(v) => {
+              haptic.light()
               setUIPref("expenseSort", v)   // C-1: persist en Firestore (cross-device)
               setParams({ sort: v === "date_desc" ? null : v })
             }}
@@ -648,14 +805,14 @@ export function ExpenseList() {
             variant={groupBy === "cat" ? "default" : "outline"}
             size="sm"
             className="h-8 gap-1.5 text-xs shrink-0"
-            onClick={() => setParams({ group: groupBy === "cat" ? null : "cat" })}
+            onClick={() => { haptic.light(); setParams({ group: groupBy === "cat" ? null : "cat" }) }}
           >
             <Layers className="h-3 w-3" />
             {groupBy === "cat" ? "Por categoría" : "Por fecha"}
           </Button>
 
         </div>
-      )}
+      )}{/* /DESKTOP inline filters */}
 
       {/* Active filter pills */}
       {hasActiveFilters && (
