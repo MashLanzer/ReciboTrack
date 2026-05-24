@@ -935,8 +935,9 @@ export function ExpenseList() {
             const groupCat = groupBy === "cat" ? categories.find((c) => c.id === groupKey) : null
             return (
               <div key={groupKey}>
-                <div className="flex items-center justify-between py-2 mb-2 border-b sticky top-[var(--list-toolbar-h,8rem)] z-10 bg-background/95 backdrop-blur-sm -mx-1 px-1">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 py-2 mb-2 sticky top-[var(--list-toolbar-h,8rem)] z-10 bg-background/95 backdrop-blur-sm -mx-1 px-1">
+                  <div className="h-px flex-1 bg-border/50" />
+                  <div className="flex items-center gap-1.5 shrink-0">
                     {selectMode && (
                       <button
                         onClick={() => toggleGroup(items)}
@@ -948,17 +949,16 @@ export function ExpenseList() {
                           : <Square className="h-4 w-4" />}
                       </button>
                     )}
-                    {groupCat && (
-                      <span className="text-sm">{groupCat.icon}</span>
-                    )}
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {groupCat && <span className="text-sm">{groupCat.icon}</span>}
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                       {groupCat ? groupCat.name : groupKey}
                     </p>
-                    <span className="text-[11px] text-muted-foreground/60 font-normal normal-case tracking-normal">
-                      {items.length} gasto{items.length !== 1 ? "s" : ""}
+                    <span className="text-[10px] tabular-nums bg-muted text-muted-foreground/70 px-1.5 py-0.5 rounded-full font-medium">
+                      {items.length}
                     </span>
                   </div>
-                  <p className="text-xs tabular-nums font-semibold">{formatCurrency(groupTotal)}</p>
+                  <div className="h-px flex-1 bg-border/50" />
+                  <p className="text-[11px] tabular-nums font-bold text-foreground/60 shrink-0">{formatCurrency(groupTotal)}</p>
                 </div>
                 <div className="space-y-2">
                   {items.map((expense, itemIdx) => {
@@ -974,12 +974,12 @@ export function ExpenseList() {
                         showHint={showSwipeHint && isFirstRow && !selectMode}
                       >
                       <div
-                        className={`stagger-item flex items-center gap-3 ${compactMode ? "py-2.5" : "py-3"} px-1 rounded-lg transition-colors group cursor-pointer ${
+                        className={`stagger-item flex items-center gap-3 ${compactMode ? "py-2.5" : "py-3"} px-3 rounded-lg transition-all duration-150 group cursor-pointer border-l-[3px] ${
                           selectMode && selectedIds.has(expense.id)
                             ? "bg-primary/8 hover:bg-primary/12"
-                            : "hover:bg-accent/30"
+                            : "hover:bg-muted/50 hover:shadow-sm"
                         }`}
-                        style={{ "--i": staggerIdx, ...(compactMode ? { minHeight: 44 } : {}) } as React.CSSProperties}
+                        style={{ "--i": staggerIdx, borderLeftColor: cat?.color ?? "transparent", ...(compactMode ? { minHeight: 44 } : {}) } as React.CSSProperties}
                         onClick={() => selectMode ? toggleSelect(expense.id) : setDetailExpense(expense)}
                         onTouchStart={(e) => onRowTouchStart(e, expense.id)}
                         onTouchMove={onRowTouchMove}
@@ -1055,7 +1055,7 @@ export function ExpenseList() {
                           </div>
                         )}
 
-                        <p className="tabular-nums text-sm font-semibold shrink-0">
+                        <p className="tabular-nums text-sm font-bold shrink-0">
                           {formatCurrency(expense.total, expense.currency)}
                         </p>
                         {!selectMode && (

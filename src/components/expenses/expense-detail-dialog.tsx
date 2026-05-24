@@ -51,10 +51,10 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-xl font-bold tabular-nums">
+                <p className="text-2xl font-black tabular-nums leading-tight">
                   {formatCurrency(expense.total, expense.currency)}
                 </p>
-                <p className="text-[11px] text-muted-foreground">{expense.currency}</p>
+                <p className="text-[11px] text-muted-foreground font-medium">{expense.currency}</p>
               </div>
             </div>
           </DialogHeader>
@@ -64,19 +64,19 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
         <div className="overflow-y-auto max-h-[60vh] px-5 py-4 space-y-4">
 
           {/* Date + payment method */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-xl bg-muted/40 px-3 py-2.5 space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
                 <Calendar className="h-3 w-3" /> Fecha
               </p>
-              <p className="text-sm font-medium">{formatDate(expense.date.toDate(), "dd MMM yyyy")}</p>
+              <p className="text-sm font-semibold">{formatDate(expense.date.toDate(), "dd MMM yyyy")}</p>
             </div>
             {expense.paymentMethod && (
-              <div className="space-y-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
-                  <CreditCard className="h-3 w-3" /> Método de pago
+              <div className="rounded-xl bg-muted/40 px-3 py-2.5 space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                  <CreditCard className="h-3 w-3" /> Pago
                 </p>
-                <p className="text-sm font-medium">{expense.paymentMethod}</p>
+                <p className="text-sm font-semibold">{expense.paymentMethod}</p>
               </div>
             )}
           </div>
@@ -96,9 +96,9 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
                   <span className="tabular-nums text-xs">{formatCurrency(expense.tax, expense.currency)}</span>
                 </div>
               )}
-              <div className="flex justify-between px-3 py-2 bg-muted/50 font-semibold">
-                <span className="text-xs">Total</span>
-                <span className="tabular-nums text-xs">{formatCurrency(expense.total, expense.currency)}</span>
+              <div className="flex justify-between px-3 py-3 bg-primary/8 font-bold">
+                <span className="text-sm">Total</span>
+                <span className="tabular-nums text-sm">{formatCurrency(expense.total, expense.currency)}</span>
               </div>
             </div>
           )}
@@ -206,11 +206,11 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
         </div>
 
         {/* Footer actions */}
-        <div className="flex gap-2 px-5 py-3 border-t bg-muted/20">
+        <div className="flex gap-2 px-5 py-4 border-t bg-card">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="gap-1.5 text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/5"
+            className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/8"
             onClick={() => { onClose(); onDelete() }}
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -218,11 +218,11 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
           </Button>
           <Button
             size="sm"
-            className="flex-1 gap-1.5"
+            className="flex-1 gap-1.5 h-10 rounded-xl font-semibold"
             onClick={() => { onClose(); onEdit() }}
           >
-            <Edit className="h-3.5 w-3.5" />
-            Editar
+            <Edit className="h-4 w-4" />
+            Editar gasto
           </Button>
         </div>
       </DialogContent>

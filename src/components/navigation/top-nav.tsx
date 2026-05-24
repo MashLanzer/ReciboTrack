@@ -64,10 +64,10 @@ export function TopNav() {
               key={href}
               href={href}
               className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors",
                 active
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  ? "bg-primary/10 text-primary font-semibold"
+                  : "font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60"
               )}
             >
               <Icon className="h-4 w-4" />
@@ -98,7 +98,7 @@ export function TopNav() {
                 <DropdownMenuItem key={href} asChild>
                   <Link
                     href={href}
-                    className={cn("flex items-center gap-2 w-full", active && "font-semibold text-foreground")}
+                    className={cn("flex items-center gap-2 w-full", active && "font-semibold text-primary")}
                   >
                     <Icon className="h-4 w-4" />
                     {label}
