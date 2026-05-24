@@ -377,3 +377,23 @@ body {
 [data-sonner-toast] [data-icon] {
   animation: checkPop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
+
+/* ── Card hover lift — subtle elevation on interactive cards ─────────────── */
+/* Usage: className="card-lift" on any card that should lift on hover          */
+.card-lift {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px -6px hsl(var(--foreground) / 0.08), 0 2px 8px -4px hsl(var(--foreground) / 0.06);
+  border-color: hsl(var(--border) / 0.9);
+}
+.card-lift:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-lift { transition: none; }
+  .card-lift:hover { transform: none; box-shadow: none; }
+}

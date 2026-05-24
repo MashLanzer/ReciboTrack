@@ -55,10 +55,10 @@ function QuickBtn({
     <button
       onClick={onClick}
       className={cn(
-        "flex-1 flex flex-col items-center justify-center gap-1.5 rounded-2xl border py-3.5 text-[11px] font-bold transition-all active:scale-95",
+        "flex-1 flex flex-col items-center justify-center gap-1.5 rounded-2xl border py-3.5 text-[11px] font-bold transition-all duration-150 active:scale-95 hover:scale-[1.03] hover:shadow-md",
         accent
-          ? "border-primary/30 bg-primary/8 text-primary hover:bg-primary/12"
-          : "border-border bg-card text-foreground hover:bg-accent/60"
+          ? "border-primary/30 bg-primary/8 text-primary hover:bg-primary/12 hover:border-primary/50 hover:shadow-primary/10"
+          : "border-border bg-card text-foreground hover:bg-accent/60 hover:border-border/80"
       )}
     >
       <Icon className="h-5 w-5" />
@@ -71,7 +71,7 @@ function QuickBtn({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70 px-0.5">
+    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80 pl-2 border-l-2 border-primary/35">
       {children}
     </p>
   )

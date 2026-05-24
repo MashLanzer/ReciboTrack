@@ -86,7 +86,7 @@ export function TopCategoriesCard() {
   const starredCats = starred?.categories ?? []
 
   return (
-    <div className="rounded-2xl border bg-card p-4 space-y-4">
+    <div className="card-lift rounded-2xl border bg-card p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

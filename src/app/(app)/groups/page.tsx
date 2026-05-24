@@ -45,7 +45,7 @@ import {
   Receipt, UserPlus, Crown, Check, Pencil, MoreVertical,
   Search, SlidersHorizontal, TrendingUp, HandCoins, History,
   ChevronDown, ChevronUp, BarChart2, X, Share2, Download, Bell,
-  Target, Link as LinkIcon, ChevronLeft, Scale, LayoutGrid,
+  Target, Link as LinkIcon, ChevronLeft, ChevronRight, Scale, LayoutGrid,
   Calendar, ClipboardList, Gift, FolderOpen, MessageCircle,
 } from "lucide-react"
 import {
@@ -2262,11 +2262,12 @@ export default function GroupsPage() {
         />
       ) : (
         <div className="space-y-3">
-          {activeGroups.map((group) => (
+          {activeGroups.map((group, idx) => (
             <button key={group.id} onClick={() => setSelectedGroup(group)}
-              className="w-full text-left rounded-xl border p-4 hover:bg-accent/30 transition-colors">
+              style={{ "--i": idx } as React.CSSProperties}
+              className="stagger-item group w-full text-left rounded-xl border p-4 hover:bg-accent/30 hover:border-border/80 hover:shadow-sm transition-all duration-200">
               <div className="flex items-center gap-3">
-                <span className="text-3xl">{group.emoji}</span>
+                <span className="text-3xl transition-transform duration-200 group-hover:scale-110">{group.emoji}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-semibold truncate">{group.name}</p>
@@ -2286,7 +2287,7 @@ export default function GroupsPage() {
                     />
                   )}
                 </div>
-                <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0 transition-all duration-200 group-hover:text-muted-foreground group-hover:translate-x-0.5" />
               </div>
             </button>
           ))}

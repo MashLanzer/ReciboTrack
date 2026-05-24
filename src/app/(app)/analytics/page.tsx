@@ -467,20 +467,25 @@ export default function AnalyticsPage() {
               key={t.id}
               onClick={() => { haptic.light(); setActiveTab(t.id) }}
               className={cn(
-                "flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg text-xs font-semibold transition-all",
+                "flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg text-xs font-semibold transition-all duration-200",
                 isActive
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-background text-foreground shadow-md"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
               )}
             >
               <t.Icon
                 className={cn(
-                  "h-3.5 w-3.5 transition-none",
-                  isActive && "stroke-[2.5]",
+                  "h-3.5 w-3.5 transition-transform duration-200",
+                  isActive ? "stroke-[2.5] scale-110" : "scale-100",
                   animatingTab === t.id && "nav-icon-pop",
                 )}
               />
               {t.label}
+              {/* Active dot indicator */}
+              <span className={cn(
+                "block h-[3px] rounded-full transition-all duration-300",
+                isActive ? "w-3 bg-primary" : "w-0 bg-transparent"
+              )} />
             </button>
           )
         })}
