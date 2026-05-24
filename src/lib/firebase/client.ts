@@ -1,13 +1,10 @@
+/**
+ * Firebase client SDK — solo Auth y Storage.
+ * Firestore fue migrado a Supabase PostgreSQL; este archivo ya no inicializa Firestore.
+ */
+
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app"
 import { getAuth, type Auth } from "firebase/auth"
-import {
-  initializeFirestore,
-  persistentLocalCache,
-  persistentSingleTabManager,
-  CACHE_SIZE_UNLIMITED,
-  getFirestore,
-  type Firestore,
-} from "firebase/firestore"
 import { getStorage, type FirebaseStorage } from "firebase/storage"
 
 const firebaseConfig = {
@@ -21,7 +18,6 @@ const firebaseConfig = {
 
 let _app: FirebaseApp | undefined
 let _auth: Auth | undefined
-let _db: Firestore | undefined
 let _storage: FirebaseStorage | undefined
 
 function ensureApp(): FirebaseApp {
@@ -34,26 +30,6 @@ function ensureApp(): FirebaseApp {
 export function getFirebaseAuth(): Auth {
   if (!_auth) _auth = getAuth(ensureApp())
   return _auth
-}
-
-export function getFirebaseDb(): Firestore {
-  if (!_db) {
-    const app = ensureApp()
-    // Use IndexedDB persistent cache so the app works offline
-    // Falls back gracefully to memory cache if IndexedDB is unavailable
-    try {
-      _db = initializeFirestore(app, {
-        localCache: persistentLocalCache({
-          tabManager: persistentSingleTabManager(undefined),
-          cacheSizeBytes: CACHE_SIZE_UNLIMITED,
-        }),
-      })
-    } catch {
-      // Already initialized (e.g., hot reload in dev) — grab the existing instance
-      _db = getFirestore(app)
-    }
-  }
-  return _db
 }
 
 export function getFirebaseStorage(): FirebaseStorage {
