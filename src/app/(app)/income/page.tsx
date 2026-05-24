@@ -6,6 +6,8 @@ import { es } from "date-fns/locale"
 import { TrendingUp } from "lucide-react"
 import { IncomeBalance } from "@/components/dashboard/income-balance"
 import { IncomeSourcesBreakdown } from "@/components/income/income-sources-breakdown"
+import { IncomeProjection } from "@/components/income/income-projection"
+import { RecurringIncomeSettings } from "@/components/income/recurring-income-settings"
 import { useIncomePeriod } from "@/hooks/use-income"
 import { useExpensesPeriod } from "@/hooks/use-expenses"
 import { formatCurrency, cn } from "@/lib/utils"
@@ -81,6 +83,9 @@ export default function IncomePage() {
         </div>
       </div>
 
+      {/* Recurring income templates */}
+      <RecurringIncomeSettings />
+
       {/* Income sources breakdown */}
       <IncomeSourcesBreakdown />
 
@@ -146,6 +151,9 @@ export default function IncomePage() {
 
       {/* Income + Balance for selected month */}
       <IncomeBalance year={year} month={month} />
+
+      {/* Income projection based on last 3 months average */}
+      <IncomeProjection incomeData={allIncome} year={year} month={month} />
 
       {/* 6-month history table — data already loaded, zero extra queries */}
       {isLoading ? (
