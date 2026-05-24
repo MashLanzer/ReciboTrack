@@ -41,17 +41,17 @@ export function BudgetCardPreview() {
     <div className={cn(
       "rounded-2xl border bg-card overflow-hidden",
       isOverBudget && "border-destructive/40",
-      isNearBudget && "border-amber-500/40"
+      isNearBudget && "border-warning/40"
     )}>
       {/* Header */}
       <div className={cn(
         "px-4 py-3 flex items-center justify-between gap-2",
-        isOverBudget ? "bg-destructive/10" : isNearBudget ? "bg-amber-500/10" : "bg-muted/30"
+        isOverBudget ? "bg-destructive/10" : isNearBudget ? "bg-warning/10" : "bg-muted/30"
       )}>
         <div className="flex items-center gap-2">
           <CreditCard className={cn(
             "h-4 w-4",
-            isOverBudget ? "text-destructive" : isNearBudget ? "text-amber-600" : "text-muted-foreground"
+            isOverBudget ? "text-destructive" : isNearBudget ? "text-warning" : "text-muted-foreground"
           )} />
           <p className="text-sm font-semibold">Presupuesto mensual</p>
         </div>
@@ -61,7 +61,7 @@ export function BudgetCardPreview() {
             Superado
           </div>
         ) : isNearBudget ? (
-          <div className="flex items-center gap-1 text-amber-600 text-xs font-medium">
+          <div className="flex items-center gap-1 text-warning text-xs font-medium">
             <AlertTriangle className="h-3.5 w-3.5" />
             Cerca del límite
           </div>
@@ -96,7 +96,7 @@ export function BudgetCardPreview() {
             <div
               className={cn(
                 "h-full rounded-full transition-all",
-                isOverBudget ? "bg-destructive" : isNearBudget ? "bg-amber-500" : "bg-primary"
+                isOverBudget ? "bg-destructive" : isNearBudget ? "bg-warning" : "bg-primary"
               )}
               style={{ width: `${pct ?? 0}%` }}
             />

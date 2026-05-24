@@ -20,8 +20,8 @@ export function AchievementsGrid({ input }: AchievementsGridProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
-            <Trophy className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+          <div className="h-7 w-7 rounded-lg bg-warning/10 flex items-center justify-center">
+            <Trophy className="h-3.5 w-3.5 text-warning" />
           </div>
           <p className="text-sm font-semibold">Logros</p>
         </div>
@@ -34,7 +34,7 @@ export function AchievementsGrid({ input }: AchievementsGridProps) {
       {/* Progress bar */}
       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-700"
+          className="h-full rounded-full bg-gradient-to-r from-warning/70 to-warning transition-all duration-700"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -45,11 +45,11 @@ export function AchievementsGrid({ input }: AchievementsGridProps) {
           {unlocked.map((a, i) => (
             <div
               key={a.id}
-              className="relative flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/8 to-amber-600/4 p-3 overflow-hidden shadow-sm animate-[fadeSlideUp_0.3s_ease-out_both]"
+              className="relative flex items-center gap-2.5 rounded-xl border border-warning/30 bg-gradient-to-br from-warning/8 to-warning/4 p-3 overflow-hidden shadow-sm animate-[fadeSlideUp_0.3s_ease-out_both]"
               style={{ animationDelay: `${i * 60}ms` } as React.CSSProperties}
             >
               {/* Subtle glow */}
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-amber-400/10 via-transparent to-transparent pointer-events-none" />
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-warning/10 via-transparent to-transparent pointer-events-none" />
               <span className="text-2xl leading-none shrink-0 relative">{a.emoji}</span>
               <div className="min-w-0 relative">
                 <p className="text-xs font-bold truncate">{a.title}</p>
