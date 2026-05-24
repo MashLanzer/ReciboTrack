@@ -63,12 +63,12 @@ function BetCard({ bet, members, onJoin, onResolve }: {
             <p className="text-sm font-semibold leading-tight">{bet.title}</p>
             <Badge
               variant="outline"
-              className={cn("text-[11px] px-1.5 py-0 shrink-0", statusColor)}
+              className={cn("text-xs px-1.5 py-0 shrink-0", statusColor)}
             >
               {bet.status === "resolved" ? "Resuelto" : bet.status === "active" ? "Activo" : "Abierto"}
             </Badge>
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Creado por {creator?.displayName ?? bet.creatorId}
           </p>
         </div>
@@ -80,13 +80,13 @@ function BetCard({ bet, members, onJoin, onResolve }: {
       {/* Details */}
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="rounded-lg bg-muted/40 px-3 py-2">
-          <p className="text-muted-foreground text-[11px]">Meta</p>
+          <p className="text-muted-foreground text-xs">Meta</p>
           <p className="font-semibold tabular-nums">{formatCurrency(bet.targetAmount, bet.currency)}</p>
-          <p className="text-muted-foreground text-[11px]">{bet.period === "week" ? "esta semana" : "este mes"}</p>
+          <p className="text-muted-foreground text-xs">{bet.period === "week" ? "esta semana" : "este mes"}</p>
         </div>
         <div className="rounded-lg bg-muted/40 px-3 py-2">
-          <p className="text-muted-foreground text-[11px]">Apuesta</p>
-          <p className="font-medium text-[11px] leading-snug">{bet.stake}</p>
+          <p className="text-muted-foreground text-xs">Apuesta</p>
+          <p className="font-medium text-xs leading-snug">{bet.stake}</p>
         </div>
       </div>
 
@@ -98,7 +98,7 @@ function BetCard({ bet, members, onJoin, onResolve }: {
           {bet.participants.includes(uid) && " · Participas"}
         </p>
         {bet.category && (
-          <Badge variant="secondary" className="ml-auto text-[11px] px-1.5">
+          <Badge variant="secondary" className="ml-auto text-xs px-1.5">
             {bet.category}
           </Badge>
         )}
@@ -106,7 +106,7 @@ function BetCard({ bet, members, onJoin, onResolve }: {
 
       {/* Time remaining or ends at */}
       {bet.status !== "resolved" && (
-        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Clock className="h-3 w-3" />
           {remaining === 0
             ? "Vence hoy"
@@ -122,7 +122,7 @@ function BetCard({ bet, members, onJoin, onResolve }: {
           <p className="text-xs font-semibold text-green-700 dark:text-green-400">
             🏆 Ganador: {bet.result.winnerName}
           </p>
-          <p className="text-[11px] text-green-600/70 dark:text-green-500/70">
+          <p className="text-xs text-green-600/70 dark:text-green-500/70">
             Gastó {formatCurrency(bet.result.actualAmount, bet.currency)}
           </p>
         </div>
@@ -321,7 +321,7 @@ export function GroupBets({ groupId, members }: Props) {
           <Target className="h-4 w-4 text-primary" />
           <p className="text-sm font-semibold">Retos del grupo</p>
           {bets.length > 0 && (
-            <span className="text-[11px] rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
+            <span className="text-xs rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
               {bets.length}
             </span>
           )}
@@ -452,7 +452,7 @@ export function GroupBets({ groupId, members }: Props) {
                 value={stake}
                 onChange={(e) => setStake(e.target.value)}
               />
-              <p className="text-[11px] text-muted-foreground">¿Qué gana el que más se controla?</p>
+              <p className="text-xs text-muted-foreground">¿Qué gana el que más se controla?</p>
             </div>
 
             <Button className="w-full" onClick={handleCreate} disabled={saving}>

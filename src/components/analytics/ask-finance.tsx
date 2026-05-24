@@ -115,7 +115,7 @@ export function AskFinance({ context }: AskFinanceProps) {
                 key={s}
                 onClick={() => ask(s)}
                 disabled={loading}
-                className="text-[11px] px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-all text-foreground font-medium"
+                className="text-xs px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-all text-foreground font-medium"
               >
                 {s}
               </button>
@@ -127,7 +127,7 @@ export function AskFinance({ context }: AskFinanceProps) {
         {messages.length > 0 && (
           <button
             onClick={() => setMessages([])}
-            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-destructive transition-colors"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
           >
             <X className="h-3 w-3" /> Limpiar conversación
           </button>

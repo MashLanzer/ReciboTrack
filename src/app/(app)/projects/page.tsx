@@ -358,7 +358,7 @@ function ListView({
                   <p className="text-lg font-bold tabular-nums">{formatCurrency(p.total)}</p>
                   {budgets[p.name] && (
                     <p className={cn(
-                      "text-[11px] tabular-nums",
+                      "text-xs tabular-nums",
                       p.total > budgets[p.name] ? "text-destructive" : "text-muted-foreground"
                     )}>
                       {p.total > budgets[p.name] && "⚠ "}
@@ -405,7 +405,7 @@ function ListView({
                     style={{ width: `${Math.min((p.total / budgets[p.name]) * 100, 100)}%` }}
                   />
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Presupuesto: {Math.round((p.total / budgets[p.name]) * 100)}%
                 </p>
               </div>
@@ -587,7 +587,7 @@ function DetailView({
       {catTotals.length > 0 && (
         <Card>
           <CardContent className="p-4 space-y-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Por categoría
             </p>
             <div className="space-y-2.5">
@@ -609,7 +609,7 @@ function DetailView({
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <span className="text-[11px] text-muted-foreground w-8 text-right">
+                    <span className="text-xs text-muted-foreground w-8 text-right">
                       {pct.toFixed(0)}%
                     </span>
                   </div>
@@ -622,7 +622,7 @@ function DetailView({
 
       {/* Expense list */}
       <div className="space-y-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-1">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
           Gastos ({expenses.length})
         </p>
         {expenses.length === 0 ? (

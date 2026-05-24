@@ -279,17 +279,17 @@ export function CategoryBudgetsClient() {
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1">
               <div>
-                <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Con límite</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Con límite</p>
                 <p className="text-sm font-bold tabular-nums">{globalStats.budgetedCount}</p>
               </div>
               {globalStats.exceededCount > 0 && (
                 <div>
-                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Excedidas</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Excedidas</p>
                   <p className="text-sm font-bold tabular-nums text-rose-600">{globalStats.exceededCount}</p>
                 </div>
               )}
               <div>
-                <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Disponible</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Disponible</p>
                 <p className="text-sm font-bold tabular-nums">
                   {formatCurrency(Math.max(globalStats.totalBudget - globalStats.totalSpent, 0))}
                 </p>
@@ -366,7 +366,7 @@ export function CategoryBudgetsClient() {
                       <MiniRing pct={pct} size={36} />
                       {/* Numeric label overlaid in centre (rotated back upright) */}
                       <span className={cn(
-                        "absolute inset-0 flex items-center justify-center text-[11px] font-bold tabular-nums leading-none",
+                        "absolute inset-0 flex items-center justify-center text-xs font-bold tabular-nums leading-none",
                         getPctColor(pct),
                       )}>
                         {pct.toFixed(0)}
@@ -401,10 +401,10 @@ export function CategoryBudgetsClient() {
                   className={cn("h-1.5", getProgressColor(pct))}
                 />
                 <div className="flex justify-between items-center">
-                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                  <span className="text-xs text-muted-foreground tabular-nums">
                     {formatCurrency(spent, budget.currency)} gastado
                   </span>
-                  <span className={cn("text-[11px] font-medium tabular-nums", getPctColor(pct))}>
+                  <span className={cn("text-xs font-medium tabular-nums", getPctColor(pct))}>
                     {pct >= 100
                       ? `Excedido por ${formatCurrency(spent - budget.amount, budget.currency)}`
                       : `Quedan ${formatCurrency(budget.amount - spent, budget.currency)}`}
@@ -416,7 +416,7 @@ export function CategoryBudgetsClient() {
                 </div>
               </div>
             ) : (
-              <p className="text-[11px] text-muted-foreground italic">
+              <p className="text-xs text-muted-foreground italic">
                 Sin límite — haz clic en el lápiz para definir un presupuesto
               </p>
             )}

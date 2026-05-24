@@ -56,7 +56,7 @@ function QuickBtn({
     <button
       onClick={onClick}
       className={cn(
-        "flex-1 flex flex-col items-center justify-center gap-1.5 rounded-2xl border py-3.5 text-[11px] font-bold transition-all duration-150 active:scale-95 hover:scale-[1.03] hover:shadow-md",
+        "flex-1 flex flex-col items-center justify-center gap-1.5 rounded-2xl border py-3.5 text-xs font-bold transition-all duration-150 active:scale-95 hover:scale-[1.03] hover:shadow-md",
         accent
           ? "border-primary/30 bg-primary/8 text-primary hover:bg-primary/12 hover:border-primary/50 hover:shadow-primary/10"
           : "border-border bg-card text-foreground hover:bg-accent/60 hover:border-border/80"
@@ -72,7 +72,7 @@ function QuickBtn({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80 pl-2 border-l-2 border-primary/35">
+    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80 pl-2 border-l-2 border-primary/35">
       {children}
     </p>
   )
@@ -112,7 +112,7 @@ export default function DashboardPage() {
           <p className="text-xl font-black tracking-tight leading-tight">
             {greeting(user?.displayName)}
           </p>
-          <p className="text-[11px] text-muted-foreground capitalize mt-0.5">{dateLabel}</p>
+          <p className="text-xs text-muted-foreground capitalize mt-0.5">{dateLabel}</p>
         </div>
         {/* Account badge */}
         <AccountBadge />
@@ -292,7 +292,7 @@ function AccountBadge() {
     <button
       onClick={() => setActiveAccount(activeAccount === "personal" ? "business" : "personal")}
       className={cn(
-        "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold border transition-all",
+        "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold border transition-all",
         activeAccount === "business"
           ? "border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400"
           : "border-primary/30 bg-primary/8 text-primary"

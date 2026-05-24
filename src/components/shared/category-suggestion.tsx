@@ -31,7 +31,7 @@ export function CategorySuggestion({ merchant, currentCategory, onAccept }: Prop
     <button
       type="button"
       onClick={() => onAccept(suggested)}
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-primary/30 bg-primary/5 text-primary text-[11px] font-medium hover:bg-primary/15 transition-colors"
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-primary/30 bg-primary/5 text-primary text-xs font-medium hover:bg-primary/15 transition-colors"
     >
       <Sparkles className="h-3 w-3" />
       Sugerido: {cat.icon} {cat.name}

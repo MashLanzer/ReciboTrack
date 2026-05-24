@@ -244,13 +244,13 @@ export function TrustedCircleCard() {
 
             {/* Feedback del lookup */}
             {lookupState === "found" && lookupResult && (
-              <p className="text-[11px] text-green-600 dark:text-green-400 flex items-center gap-1">
+              <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
                 <CheckCircle className="h-3 w-3" />
                 Usuario encontrado: <span className="font-semibold">{lookupResult.displayName}</span>
               </p>
             )}
             {lookupState === "not_found" && (
-              <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
+              <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
                 No tiene cuenta en ReciboTrack — se guardará como invitación pendiente
               </p>

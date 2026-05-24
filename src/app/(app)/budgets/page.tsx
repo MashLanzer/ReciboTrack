@@ -15,7 +15,7 @@ export default function BudgetsPage() {
           <h1 className="font-serif text-2xl">Presupuestos</h1>
           <p className="text-sm text-muted-foreground mt-1">Control mensual y por viaje / evento</p>
         </div>
-        <span className="mb-0.5 shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold capitalize text-primary">
+        <span className="mb-0.5 shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold capitalize text-primary">
           {monthLabel}
         </span>
       </div>

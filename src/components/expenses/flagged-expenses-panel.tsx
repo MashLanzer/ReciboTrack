@@ -59,7 +59,7 @@ export function FlaggedExpensesPanel() {
                   await flagExpense.mutateAsync({ id: e.id, flagged: false })
                   toast.success("Marcado como resuelto")
                 }}
-                className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:underline shrink-0"
+                className="flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:underline shrink-0"
                 title="Resolver"
                 disabled={flagExpense.isPending}
               >

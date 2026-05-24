@@ -109,7 +109,7 @@ export function BudgetCardPreview() {
               />
             )}
           </div>
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>0</span>
             {projectedPct !== null && (
               <span className={cn(
@@ -127,15 +127,15 @@ export function BudgetCardPreview() {
         {/* Daily stats */}
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="rounded-lg bg-muted/40 p-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Día</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Día</p>
             <p className="text-xs font-bold mt-0.5">{dayOfMonth}/{daysInMonth}</p>
           </div>
           <div className="rounded-lg bg-muted/40 p-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Diario</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Diario</p>
             <p className="text-xs font-bold mt-0.5 tabular-nums">{formatCurrency(dailyAvg)}</p>
           </div>
           <div className="rounded-lg bg-muted/40 p-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Disp./día</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Disp./día</p>
             <p className={cn(
               "text-xs font-bold mt-0.5 tabular-nums",
               isOverBudget ? "text-destructive" : ""

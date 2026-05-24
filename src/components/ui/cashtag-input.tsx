@@ -125,7 +125,7 @@ export function CashtagInput({ value, onChange, placeholder, className, id }: Ca
                   <span
                     key={i}
                     onClick={(e) => handleCashtagClick(e, catId)}
-                    className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 px-1.5 py-0 text-[11px] font-semibold cursor-pointer hover:bg-primary/20 transition-colors"
+                    className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 px-1.5 py-0 text-xs font-semibold cursor-pointer hover:bg-primary/20 transition-colors"
                   >
                     {cat.icon} {cat.name}
                   </span>

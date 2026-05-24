@@ -116,7 +116,7 @@ export function TopCategoriesCard() {
         </div>
         <Link
           href="/expenses"
-          className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+          className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
         >
           Ver todas <ArrowRight className="h-3 w-3" />
         </Link>

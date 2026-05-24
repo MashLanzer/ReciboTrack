@@ -115,7 +115,7 @@ function Delta({ value, invert = false }: { value: number; invert?: boolean }) {
   if (value === 0) return <Minus className="h-3 w-3 text-muted-foreground inline" />
   const bad = invert ? value < 0 : value > 0
   return (
-    <span className={cn("inline-flex items-center gap-0.5 text-[11px] tabular-nums font-medium", bad ? "text-destructive" : "text-green-600")}>
+    <span className={cn("inline-flex items-center gap-0.5 text-xs tabular-nums font-medium", bad ? "text-destructive" : "text-green-600")}>
       {value > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
       {Math.abs(value).toFixed(1)}%
     </span>

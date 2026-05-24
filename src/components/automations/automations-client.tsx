@@ -118,7 +118,7 @@ function RuleCard({
             <span className="font-semibold text-foreground">{ACTION_LABELS[rule.action]}</span>
           </p>
           {rule.actionValue && (
-            <p className="text-[11px] text-muted-foreground mt-0.5 truncate font-mono">
+            <p className="text-xs text-muted-foreground mt-0.5 truncate font-mono">
               {rule.actionValue}
             </p>
           )}
@@ -154,7 +154,7 @@ function RuleCard({
       {rule.lastFiredAt && (
         <div className="flex items-center gap-1.5 pl-12">
           <div className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Ejecutada{" "}
             {rule.lastFiredAt.toDate().toLocaleDateString("es", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
           </p>

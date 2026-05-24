@@ -118,7 +118,7 @@ export function WeekSparkCard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Semana actual</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Semana actual</p>
           <p className="text-xl font-black tabular-nums mt-0.5">{formatCurrency(thisTotal)}</p>
         </div>
         {lastTotal > 0 && (
@@ -184,7 +184,7 @@ export function WeekSparkCard() {
               </div>
               <div>
                 <p className="text-[10px] text-muted-foreground">Más económico</p>
-                <p className="text-[11px] font-semibold capitalize">
+                <p className="text-xs font-semibold capitalize">
                   {format(cheapest.date, "EEEE", { locale: es })} · {formatCurrency(cheapest.total)}
                 </p>
               </div>
@@ -197,7 +197,7 @@ export function WeekSparkCard() {
               </div>
               <div>
                 <p className="text-[10px] text-muted-foreground">Más caro</p>
-                <p className="text-[11px] font-semibold capitalize">
+                <p className="text-xs font-semibold capitalize">
                   {format(priciest.date, "EEEE", { locale: es })} · {formatCurrency(priciest.total)}
                 </p>
               </div>

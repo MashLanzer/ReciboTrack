@@ -558,7 +558,7 @@ export function ExpenseList() {
             <div className="px-4 space-y-4 pb-4">
               {/* Category */}
               <div className="space-y-1.5">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Categoría</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Categoría</p>
                 <Select value={category || "all"} onValueChange={(v) => { haptic.light(); setParams({ cat: v === "all" ? null : v }) }}>
                   <SelectTrigger className={`h-11 ${category ? "border-primary text-primary" : ""}`}>
                     <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
@@ -575,7 +575,7 @@ export function ExpenseList() {
 
               {/* Sort */}
               <div className="space-y-1.5">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Ordenar por</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ordenar por</p>
                 <Select value={sort} onValueChange={(v) => { haptic.light(); setUIPref("expenseSort", v); setParams({ sort: v === "date_desc" ? null : v }) }}>
                   <SelectTrigger className={`h-11 ${sort !== "date_desc" ? "border-primary text-primary" : ""}`}>
                     <SelectValue placeholder="Ordenar" />
@@ -596,7 +596,7 @@ export function ExpenseList() {
               <div className="flex items-center justify-between rounded-xl border px-4 py-3">
                 <div>
                   <p className="text-sm font-medium">Agrupar por categoría</p>
-                  <p className="text-[11px] text-muted-foreground">En vez de por fecha</p>
+                  <p className="text-xs text-muted-foreground">En vez de por fecha</p>
                 </div>
                 <button
                   onClick={() => { haptic.light(); setParams({ group: groupBy === "cat" ? null : "cat" }) }}
@@ -608,7 +608,7 @@ export function ExpenseList() {
 
               {/* Date presets */}
               <div className="space-y-1.5">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Rango de fechas</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rango de fechas</p>
                 <div className="grid grid-cols-3 gap-1.5">
                   {[
                     { key: "this-month", label: "Este mes" },
@@ -648,7 +648,7 @@ export function ExpenseList() {
               {/* Tags */}
               {allTags.length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Etiquetas</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Etiquetas</p>
                   <div className="flex flex-wrap gap-2">
                     {allTags.map((tag) => (
                       <button key={tag} onClick={() => toggleTag(tag)}
@@ -737,7 +737,7 @@ export function ExpenseList() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-60 p-3 space-y-3">
               <div className="space-y-1">
-                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide px-1">Presets</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">Presets</p>
                 <div className="grid grid-cols-2 gap-1">
                   {[
                     { key: "this-month", label: "Este mes" },
@@ -755,7 +755,7 @@ export function ExpenseList() {
               </div>
               <DropdownMenuSeparator />
               <div className="space-y-1.5">
-                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide px-1">Personalizado</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">Personalizado</p>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   <Input type="date" value={fromStr} max={toStr || undefined}
@@ -959,7 +959,7 @@ export function ExpenseList() {
                     </span>
                   </div>
                   <div className="h-px flex-1 bg-border/50" />
-                  <p className="text-[11px] tabular-nums font-bold text-foreground/60 shrink-0">{formatCurrency(groupTotal)}</p>
+                  <p className="text-xs tabular-nums font-bold text-foreground/60 shrink-0">{formatCurrency(groupTotal)}</p>
                 </div>
                 <div className="space-y-2">
                   {items.map((expense, itemIdx) => {
@@ -1034,14 +1034,14 @@ export function ExpenseList() {
                                 <button
                                   key={tag}
                                   onClick={(e) => { e.stopPropagation(); toggleTag(tag) }}
-                                  className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium transition-colors ${activeTags.includes(tag) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"}`}
+                                  className={`text-xs px-1.5 py-0.5 rounded-full font-medium transition-colors ${activeTags.includes(tag) ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"}`}
                                 >
                                   #{tag}
                                 </button>
                               ))}
                               {expense.recurringId && (
                                 <span
-                                  className="text-[11px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium"
+                                  className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium"
                                   title="Gasto recurrente"
                                 >
                                   ↻ Recurrente
@@ -1049,7 +1049,7 @@ export function ExpenseList() {
                               )}
                               {expense.flagged && (
                                 <span
-                                  className="text-[11px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium"
+                                  className="text-xs px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium"
                                   title="Marcado para revisar"
                                 >
                                   ⚑ Revisar
@@ -1057,14 +1057,14 @@ export function ExpenseList() {
                               )}
                               {expense.receiptImageUrl && (
                                 <span
-                                  className="text-[11px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground"
+                                  className="text-xs px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground"
                                   title="Tiene foto de recibo"
                                 >
                                   📎 Foto
                                 </span>
                               )}
                               {(expense.items?.length ?? 0) > 0 && (
-                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                <span className="text-xs px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
                                   {expense.items.length} art.
                                 </span>
                               )}

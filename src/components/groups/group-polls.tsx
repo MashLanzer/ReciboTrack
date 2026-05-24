@@ -148,7 +148,7 @@ export function GroupPolls({ groupId, members }: Props) {
               )}
             >
               <p className="font-medium">⚖️ Encuesta de división</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Pregunta rápida sobre cómo dividir: Iguales vs Proporcional</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Pregunta rápida sobre cómo dividir: Iguales vs Proporcional</p>
             </button>
 
             {!isSplitPoll && (

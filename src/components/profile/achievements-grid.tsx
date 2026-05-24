@@ -53,7 +53,7 @@ export function AchievementsGrid({ input }: AchievementsGridProps) {
               <span className="text-2xl leading-none shrink-0 relative">{a.emoji}</span>
               <div className="min-w-0 relative">
                 <p className="text-xs font-bold truncate">{a.title}</p>
-                <p className="text-[11px] text-muted-foreground leading-tight">{a.description}</p>
+                <p className="text-xs text-muted-foreground leading-tight">{a.description}</p>
               </div>
             </div>
           ))}
@@ -80,7 +80,7 @@ export function AchievementsGrid({ input }: AchievementsGridProps) {
                 <span className="text-2xl leading-none shrink-0 grayscale opacity-30">{a.emoji}</span>
                 <div className="min-w-0 blur-[2px] opacity-50">
                   <p className="text-xs font-semibold truncate">{a.title}</p>
-                  <p className="text-[11px] text-muted-foreground leading-tight">{a.description}</p>
+                  <p className="text-xs text-muted-foreground leading-tight">{a.description}</p>
                 </div>
                 {/* Lock overlay */}
                 <div className="absolute inset-0 flex items-center justify-end pr-2.5 pointer-events-none">
@@ -96,7 +96,7 @@ export function AchievementsGrid({ input }: AchievementsGridProps) {
         <div className="rounded-xl border border-dashed bg-muted/10 p-6 text-center space-y-1">
           <p className="text-2xl">🏆</p>
           <p className="text-xs font-semibold text-muted-foreground">Completa tus primeros gastos</p>
-          <p className="text-[11px] text-muted-foreground/60">Los logros aparecerán aquí</p>
+          <p className="text-xs text-muted-foreground/60">Los logros aparecerán aquí</p>
         </div>
       )}
     </div>

@@ -177,7 +177,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
                   Posible duplicado — {duplicates.length} gasto{duplicates.length > 1 ? "s" : ""} similar{duplicates.length > 1 ? "es" : ""}
                 </p>
                 {duplicates.slice(0, 2).map((d) => (
-                  <p key={d.id} className="text-[11px] text-amber-600/80 mt-0.5">
+                  <p key={d.id} className="text-xs text-amber-600/80 mt-0.5">
                     {d.merchant} · {formatCurrency(d.total, d.currency)} · {format(d.date.toDate(), "d MMM", { locale: undefined })}
                   </p>
                 ))}
@@ -241,7 +241,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
                     onChange={(e) => setForm({ ...form, total: e.target.value })}
                     className="tabular-nums font-bold text-destructive border-destructive/30 bg-destructive/5 focus:border-destructive/60 pr-14"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-destructive/60">
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-destructive/60">
                     {form.currency}
                   </span>
                 </div>
@@ -390,7 +390,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
                       key={opt.value}
                       type="button"
                       onClick={() => setForm({ ...form, privacy: opt.value })}
-                      className={`flex-1 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors ${
+                      className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors ${
                         form.privacy === opt.value
                           ? "border-foreground bg-accent font-semibold"
                           : "border-border text-muted-foreground hover:border-muted-foreground"

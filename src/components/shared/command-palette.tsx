@@ -409,7 +409,7 @@ function ActionItem({
       </span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold truncate">{label}</p>
-        {sub && <p className="text-[11px] text-muted-foreground truncate">{sub}</p>}
+        {sub && <p className="text-xs text-muted-foreground truncate">{sub}</p>}
       </div>
       {badge && <span className="shrink-0 text-muted-foreground">{badge}</span>}
     </Command.Item>

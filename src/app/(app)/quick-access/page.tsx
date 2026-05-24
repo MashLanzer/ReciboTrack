@@ -369,7 +369,7 @@ export default function QuickAccessPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Orden <span className="text-muted-foreground font-normal text-[11px]">(0 = primero en la lista)</span></Label>
+              <Label>Orden <span className="text-muted-foreground font-normal text-xs">(0 = primero en la lista)</span></Label>
               <Input
                 type="number" inputMode="decimal"
                 min="0"

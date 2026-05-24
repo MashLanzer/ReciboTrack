@@ -90,7 +90,7 @@ export function CategoryWatchlist() {
                     )}
                     <div>
                       <p className="text-xs font-semibold">{cat?.name ?? categoryId}</p>
-                      <p className="text-[11px] text-muted-foreground tabular-nums">
+                      <p className="text-xs text-muted-foreground tabular-nums">
                         {formatCurrency(spent)}
                         {alertThreshold ? ` / ${formatCurrency(alertThreshold)}` : ""}
                       </p>
@@ -113,13 +113,13 @@ export function CategoryWatchlist() {
                       value={Math.min(pct, 100)}
                       className={cn("h-1.5", pct >= 100 ? "[&>div]:bg-destructive" : pct >= 80 ? "[&>div]:bg-amber-500" : "")}
                     />
-                    <p className="text-[11px] text-muted-foreground text-right">{pct.toFixed(0)}% del límite</p>
+                    <p className="text-xs text-muted-foreground text-right">{pct.toFixed(0)}% del límite</p>
                   </div>
                 )}
 
                 {/* Inline threshold edit */}
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-muted-foreground shrink-0">Límite mes:</span>
+                  <span className="text-xs text-muted-foreground shrink-0">Límite mes:</span>
                   <Input
                     type="number" inputMode="decimal"
                     placeholder="Sin límite"
@@ -139,7 +139,7 @@ export function CategoryWatchlist() {
         {/* Add new */}
         {unwatchedCategories.length > 0 && (
           <div className="border-t pt-3 space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Añadir categoría</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Añadir categoría</p>
             <div className="flex gap-2">
               <Select value={addCatId} onValueChange={setAddCatId}>
                 <SelectTrigger className="h-8 text-xs flex-1">

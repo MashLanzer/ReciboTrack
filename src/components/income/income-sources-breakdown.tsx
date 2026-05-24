@@ -95,11 +95,11 @@ export function IncomeSourcesBreakdown() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Fuentes de ingreso</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fuentes de ingreso</p>
           <p className="text-sm font-bold mt-0.5">Desglose anual</p>
         </div>
         <div className="text-right">
-          <p className="text-[11px] text-muted-foreground">Total {now.getFullYear()}</p>
+          <p className="text-xs text-muted-foreground">Total {now.getFullYear()}</p>
           <p className="text-base font-bold tabular-nums text-green-600">{formatCurrency(totalYear)}</p>
         </div>
       </div>
@@ -120,7 +120,7 @@ export function IncomeSourcesBreakdown() {
                     <p className="text-sm font-semibold">{meta.label}</p>
                     <div className="text-right">
                       <p className="text-sm font-bold tabular-nums">{formatCurrency(amount)}</p>
-                      <p className="text-[11px] text-muted-foreground">{pct}% del total</p>
+                      <p className="text-xs text-muted-foreground">{pct}% del total</p>
                     </div>
                   </div>
                   {/* Progress bar */}

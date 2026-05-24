@@ -64,7 +64,7 @@ export function AnniversaryWidget() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate">{item.merchant}</p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     Total estimado: {formatCurrency(total, item.currency)}
                   </p>
                 </div>

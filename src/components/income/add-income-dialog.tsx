@@ -106,7 +106,7 @@ export function AddIncomeDialog() {
               <button
                 type="button"
                 onClick={() => setManageCatsOpen(true)}
-                className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
               >
                 <Settings2 className="h-3 w-3" />
                 Gestionar
@@ -155,7 +155,7 @@ export function AddIncomeDialog() {
           <div className="flex items-center justify-between rounded-xl border px-3 py-2.5">
             <div>
               <p className="text-sm font-medium">Recurrente</p>
-              <p className="text-[11px] text-muted-foreground">Se repite cada mes</p>
+              <p className="text-xs text-muted-foreground">Se repite cada mes</p>
             </div>
             <Switch
               checked={form.recurring}

@@ -179,7 +179,7 @@ export function GroupWishlist({ groupId, currency }: GroupWishlistProps) {
                   {!item.purchased && (
                     <button
                       onClick={() => markPurchased.mutate({ groupId, itemId: item.id })}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:underline"
+                      className="flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:underline"
                       disabled={markPurchased.isPending}
                     >
                       <Check className="h-3.5 w-3.5" />

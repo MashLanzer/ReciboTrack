@@ -57,7 +57,7 @@ export function GeoInsightsPanel({ insights, selectedId, onSelect }: Props) {
               <p className="text-xs text-muted-foreground mt-0.5 leading-snug line-clamp-2">
                 {insight.description}
               </p>
-              <div className="flex gap-3 mt-1.5 text-[11px] text-muted-foreground">
+              <div className="flex gap-3 mt-1.5 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Icon className="h-3 w-3" />
                   {insight.occurrences} {insight.occurrences === 1 ? "vez" : "veces"}

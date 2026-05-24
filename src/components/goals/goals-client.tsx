@@ -87,7 +87,7 @@ function RingProgress({ pct, isComplete, urgency }: { pct: number; isComplete: b
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[11px] font-black tabular-nums">
+        <span className="text-xs font-black tabular-nums">
           {isComplete ? "✓" : `${Math.round(pct)}%`}
         </span>
       </div>
@@ -182,7 +182,7 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
             <div className="flex items-center gap-2 flex-wrap">
               <p className="font-semibold truncate">{goal.name}</p>
               <span className={cn(
-                "text-[11px] px-1.5 py-0.5 rounded-full font-medium",
+                "text-xs px-1.5 py-0.5 rounded-full font-medium",
                 goal.type === "saving"
                   ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
                   : "bg-orange-500/15 text-orange-600 dark:text-orange-400"
@@ -364,7 +364,7 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
                   </Button>
                 </div>
                 {aportarAmount && parseFloat(aportarAmount) > 0 && (
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     Nuevo total:{" "}
                     <span className="font-semibold text-foreground">
                       {formatCurrency(goal.currentAmount + parseFloat(aportarAmount), goal.currency)}
@@ -462,7 +462,7 @@ function AhorraOInvierte({ surplus }: { surplus: number }) {
           </div>
           <ul className="space-y-1">
             {tipsSave.map((t, i) => (
-              <li key={i} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+              <li key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
                 <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-blue-400 shrink-0" />
                 {t}
               </li>
@@ -476,7 +476,7 @@ function AhorraOInvierte({ surplus }: { surplus: number }) {
           </div>
           <ul className="space-y-1">
             {tipsInvest.map((t, i) => (
-              <li key={i} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+              <li key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
                 <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-green-400 shrink-0" />
                 {t}
               </li>

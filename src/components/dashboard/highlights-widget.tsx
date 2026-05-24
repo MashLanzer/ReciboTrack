@@ -78,7 +78,7 @@ export function HighlightsWidget() {
               <span className="text-xl shrink-0">{h.icon}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold truncate">{h.title}</p>
-                <p className="text-[11px] text-muted-foreground truncate">{h.value}</p>
+                <p className="text-xs text-muted-foreground truncate">{h.value}</p>
               </div>
               <Plus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             </button>

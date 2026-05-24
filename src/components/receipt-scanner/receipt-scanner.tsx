@@ -599,7 +599,7 @@ export function ReceiptScanner() {
             {/* Plantillas de acceso rápido */}
             {templates.length > 0 && (
               <div className="space-y-2">
-                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Acceso rápido
                 </p>
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -974,7 +974,7 @@ export function ReceiptScanner() {
                               {form.total ? `${form.currency} ${parseFloat(form.total).toFixed(2)}` : "—"}
                             </p>
                             {form.paymentMethod && (
-                              <p className="text-[11px] text-muted-foreground">{form.paymentMethod}</p>
+                              <p className="text-xs text-muted-foreground">{form.paymentMethod}</p>
                             )}
                           </div>
                         </div>

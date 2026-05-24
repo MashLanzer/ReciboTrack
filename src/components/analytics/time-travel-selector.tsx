@@ -93,7 +93,7 @@ export function TimeTravelSelector({ year, month, onMonthChange }: Props) {
           </div>
           <button
             onClick={goToPresent}
-            className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 hover:underline underline-offset-2"
+            className="text-xs font-semibold text-amber-700 dark:text-amber-400 hover:underline underline-offset-2"
           >
             Volver al presente
           </button>

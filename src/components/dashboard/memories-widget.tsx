@@ -86,7 +86,7 @@ export function MemoriesWidget() {
           <p className="text-[10px] font-mono uppercase tracking-widest text-primary/70">Recuerdos</p>
           <p className="text-sm font-bold mt-0.5 capitalize">📅 Hoy, hace un año</p>
         </div>
-        <p className="text-[11px] text-muted-foreground capitalize">{dateLabel}</p>
+        <p className="text-xs text-muted-foreground capitalize">{dateLabel}</p>
       </div>
 
       {/* Total */}
@@ -111,7 +111,7 @@ export function MemoriesWidget() {
 
       {/* Year-over-year comparison */}
       {pctChange !== null && topCatLastYear && (
-        <p className="text-[11px] text-muted-foreground border-t border-primary/10 pt-2">
+        <p className="text-xs text-muted-foreground border-t border-primary/10 pt-2">
           Este año llevas{" "}
           <span className={pctChange > 0 ? "text-destructive font-semibold" : "text-green-600 font-semibold"}>
             {pctChange > 0 ? "+" : ""}{pctChange}%

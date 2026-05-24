@@ -189,7 +189,7 @@ export function ExpenseCalendar() {
         {/* Weekday headers */}
         <div className="grid grid-cols-7 border-b">
           {WEEKDAYS.map((d) => (
-            <div key={d} className="py-2 text-center text-[11px] font-medium text-muted-foreground">
+            <div key={d} className="py-2 text-center text-xs font-medium text-muted-foreground">
               {d}
             </div>
           ))}
@@ -231,7 +231,7 @@ export function ExpenseCalendar() {
                 {/* Day number */}
                 <span
                   className={cn(
-                    "text-[11px] sm:text-xs font-medium leading-none",
+                    "text-xs sm:text-xs font-medium leading-none",
                     today
                       ? "h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px]"
                       : "",
@@ -315,7 +315,7 @@ export function ExpenseCalendar() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{e.merchant}</p>
                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                        <span className="text-[11px] text-muted-foreground">{cat?.name ?? e.category}</span>
+                        <span className="text-xs text-muted-foreground">{cat?.name ?? e.category}</span>
                         {e.paymentMethod && (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
                             {e.paymentMethod}

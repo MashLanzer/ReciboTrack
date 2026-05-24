@@ -249,7 +249,7 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo", initialAmoun
 
             {/* Custom sum validation */}
             {mode === "custom" && totalNum > 0 && (
-              <p className={`text-[11px] tabular-nums font-medium text-right ${customOk ? "text-green-600" : "text-destructive"}`}>
+              <p className={`text-xs tabular-nums font-medium text-right ${customOk ? "text-green-600" : "text-destructive"}`}>
                 {customOk
                   ? "✓ Los importes cuadran"
                   : `Diferencia: ${(totalNum - customSum).toFixed(2)}`}

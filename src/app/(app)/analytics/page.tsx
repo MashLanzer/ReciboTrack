@@ -577,7 +577,7 @@ export default function AnalyticsPage() {
       <Card>
         <CardHeader className="pb-1">
           <CardTitle className="text-sm font-medium">Tendencia — últimos 6 meses</CardTitle>
-          <p className="text-[11px] text-muted-foreground">Toca un mes para compararlo con el anterior</p>
+          <p className="text-xs text-muted-foreground">Toca un mes para compararlo con el anterior</p>
         </CardHeader>
         <CardContent className="px-2 pb-3">
           <ResponsiveContainer width="100%" height={130}>
@@ -623,7 +623,7 @@ export default function AnalyticsPage() {
         <CardContent className="p-0 space-y-0">
           {/* Cumulative spending curve */}
           <div className="px-2 pt-1 pb-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-2 mb-1">Gasto acumulado por día</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-2 mb-1">Gasto acumulado por día</p>
             <ResponsiveContainer width="100%" height={160}>
               <LineChart data={cumulativeData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.06} vertical={false} />
@@ -660,7 +660,7 @@ export default function AnalyticsPage() {
           {/* Category bar chart */}
           {comparisonChartData.length > 0 && (
             <div className="px-2 pb-2 border-t pt-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-2 mb-1">Por categoría</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-2 mb-1">Por categoría</p>
               <ResponsiveContainer width="100%" height={160}>
                 <BarChart data={comparisonChartData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }} barGap={2}>
                   <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.06} vertical={false} />
@@ -682,10 +682,10 @@ export default function AnalyticsPage() {
           <table className="w-full text-sm border-t">
             <thead>
               <tr className="border-b">
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-4 py-2">Categoría</th>
-                <th className="text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-2 py-2 capitalize">{format(comparedMonth, "MMM", { locale: es })}</th>
-                <th className="text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-2 py-2 capitalize">{format(selectedMonth, "MMM", { locale: es })}</th>
-                <th className="text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-4 py-2">Δ</th>
+                <th className="text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground px-4 py-2">Categoría</th>
+                <th className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground px-2 py-2 capitalize">{format(comparedMonth, "MMM", { locale: es })}</th>
+                <th className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground px-2 py-2 capitalize">{format(selectedMonth, "MMM", { locale: es })}</th>
+                <th className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground px-4 py-2">Δ</th>
               </tr>
             </thead>
             <tbody>
@@ -748,17 +748,17 @@ export default function AnalyticsPage() {
           {/* Stats row */}
           <div className="grid grid-cols-3 gap-3 text-center">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Hoy</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hoy</p>
               <p className={`tabular-nums text-lg font-bold mt-0.5 ${dailyLimitGoal && dailySpend >= dailyLimitGoal.targetAmount ? "text-destructive" : ""}`}>
                 {formatCurrency(dailySpend)}
               </p>
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Promedio/día</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Promedio/día</p>
               <p className="tabular-nums text-lg font-bold mt-0.5">{formatCurrency(dailyAvgThisMonth)}</p>
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Proyectado</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Proyectado</p>
               <p className="tabular-nums text-lg font-bold mt-0.5">{formatCurrency(projectedMonthEnd)}</p>
             </div>
           </div>
@@ -793,7 +793,7 @@ export default function AnalyticsPage() {
             {/* Day-of-week headers */}
             <div className="grid grid-cols-7 gap-0.5">
               {["D", "L", "M", "X", "J", "V", "S"].map((d) => (
-                <div key={d} className="text-center text-[11px] text-muted-foreground font-medium py-0.5">{d}</div>
+                <div key={d} className="text-center text-xs text-muted-foreground font-medium py-0.5">{d}</div>
               ))}
             </div>
             {/* Calendar grid */}
@@ -811,7 +811,7 @@ export default function AnalyticsPage() {
                 const isOver = dailyLimitGoal && spend > dailyLimitGoal.targetAmount
                 const hasSpend = spend > 0
 
-                let cellClass = "rounded aspect-square flex items-center justify-center text-[11px] font-medium relative group cursor-default"
+                let cellClass = "rounded aspect-square flex items-center justify-center text-xs font-medium relative group cursor-default"
                 if (isFuture) {
                   cellClass += " bg-muted/30 text-muted-foreground/40"
                 } else if (isOver) {
@@ -868,7 +868,7 @@ export default function AnalyticsPage() {
           )}
 
           {/* Legend */}
-          <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
               <div className="h-3 w-3 rounded bg-green-500/20" />
               <span>Bajo el límite</span>
@@ -936,7 +936,7 @@ export default function AnalyticsPage() {
                           <p className="text-sm font-medium truncate">{goal.name}</p>
                         </div>
                         {goal.deadline && (
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                          <p className="text-xs text-muted-foreground mt-0.5">
                             {daysLeft !== null && daysLeft > 0
                               ? `${daysLeft} días restantes · ${format(new Date(goal.deadline), "dd MMM yyyy", { locale: es })}`
                               : daysLeft === 0 ? "Vence hoy" : "Vencida"}
@@ -1026,12 +1026,12 @@ export default function AnalyticsPage() {
                 return (
                   <div className="grid grid-cols-2 gap-2 pt-1 border-t">
                     <div className="rounded-lg bg-primary/5 border border-primary/20 px-3 py-2">
-                      <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Día más activo</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Día más activo</p>
                       <p className="text-sm font-bold mt-0.5">{busiest.label}</p>
                       <p className="text-xs text-muted-foreground tabular-nums">{formatCurrency(busiest.avg)} promedio</p>
                     </div>
                     <div className="rounded-lg bg-muted/40 px-3 py-2">
-                      <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Día más tranquilo</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Día más tranquilo</p>
                       <p className="text-sm font-bold mt-0.5">{quietest.label}</p>
                       <p className="text-xs text-muted-foreground tabular-nums">{formatCurrency(quietest.avg)} promedio</p>
                     </div>
