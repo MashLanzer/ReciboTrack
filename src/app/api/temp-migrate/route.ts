@@ -21,14 +21,24 @@ const DB_NAME = "postgres"
 
 // Intentamos múltiples hosts en orden hasta que uno resuelva
 const DB_CONFIGS = [
-  // Session pooler us-east-1 (Vercel IAD1 está en us-east-1)
-  { host: `aws-0-us-east-1.pooler.supabase.com`, port: 5432, user: `postgres.${PROJECT_REF}` },
+  // Session pooler us-east-1
+  { host: `aws-0-us-east-1.pooler.supabase.com`,     port: 5432, user: `postgres.${PROJECT_REF}` },
   // Session pooler us-west-1
-  { host: `aws-0-us-west-1.pooler.supabase.com`,  port: 5432, user: `postgres.${PROJECT_REF}` },
+  { host: `aws-0-us-west-1.pooler.supabase.com`,     port: 5432, user: `postgres.${PROJECT_REF}` },
+  // Session pooler sa-east-1 (São Paulo — probable para usuarios latinoamericanos)
+  { host: `aws-0-sa-east-1.pooler.supabase.com`,     port: 5432, user: `postgres.${PROJECT_REF}` },
   // Session pooler eu-west-1
-  { host: `aws-0-eu-west-1.pooler.supabase.com`,  port: 5432, user: `postgres.${PROJECT_REF}` },
+  { host: `aws-0-eu-west-1.pooler.supabase.com`,     port: 5432, user: `postgres.${PROJECT_REF}` },
+  // Session pooler eu-central-1
+  { host: `aws-0-eu-central-1.pooler.supabase.com`,  port: 5432, user: `postgres.${PROJECT_REF}` },
+  // Session pooler ap-southeast-1
+  { host: `aws-0-ap-southeast-1.pooler.supabase.com`, port: 5432, user: `postgres.${PROJECT_REF}` },
+  // Session pooler ap-northeast-1
+  { host: `aws-0-ap-northeast-1.pooler.supabase.com`, port: 5432, user: `postgres.${PROJECT_REF}` },
+  // Session pooler ca-central-1
+  { host: `aws-0-ca-central-1.pooler.supabase.com`,  port: 5432, user: `postgres.${PROJECT_REF}` },
   // Directo (por si acaso)
-  { host: `db.${PROJECT_REF}.supabase.co`,          port: 5432, user: "postgres" },
+  { host: `db.${PROJECT_REF}.supabase.co`,            port: 5432, user: "postgres" },
 ]
 
 const migrations = [
