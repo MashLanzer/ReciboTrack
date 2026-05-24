@@ -12,12 +12,11 @@ import { useRoundupSettings, useSetRoundupSettings } from "@/hooks/use-roundup-s
 import { exportToCSV, exportHoldedCsv, exportContasimpleCsv } from "@/components/expenses/export-utils"
 import { formatCurrency, cn } from "@/lib/utils"
 import { CURRENCIES, PAYMENT_METHODS, DEFAULT_CATEGORIES } from "@/lib/constants"
-import { getFirebaseAuth, getFirebaseStorage } from "@/lib/firebase/client"
+import { getFirebaseAuth } from "@/lib/firebase/client"
 import {
   updateProfile, updatePassword, reauthenticateWithCredential,
   EmailAuthProvider, deleteUser, sendPasswordResetEmail,
 } from "firebase/auth"
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from "firebase/storage"
 import { useTheme } from "next-themes"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -254,29 +253,37 @@ export default function ProfilePage() {
     ? format(new Date(user.metadata.creationTime), "d MMMM yyyy", { locale: es })
     : "—"
 
-  // ── Avatar upload ─────────────────────────────────────────────────────────
+  // ── Avatar upload — Supabase Storage ──────────────────────────────────────
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !user) return
     if (file.size > 5 * 1024 * 1024) { toast.error("La imagen no puede superar 5 MB"); return }
+
     try {
-      const storage = getFirebaseStorage()
-      const fileRef = storageRef(storage, `avatars/${user.uid}/${Date.now()}.jpg`)
-      const task = uploadBytesResumable(fileRef, file)
-      await new Promise<void>((resolve, reject) => {
-        task.on("state_changed",
-          (snap) => setUploadProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
-          reject,
-          async () => {
-            const url = await getDownloadURL(task.snapshot.ref)
-            await updateProfile(getFirebaseAuth().currentUser!, { photoURL: url })
-            setUploadProgress(null)
-            resolve()
-          }
-        )
+      setUploadProgress(1) // indicar que comenzó
+      const idToken = await user.getIdToken()
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const res = await fetch("/api/upload/avatar", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${idToken}` },
+        body: formData,
       })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Error desconocido" }))
+        throw new Error(err.error ?? "Error al subir")
+      }
+
+      const { url } = await res.json() as { url: string }
+
+      // Actualizar photoURL en Firebase Auth para que useAuth() lo refleje de inmediato
+      await updateProfile(getFirebaseAuth().currentUser!, { photoURL: url })
+      setUploadProgress(null)
       toast.success("Foto actualizada")
-    } catch {
+    } catch (err) {
+      console.error("[avatar upload]", err)
       toast.error("Error al subir la imagen")
       setUploadProgress(null)
     }

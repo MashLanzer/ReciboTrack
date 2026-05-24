@@ -1,11 +1,11 @@
 /**
- * Firebase client SDK — solo Auth y Storage.
- * Firestore fue migrado a Supabase PostgreSQL; este archivo ya no inicializa Firestore.
+ * Firebase client SDK — solo Auth.
+ * Firestore → migrado a Supabase PostgreSQL.
+ * Storage  → migrado a Supabase Storage (buckets "avatars" y "receipts").
  */
 
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app"
 import { getAuth, type Auth } from "firebase/auth"
-import { getStorage, type FirebaseStorage } from "firebase/storage"
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "",
@@ -18,7 +18,6 @@ const firebaseConfig = {
 
 let _app: FirebaseApp | undefined
 let _auth: Auth | undefined
-let _storage: FirebaseStorage | undefined
 
 function ensureApp(): FirebaseApp {
   if (!_app) {
@@ -30,9 +29,4 @@ function ensureApp(): FirebaseApp {
 export function getFirebaseAuth(): Auth {
   if (!_auth) _auth = getAuth(ensureApp())
   return _auth
-}
-
-export function getFirebaseStorage(): FirebaseStorage {
-  if (!_storage) _storage = getStorage(ensureApp())
-  return _storage
 }
