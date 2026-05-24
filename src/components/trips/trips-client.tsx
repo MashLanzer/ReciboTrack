@@ -174,8 +174,14 @@ function TripCard({ budget, onDelete }: { budget: TravelBudget; onDelete: () => 
     }
   }
 
+  const isActive = now >= startDate && now <= endDate
+  const isFuture = now < startDate
+  const stripeColor = isActive ? "#22c55e" : isFuture ? "#3b82f6" : "#9ca3af"
+
   return (
-    <div className={cn("rounded-2xl border bg-card overflow-hidden", isOver && "opacity-80")}>
+    <div className={cn("rounded-2xl border bg-card overflow-hidden", isOver && "opacity-75")}>
+      {/* Top status stripe */}
+      <div className="h-1 w-full" style={{ backgroundColor: stripeColor }} />
       {/* Header */}
       <div className="flex items-start gap-3 px-4 pt-4 pb-2">
         <span className="text-3xl shrink-0 mt-0.5">{budget.emoji}</span>
@@ -446,15 +452,19 @@ export function TripsClient() {
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-serif text-2xl flex items-center gap-2">
-            <Plane className="h-6 w-6 text-primary" />
-            Mis Viajes
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Controla el presupuesto de cada aventura
-          </p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
+            <Plane className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="font-bold text-xl">Mis Viajes</h1>
+            <p className="text-xs text-muted-foreground">
+              {budgets.length > 0
+                ? `${active.length} activo${active.length !== 1 ? "s" : ""}${past.length > 0 ? ` · ${past.length} finalizado${past.length !== 1 ? "s" : ""}` : ""}`
+                : "Controla el presupuesto de cada aventura"}
+            </p>
+          </div>
         </div>
         <Button className="gap-1.5 shrink-0" onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4" />

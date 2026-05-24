@@ -134,13 +134,15 @@ export default function GraphPage() {
 
       {/* ── Header ── */}
       <div className="flex items-center gap-3 shrink-0">
-        <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
           <Network className="h-5 w-5 text-primary" />
         </div>
         <div>
           <h1 className="text-xl font-bold">Money Graph</h1>
           <p className="text-xs text-muted-foreground">
-            {entities.length} entidades · {edges.length} conexiones · {expenses.length} gastos
+            {isLoading
+              ? "Cargando datos..."
+              : `${entities.length} entidades · ${edges.length} conexiones · ${expenses.length} gastos`}
           </p>
         </div>
       </div>

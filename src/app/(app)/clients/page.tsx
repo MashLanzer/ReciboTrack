@@ -148,16 +148,21 @@ export default function ClientsPage() {
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-serif text-2xl">Clientes</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {clients.length > 0
-              ? `${clients.length} cliente${clients.length !== 1 ? "s" : ""}`
-              : "Gestiona tus clientes"}
-          </p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
+            <UserCheck className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="font-bold text-xl">Clientes</h1>
+            <p className="text-xs text-muted-foreground">
+              {clients.length > 0
+                ? `${clients.length} cliente${clients.length !== 1 ? "s" : ""} · ${clients.filter(c => c.isActive).length} activo${clients.filter(c => c.isActive).length !== 1 ? "s" : ""}`
+                : "Gestiona tus clientes"}
+            </p>
+          </div>
         </div>
-        <Button onClick={openCreate} className="gap-2">
+        <Button onClick={openCreate} className="gap-2 shrink-0">
           <Plus className="h-4 w-4" />
           Nuevo cliente
         </Button>
@@ -174,13 +179,13 @@ export default function ClientsPage() {
 
       {/* Empty state */}
       {!isLoading && clients.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-            <UserCheck className="h-8 w-8 text-muted-foreground" />
+        <div className="rounded-2xl border border-dashed border-border/60 bg-muted/20 flex flex-col items-center justify-center py-16 text-center gap-4">
+          <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
+            <UserCheck className="h-7 w-7 text-muted-foreground/50" />
           </div>
-          <div>
-            <p className="font-medium">Sin clientes todavía</p>
-            <p className="text-sm text-muted-foreground mt-1">
+          <div className="space-y-1">
+            <p className="font-semibold">Sin clientes todavía</p>
+            <p className="text-sm text-muted-foreground max-w-56">
               Agrega tus clientes para asociarles gastos y proyectos.
             </p>
           </div>
@@ -197,45 +202,46 @@ export default function ClientsPage() {
           {clients.map((c) => (
             <div
               key={c.id}
-              className="rounded-2xl border bg-card p-4 flex items-center gap-4"
+              className="rounded-2xl border bg-card flex items-center gap-4 pl-4 pr-3 py-3.5 border-l-[3px] transition-all duration-150 hover:shadow-sm hover:bg-muted/20"
+              style={{ borderLeftColor: c.color }}
             >
-              {/* Color dot + initial */}
+              {/* Color avatar */}
               <div
-                className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0"
-                style={{ backgroundColor: c.color }}
+                className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold text-base shrink-0"
+                style={{ backgroundColor: `${c.color}dd` }}
               >
                 {c.name.charAt(0).toUpperCase()}
               </div>
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-semibold truncate">{c.name}</p>
                   {!c.isActive && (
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground border rounded px-1">
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
                       inactivo
                     </span>
                   )}
                 </div>
                 {(c.email || c.phone) && (
-                  <p className="text-sm text-muted-foreground truncate">
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
                     {[c.email, c.phone].filter(Boolean).join(" · ")}
                   </p>
                 )}
                 {c.notes && (
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">{c.notes}</p>
+                  <p className="text-xs text-muted-foreground/70 truncate mt-0.5 italic">{c.notes}</p>
                 )}
               </div>
 
               {/* Actions */}
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-0.5 shrink-0">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
                   onClick={() => openEdit(c)}
                 >
-                  <Pencil className="h-4 w-4" />
+                  <Pencil className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
@@ -243,7 +249,7 @@ export default function ClientsPage() {
                   className="h-8 w-8 text-muted-foreground hover:text-destructive"
                   onClick={() => handleDelete(c)}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>

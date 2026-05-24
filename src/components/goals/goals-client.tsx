@@ -166,8 +166,15 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
     setDeleting(false)
   }
 
+  const stripeColor =
+    isComplete ? "#22c55e" :
+    deadlinePct > 70 ? "#f59e0b" :
+    "hsl(var(--primary))"
+
   return (
     <div className="rounded-2xl border bg-card overflow-hidden">
+      {/* Top status stripe */}
+      <div className="h-1 w-full" style={{ backgroundColor: stripeColor }} />
       <div className="p-4 space-y-3">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
@@ -539,15 +546,19 @@ export function GoalsClient() {
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-serif text-2xl flex items-center gap-2">
-            <Target className="h-6 w-6 text-primary" />
-            Metas de ahorro
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Controla tus objetivos financieros
-          </p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Target className="h-5 w-5 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="font-bold text-xl">Metas de ahorro</h1>
+            <p className="text-xs text-muted-foreground">
+              {active.length > 0
+                ? `${active.length} activa${active.length !== 1 ? "s" : ""}${completed.length > 0 ? ` · ${completed.length} completada${completed.length !== 1 ? "s" : ""}` : ""}`
+                : "Controla tus objetivos financieros"}
+            </p>
+          </div>
         </div>
         <Button className="gap-1.5 shrink-0" onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4" />

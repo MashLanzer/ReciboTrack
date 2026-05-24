@@ -2,13 +2,19 @@ import { CategoriesManager } from "@/components/expenses/categories-manager"
 import { CategoryRules } from "@/components/categories/category-rules"
 import { CategoryLimitsSettings } from "@/components/expenses/category-limits-settings"
 import { ErrorBoundary } from "@/components/ui/error-boundary"
+import { Tag } from "lucide-react"
 
 export default function CategoriesPage() {
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
-      <div>
-        <h1 className="font-serif text-2xl">Categorías</h1>
-        <p className="text-sm text-muted-foreground mt-1">Gestiona las categorías y reglas automáticas</p>
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+          <Tag className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="font-bold text-xl">Categorías</h1>
+          <p className="text-xs text-muted-foreground">Gestiona las categorías y reglas automáticas</p>
+        </div>
       </div>
 
       {/* #19 — ErrorBoundary por sección para aislar fallos */}

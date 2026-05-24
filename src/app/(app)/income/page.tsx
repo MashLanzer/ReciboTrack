@@ -72,17 +72,59 @@ export default function IncomePage() {
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="h-9 w-9 rounded-xl bg-green-500/15 flex items-center justify-center">
+        <div className="h-10 w-10 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
           <TrendingUp className="h-5 w-5 text-green-600" />
         </div>
         <div>
-          <h1 className="font-serif text-xl">Ingresos y Balance</h1>
+          <h1 className="font-bold text-xl">Ingresos y Balance</h1>
           <p className="text-xs text-muted-foreground">Cuánto ganas vs cuánto gastas</p>
         </div>
       </div>
 
       {/* Income sources breakdown */}
       <IncomeSourcesBreakdown />
+
+      {/* Month KPI summary */}
+      {!isLoading && (() => {
+        const key = `${year}-${month}`
+        const incList = incomeByMonth.get(key) ?? []
+        const expList = expensesByMonth.get(key) ?? []
+        const totalIncome = incList.reduce((s, i) => s + i.amount, 0)
+        const totalExpenses = expList.reduce((s, e) => s + (e.total || 0), 0)
+        const balance = totalIncome - totalExpenses
+        const hasData = totalIncome > 0 || totalExpenses > 0
+        return (
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-2xl border bg-card px-3 py-3 text-center space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Ingresos</p>
+              <p className="text-sm font-bold tabular-nums text-green-600">
+                {totalIncome > 0 ? formatCurrency(totalIncome) : <span className="text-muted-foreground font-normal">—</span>}
+              </p>
+            </div>
+            <div className="rounded-2xl border bg-card px-3 py-3 text-center space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Gastos</p>
+              <p className="text-sm font-bold tabular-nums text-destructive">
+                {totalExpenses > 0 ? formatCurrency(totalExpenses) : <span className="text-muted-foreground font-normal">—</span>}
+              </p>
+            </div>
+            <div className={cn(
+              "rounded-2xl border bg-card px-3 py-3 text-center space-y-1",
+              hasData && balance > 0 && "border-green-500/30 bg-green-500/5",
+              hasData && balance < 0 && "border-destructive/30 bg-destructive/5"
+            )}>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Balance</p>
+              <p className={cn(
+                "text-sm font-bold tabular-nums",
+                !hasData ? "text-muted-foreground" :
+                balance > 0 ? "text-green-600" :
+                balance < 0 ? "text-destructive" : "text-foreground"
+              )}>
+                {!hasData ? "—" : `${balance >= 0 ? "+" : ""}${formatCurrency(Math.abs(balance))}`}
+              </p>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Month selector */}
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
