@@ -23,13 +23,13 @@ function SpendBar({ pct }: { pct: number }) {
   const color =
     pct > 90 ? "bg-destructive" :
     pct > 70 ? "bg-amber-500" :
-    "bg-emerald-500"
+    "bg-income"
 
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between text-xs text-muted-foreground">
         <span>{pct.toFixed(0)}% del ingreso gastado</span>
-        <span className={pct > 90 ? "text-destructive" : pct > 70 ? "text-amber-500" : "text-emerald-600"}>
+        <span className={pct > 90 ? "text-destructive" : pct > 70 ? "text-amber-500" : "text-income"}>
           {pct > 90 ? "⚠ Al límite" : pct > 70 ? "Cuidado" : "Bien"}
         </span>
       </div>
@@ -127,7 +127,7 @@ export function HeroBalanceCard() {
   const animExpenses = useCountUp(totalExpenses, 420)
 
   if (incLoading || expLoading) {
-    return <Skeleton className="h-52 rounded-3xl" />
+    return <Skeleton className="h-52 rounded-2xl" />
   }
 
   return (
@@ -146,7 +146,7 @@ export function HeroBalanceCard() {
         } catch { toast.error("Error al eliminar") }
       }}
     />
-    <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/8 via-card to-primary/4 shadow-xl shadow-primary/5">
+    <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/8 via-card to-primary/4 shadow-xl shadow-primary/5">
       {/* Background glow */}
       <div className="pointer-events-none absolute -top-16 -right-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
 
@@ -189,7 +189,7 @@ export function HeroBalanceCard() {
 
         {/* ── Balance hero ─────────────────────────────────────────────── */}
         <div key={offset} className="text-center space-y-1 animate-[fadeSlideUp_0.25s_ease-out_both]">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Balance {isCurrentMonth ? "del mes" : "mensual"}
           </p>
           <p className={cn(
@@ -197,7 +197,7 @@ export function HeroBalanceCard() {
             totalIncome === 0
               ? "text-foreground"
               : isPositive
-              ? "text-emerald-500 dark:text-emerald-400"
+              ? "text-income"
               : "text-destructive"
           )}>
             {animBalance >= 0 ? "+" : "-"}{formatCurrency(Math.abs(animBalance))}
@@ -205,7 +205,7 @@ export function HeroBalanceCard() {
           {totalIncome > 0 && (
             <p className={cn(
               "text-sm font-medium",
-              isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
+              isPositive ? "text-income" : "text-destructive"
             )}>
               {isPositive
                 ? `Ahorrando ${formatCurrency(balance)} este mes ✓`
@@ -217,9 +217,9 @@ export function HeroBalanceCard() {
           {hasPrevData && expenseDeltaPct !== null && (
             <div className="flex items-center justify-center pt-0.5 animate-[fadeSlideUp_0.4s_ease-out_0.1s_both]">
               <span className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border",
+                "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold border",
                 expenseDelta <= 0
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                  ? "bg-income/10 text-income border-income/20"
                   : "bg-destructive/10 text-destructive border-destructive/20"
               )}>
                 {/* Arrow icon inline to avoid import */}
@@ -239,9 +239,9 @@ export function HeroBalanceCard() {
           {hasPrevData && expenseDeltaPct === null && prevTotalIncome > 0 && (
             <div className="flex items-center justify-center pt-0.5 animate-[fadeSlideUp_0.4s_ease-out_0.1s_both]">
               <span className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border",
+                "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold border",
                 balanceDelta >= 0
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                  ? "bg-income/10 text-income border-income/20"
                   : "bg-destructive/10 text-destructive border-destructive/20"
               )}>
                 <svg
@@ -261,13 +261,13 @@ export function HeroBalanceCard() {
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => setShowIncome(s => !s)}
-            className="group rounded-2xl border border-emerald-500/20 bg-emerald-500/8 p-3 text-left hover:bg-emerald-500/12 transition-colors"
+            className="group rounded-2xl border border-income/20 bg-income/8 p-3 text-left hover:bg-income/12 transition-colors"
           >
             <div className="flex items-center gap-1.5 mb-1">
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Ingresos</span>
+              <TrendingUp className="h-3.5 w-3.5 text-income" />
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ingresos</span>
             </div>
-            <p className="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+            <p className="text-lg font-bold tabular-nums text-income">
               {formatCurrency(animIncome)}
             </p>
             {incomeList.length > 0 && (
@@ -281,7 +281,7 @@ export function HeroBalanceCard() {
           <div className="rounded-2xl border border-destructive/20 bg-destructive/8 p-3">
             <div className="flex items-center gap-1.5 mb-1">
               <TrendingDown className="h-3.5 w-3.5 text-destructive" />
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Gastos</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Gastos</span>
             </div>
             <p className="text-lg font-bold tabular-nums text-destructive">
               {formatCurrency(animExpenses)}
@@ -299,20 +299,20 @@ export function HeroBalanceCard() {
 
         {/* ── Carry-forward prompt ──────────────────────────────────────── */}
         {isCurrentMonth && recurringToCarry.length > 0 && (
-          <div className="flex items-center gap-3 rounded-xl bg-blue-500/10 border border-blue-500/20 px-3 py-2.5">
-            <RefreshCw className="h-4 w-4 text-blue-500 shrink-0" />
+          <div className="flex items-center gap-3 rounded-xl bg-info/10 border border-info/20 px-3 py-2.5">
+            <RefreshCw className="h-4 w-4 text-info shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+              <p className="text-xs font-semibold text-info">
                 {recurringToCarry.length} ingreso{recurringToCarry.length > 1 ? "s" : ""} recurrente{recurringToCarry.length > 1 ? "s" : ""} pendiente{recurringToCarry.length > 1 ? "s" : ""}
               </p>
-              <p className="text-[10px] text-blue-500/80 truncate">
+              <p className="text-[10px] text-info/80 truncate">
                 {recurringToCarry.map(i => i.source).join(", ")}
               </p>
             </div>
             <Button
               size="sm"
               variant="secondary"
-              className="h-7 text-xs shrink-0 bg-blue-500/20 hover:bg-blue-500/30 text-blue-700 dark:text-blue-300 border-0"
+              className="h-7 text-xs shrink-0 bg-info/20 hover:bg-info/30 text-info border-0"
               onClick={handleCarry}
               disabled={carryLoading}
             >
@@ -325,13 +325,13 @@ export function HeroBalanceCard() {
       {/* ── Collapsible income list ───────────────────────────────────────── */}
       {showIncome && incomeList.length > 0 && (
         <div className="border-t border-border/60 px-5 py-4 space-y-2 bg-card/50">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
             Ingresos del mes
           </p>
           {incomeList.map(inc => (
             <div key={inc.id} className="flex items-center gap-3 group py-1">
-              <div className="h-7 w-7 rounded-lg bg-emerald-500/12 flex items-center justify-center shrink-0">
-                <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+              <div className="h-7 w-7 rounded-lg bg-income/12 flex items-center justify-center shrink-0">
+                <TrendingUp className="h-3.5 w-3.5 text-income" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold truncate">{inc.source}</p>
@@ -342,7 +342,7 @@ export function HeroBalanceCard() {
                   Recurrente
                 </span>
               )}
-              <p className="text-xs font-bold tabular-nums text-emerald-600 shrink-0">
+              <p className="text-xs font-bold tabular-nums text-income shrink-0">
                 +{formatCurrency(inc.amount, inc.currency)}
               </p>
               <button
