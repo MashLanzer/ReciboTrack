@@ -2,8 +2,9 @@
 
 import { Suspense, useEffect, useState, useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { useRouter } from "next/navigation"
 import { useSearchParams } from "next/navigation"
-import { ScanLine, Plus, BarChart2, Search, LayoutDashboard, Zap, Sparkles, ChevronRight } from "lucide-react"
+import { ScanLine, Plus, BarChart2, Search, LayoutDashboard, Zap, Sparkles, ChevronRight, TrendingUp, RefreshCw, Wallet, Pencil } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -24,6 +25,9 @@ import { SwipeableFeed }      from "@/components/dashboard/swipeable-feed"
 import { QuickStatsBlock, QuickRecentBlock } from "@/components/dashboard/quick-mode-extras"
 import { MonthlyRecapCard }   from "@/components/dashboard/monthly-recap-card"
 import { TodayWidget }        from "@/components/dashboard/today-widget"
+import { VacationBanner }     from "@/components/dashboard/vacation-banner"
+import { VacationModeDialog } from "@/components/dashboard/vacation-mode-dialog"
+import { QuickActionsSettingsDialog } from "@/components/dashboard/quick-actions-settings-dialog"
 import { CollapsibleContent, CollapsibleChevron } from "@/components/ui/collapsible"
 import { useUIStore }         from "@/stores/ui-store"
 import { useAuth }            from "@/hooks/use-auth"
@@ -80,17 +84,43 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+// ─── Action config ─────────────────────────────────────────────────────────────
+
+const ACTION_CONFIG: Record<string, { icon: React.ElementType; label: string; accent?: boolean }> = {
+  scan:      { icon: ScanLine,   label: "Escanear",     accent: true },
+  add:       { icon: Plus,       label: "Añadir" },
+  search:    { icon: Search,     label: "Buscar" },
+  income:    { icon: TrendingUp, label: "Ingresos" },
+  recurring: { icon: RefreshCw,  label: "Recurrentes" },
+  budgets:   { icon: Wallet,     label: "Presupuestos" },
+}
+
 export default function DashboardPage() {
   const { user } = useAuth()
-  const { setScannerOpen, setQuickAddOpen, setCommandOpen, activeAccount } = useUIStore()
+  const { setScannerOpen, setQuickAddOpen, setCommandOpen, setIncomeAddOpen, activeAccount } = useUIStore()
+  const router = useRouter()
   const queryClient = useQueryClient()
   const [showAnalytics, setShowAnalytics] = useState(false)
   const [showRecap, setShowRecap] = useState(false)
   const [showMemories, setShowMemories] = useState(false)
+  const [vacationDialogOpen, setVacationDialogOpen] = useState(false)
+  const [quickActionsSettingsOpen, setQuickActionsSettingsOpen] = useState(false)
   const { prefs, setPref } = useUIPrefs()
   const dashMode = prefs.dashMode
   const setDashMode = (m: "normal" | "quick") => setPref("dashMode", m)
   const dateLabel = useMemo(() => format(new Date(), "EEEE d 'de' MMMM", { locale: es }), [])
+
+  function getActionHandler(key: string): () => void {
+    switch (key) {
+      case "scan":      return () => setScannerOpen(true)
+      case "add":       return () => setQuickAddOpen(true)
+      case "search":    return () => setCommandOpen(true)
+      case "income":    return () => setIncomeAddOpen(true)
+      case "recurring": return () => router.push("/recurring")
+      case "budgets":   return () => router.push("/budgets")
+      default:          return () => {}
+    }
+  }
 
   // #10 — Invalidar queries al cambiar de cuenta personal/negocio
   // Asegura que todos los widgets muestren datos de la cuenta correcta
@@ -106,6 +136,9 @@ export default function DashboardPage() {
         <ScanParamHandler />
       </Suspense>
 
+      {/* ── Vacation banner ───────────────────────────────────────────── */}
+      <VacationBanner />
+
       {/* ── Greeting header ───────────────────────────────────────────── */}
       <div className="flex items-start justify-between">
         <div>
@@ -113,6 +146,12 @@ export default function DashboardPage() {
             {greeting(user?.displayName)}
           </p>
           <p className="text-xs text-muted-foreground capitalize mt-0.5">{dateLabel}</p>
+          <button
+            onClick={() => setVacationDialogOpen(true)}
+            className="mt-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            🏖️ Vacaciones
+          </button>
         </div>
         {/* Account badge */}
         <AccountBadge />
@@ -181,23 +220,27 @@ export default function DashboardPage() {
         </CollapsibleContent>
 
         {/* ── Quick actions ─────────────────────────────────────────────── */}
-        <div className="flex gap-3">
-          <QuickBtn
-            icon={ScanLine}
-            label="Escanear"
-            onClick={() => setScannerOpen(true)}
-            accent
-          />
-          <QuickBtn
-            icon={Plus}
-            label="Añadir"
-            onClick={() => setQuickAddOpen(true)}
-          />
-          <QuickBtn
-            icon={Search}
-            label="Buscar"
-            onClick={() => setCommandOpen(true)}
-          />
+        <div className="flex items-center gap-3">
+          {(prefs.quickActions ?? ["scan", "add", "search"]).map((key) => {
+            const cfg = ACTION_CONFIG[key]
+            if (!cfg) return null
+            return (
+              <QuickBtn
+                key={key}
+                icon={cfg.icon}
+                label={cfg.label}
+                onClick={getActionHandler(key)}
+                accent={cfg.accent}
+              />
+            )
+          })}
+          <button
+            onClick={() => setQuickActionsSettingsOpen(true)}
+            aria-label="Editar atajos rápidos"
+            className="shrink-0 rounded-xl p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
         </div>
 
         {/* ── Asesor IA — entrada rápida ───────────────────────────────── */}
@@ -279,6 +322,10 @@ export default function DashboardPage() {
         </CollapsibleContent>
         </div>
       )} {/* END dashMode normal */}
+
+      {/* ── Dialogs ───────────────────────────────────────────────────── */}
+      <VacationModeDialog open={vacationDialogOpen} onOpenChange={setVacationDialogOpen} />
+      <QuickActionsSettingsDialog open={quickActionsSettingsOpen} onOpenChange={setQuickActionsSettingsOpen} />
 
     </div>
   )

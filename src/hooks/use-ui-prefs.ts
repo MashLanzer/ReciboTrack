@@ -22,6 +22,7 @@ export interface UIPrefs {
   dashMode:     "normal" | "quick"
   expensesView: "list" | "cal" | "threads" | "grid"
   expenseSort:  string
+  quickActions: string[]
 }
 
 const DEFAULTS: UIPrefs = {
@@ -30,6 +31,7 @@ const DEFAULTS: UIPrefs = {
   dashMode:     "normal",
   expensesView: "list",
   expenseSort:  "date_desc",
+  quickActions: ["scan", "add", "search"],
 }
 
 // localStorage keys de las versiones anteriores (solo para migración)
@@ -39,6 +41,7 @@ const LS_MIGRATION: Record<keyof UIPrefs, string> = {
   dashMode:     "rbt_dash_mode",
   expensesView: "rbt_expenses_view",
   expenseSort:  "rt-expense-sort",
+  quickActions: "rbt_quick_actions",
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
