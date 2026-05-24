@@ -421,14 +421,15 @@ export function AutomationsClient() {
         </div>
       ) : (
         <div className="space-y-3">
-          {rules.map((rule) => (
-            <RuleCard
-              key={rule.id}
-              rule={rule}
-              onToggle={() => handleToggle(rule)}
-              onDelete={() => handleDelete(rule.id)}
-              onEdit={() => openEdit(rule)}
-            />
+          {rules.map((rule, i) => (
+            <div key={rule.id} className="stagger-item" style={{ "--i": i } as React.CSSProperties}>
+              <RuleCard
+                rule={rule}
+                onToggle={() => handleToggle(rule)}
+                onDelete={() => handleDelete(rule.id)}
+                onEdit={() => openEdit(rule)}
+              />
+            </div>
           ))}
         </div>
       )}

@@ -21,6 +21,7 @@ import { AutomationWatcher } from "@/components/automations/automation-watcher"
 import { GeolocationWatcher } from "@/components/notifications/geolocation-watcher"
 import { PullToRefresh } from "@/components/shared/pull-to-refresh"
 import { ScrollToTop } from "@/components/shared/scroll-to-top"
+import { PageTransition } from "@/components/shared/page-transition"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -48,7 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <UpdateBanner />
         <PullToRefresh />
         <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
-          {children}
+          <PageTransition>{children}</PageTransition>
         </main>
         <ScrollToTop />
         <BottomNav />

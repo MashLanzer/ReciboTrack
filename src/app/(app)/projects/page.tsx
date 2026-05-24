@@ -314,7 +314,7 @@ function ListView({
 
   return (
     <div className="space-y-3">
-      {projects.map((p) => {
+      {projects.map((p, i) => {
         const pct = maxTotal > 0 ? (p.total / maxTotal) * 100 : 0
         const days = differenceInDays(p.lastDate, p.firstDate)
         const catIcons = p.topCategories
@@ -325,7 +325,8 @@ function ListView({
           <button
             key={p.name}
             onClick={() => onSelect(p.name)}
-            className="w-full text-left rounded-2xl border p-4 hover:bg-accent/30 transition-colors space-y-3 group"
+            className="stagger-item w-full text-left rounded-2xl border p-4 hover:bg-accent/30 hover:shadow-sm transition-all duration-150 space-y-3 group"
+            style={{ "--i": i } as React.CSSProperties}
           >
             <div className="flex items-start justify-between gap-3">
               {/* Left: icon + name + meta */}

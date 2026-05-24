@@ -81,11 +81,12 @@ export default function MapPage() {
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between shrink-0">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <MapPin className="h-5 w-5" />
-            Mapa de gastos
-          </h1>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
+            <MapPin className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold">Mapa de gastos</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             {isLoading
               ? "Cargando…"
@@ -94,6 +95,7 @@ export default function MapPage() {
                 : "Añade ubicación a tus gastos para ver el mapa"
             }
           </p>
+          </div>
         </div>
 
         {/* Mobile tab switcher */}

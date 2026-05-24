@@ -1464,7 +1464,7 @@ function GroupDetail({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-2xl leading-none">{group.emoji}</span>
-              <h1 className="font-serif text-xl truncate">{group.name}</h1>
+              <h1 className="font-bold text-xl truncate">{group.name}</h1>
               <GroupTypeBadge type={group.type} />
             </div>
             <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2">

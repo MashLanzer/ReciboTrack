@@ -207,14 +207,14 @@ export default function QuickAccessPage() {
       {/* Cards list */}
       {!isLoading && quickExpenses.length > 0 && (
         <div className="space-y-3">
-          {quickExpenses.map((q) => {
+          {quickExpenses.map((q, i) => {
             const cat = allCategories.find((c) => c.id === q.category)
             const catColor = (cat as { color?: string })?.color
             return (
               <div
                 key={q.id}
-                className="rounded-2xl border bg-card flex items-center gap-3 pl-4 pr-3 py-3 border-l-[3px] hover:bg-muted/20 hover:shadow-sm transition-all duration-150"
-                style={{ borderLeftColor: catColor ?? "hsl(var(--border))" }}
+                className="stagger-item rounded-2xl border bg-card flex items-center gap-3 pl-4 pr-3 py-3 border-l-[3px] hover:bg-muted/20 hover:shadow-sm transition-all duration-150"
+                style={{ "--i": i, borderLeftColor: catColor ?? "hsl(var(--border))" } as React.CSSProperties}
               >
                 {/* Icon */}
                 <div
