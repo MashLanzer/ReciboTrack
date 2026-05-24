@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,8 +9,9 @@ import type { CategoryDoc } from "@/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import {
   Edit, Trash2, ExternalLink, CreditCard, Hash, FileText,
-  Tag, Calendar, ShoppingCart, Receipt, Flag, RefreshCw,
+  Tag, Calendar, ShoppingCart, Receipt, Flag, RefreshCw, ChevronDown, ChevronUp,
 } from "lucide-react"
+import { ExpenseHistory } from "./expense-history"
 
 interface Props {
   expense: Expense | null
@@ -20,6 +22,8 @@ interface Props {
 }
 
 export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDelete }: Props) {
+  const [showHistory, setShowHistory] = useState(false)
+
   if (!expense) return null
 
   const hasItems = (expense.items?.length ?? 0) > 0
@@ -210,6 +214,25 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
                   </div>
                 </div>
               </a>
+            </div>
+          )}
+
+          {/* Change history */}
+          {expense.id && (
+            <div className="pt-1 border-t">
+              <button
+                type="button"
+                onClick={() => setShowHistory((v) => !v)}
+                className="flex w-full items-center justify-between py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Ver historial de cambios
+                {showHistory ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+              {showHistory && (
+                <div className="mt-2">
+                  <ExpenseHistory expenseId={expense.id} />
+                </div>
+              )}
             </div>
           )}
 
