@@ -106,7 +106,7 @@ function StreakCell({ expenses30 }: { expenses30: Expense[] }) {
   }, [expenses30, activeAccount])
 
   const Icon = streak >= 14 ? Trophy : streak >= 7 ? Flame : Zap
-  const iconColor = streak >= 14 ? "text-amber-500" : streak >= 7 ? "text-orange-500" : streak >= 3 ? "text-primary" : "text-muted-foreground/40"
+  const iconColor = streak >= 14 ? "text-warning" : streak >= 7 ? "text-orange-500" : streak >= 3 ? "text-primary" : "text-muted-foreground/40"
 
   return (
     <div className="rounded-2xl border bg-card p-4 flex flex-col items-center justify-center text-center gap-1.5 h-full">
@@ -154,7 +154,7 @@ function WeekCompareCell({ expenses30 }: { expenses30: Expense[] }) {
         <div className={cn(
           "flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold shrink-0",
           isUp   ? "bg-destructive/10 text-destructive" :
-          isDown ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
+          isDown ? "bg-income/10 text-income" :
                    "bg-muted text-muted-foreground"
         )}>
           <DeltaIcon className="h-3.5 w-3.5" />
@@ -190,23 +190,23 @@ function NextRecurringCell() {
     <Link href="/recurring">
       <div className={cn(
         "rounded-2xl border p-4 flex items-center gap-3 hover:bg-accent/40 transition-colors cursor-pointer",
-        urgent ? "border-amber-500/30 bg-amber-500/5" : "bg-card"
+        urgent ? "border-warning/30 bg-warning/5" : "bg-card"
       )}>
         <div className={cn(
           "h-9 w-9 rounded-xl flex items-center justify-center shrink-0",
-          urgent ? "bg-amber-500/15" : "bg-muted"
+          urgent ? "bg-warning/15" : "bg-muted"
         )}>
-          <CalendarClock className={cn("h-4 w-4", urgent ? "text-amber-500" : "text-muted-foreground")} />
+          <CalendarClock className={cn("h-4 w-4", urgent ? "text-warning" : "text-muted-foreground")} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Próximo recurrente</p>
           <p className="text-sm font-bold truncate leading-tight mt-0.5">{next.merchant}</p>
         </div>
         <div className="text-right shrink-0">
-          <p className={cn("text-sm font-black tabular-nums", urgent && "text-amber-500")}>
+          <p className={cn("text-sm font-black tabular-nums", urgent && "text-warning")}>
             {formatCurrency(next.total, next.currency)}
           </p>
-          <p className={cn("text-[10px] font-medium", urgent ? "text-amber-500" : "text-muted-foreground")}>
+          <p className={cn("text-[10px] font-medium", urgent ? "text-warning" : "text-muted-foreground")}>
             {label}
           </p>
         </div>
@@ -237,18 +237,18 @@ export function KPIBento() {
   }
 
   return (
-    <div className="space-y-3">
-      {/* Row 1: Hoy + Racha — stagger 0ms */}
-      <div className="grid grid-cols-2 gap-3 animate-[fadeSlideUp_0.35s_ease-out_0ms_both]">
+    <div className="space-y-3 kpi-stagger">
+      {/* Row 1: Hoy + Racha */}
+      <div className="grid grid-cols-2 gap-3">
         <TodayCell expenses30={expenses30} />
         <StreakCell expenses30={expenses30} />
       </div>
-      {/* Row 2: Semana — stagger 80ms */}
-      <div className="animate-[fadeSlideUp_0.35s_ease-out_80ms_both]">
+      {/* Row 2: Semana */}
+      <div>
         <WeekCompareCell expenses30={expenses30} />
       </div>
-      {/* Row 3: Próximo recurrente — stagger 160ms */}
-      <div className="animate-[fadeSlideUp_0.35s_ease-out_160ms_both]">
+      {/* Row 3: Próximo recurrente */}
+      <div>
         <NextRecurringCell />
       </div>
     </div>
