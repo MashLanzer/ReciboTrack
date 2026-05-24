@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { Upload, Loader2, CheckCircle2, X, ScanLine, Plus, RefreshCw, ImageIcon, FileText, Bookmark, BookmarkCheck, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from "lucide-react"
+import { Upload, Loader2, CheckCircle2, X, ScanLine, Plus, RefreshCw, ImageIcon, FileText, Bookmark, BookmarkCheck, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, MapPin, Navigation, Globe } from "lucide-react"
 import { useCategories } from "@/hooks/use-categories"
 import { useAddRecurring } from "@/hooks/use-recurring"
 import { useDeleteExpense } from "@/hooks/use-expenses"
@@ -27,6 +27,7 @@ import { pdfFirstPageToBlob, pdfToStitchedImage } from "@/lib/ocr/pdf-utils"
 import imageCompression from "browser-image-compression"
 import heic2any from "heic2any"
 import { cn, formatCurrency } from "@/lib/utils"
+import { uploadReceipt } from "@/lib/supabase/storage"
 import { CameraCapture } from "./camera-capture"
 import { useDuplicateDetector } from "@/hooks/use-duplicate-detector"
 import { CategorySuggestion } from "@/components/shared/category-suggestion"
@@ -49,6 +50,8 @@ interface FormData {
   tags: string[]
   isRecurring: boolean
   recurringFrequency: RecurringFrequency
+  project: string
+  privacy: "private" | "public"
 }
 
 const RECURRING_LABELS: Record<RecurringFrequency, string> = {
@@ -89,8 +92,15 @@ export function ReceiptScanner() {
     merchant: "", date: "", total: "", subtotal: "", tax: "",
     category: "otros", paymentMethod: getLastPaymentMethod(), currency: getLastCurrency(),
     reference: "", notes: "", tags: [], isRecurring: false,
-    recurringFrequency: "monthly",
+    recurringFrequency: "monthly", project: "", privacy: "private",
   })
+
+  // Geolocation
+  const [geo, setGeo] = useState<{ lat: number; lng: number; address?: string } | null>(null)
+  const [geoLoading, setGeoLoading] = useState(false)
+
+  // Receipt file (stored after processing, uploaded on confirm)
+  const [receiptFile, setReceiptFile] = useState<File | Blob | null>(null)
 
   // Per-item category assignment for item split
   const [itemCategories, setItemCategories] = useState<Record<number, string>>({})
@@ -133,11 +143,14 @@ export function ReceiptScanner() {
     setTemplateDialog(false)
     setTemplateName("")
     setActiveTemplateId(null)
+    setGeo(null)
+    setGeoLoading(false)
+    setReceiptFile(null)
     setForm({
       merchant: "", date: "", total: "", subtotal: "", tax: "",
       category: "otros", paymentMethod: "", currency: "USD",
       reference: "", notes: "", tags: [], isRecurring: false,
-      recurringFrequency: "monthly",
+      recurringFrequency: "monthly", project: "", privacy: "private",
     })
   }
 
@@ -148,6 +161,39 @@ export function ReceiptScanner() {
       else next.add(id)
       return next
     })
+  }
+
+  /** Capture geolocation via browser GPS */
+  async function captureGeo() {
+    if (!navigator.geolocation) {
+      toast.error("Tu navegador no soporta geolocalización")
+      return
+    }
+    setGeoLoading(true)
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = parseFloat(pos.coords.latitude.toFixed(6))
+        const lng = parseFloat(pos.coords.longitude.toFixed(6))
+        setGeo({ lat, lng })
+        setGeoLoading(false)
+        // Optional: reverse geocode using a free API
+        try {
+          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+          if (r.ok) {
+            const d = await r.json() as { display_name?: string }
+            if (d.display_name) {
+              setGeo({ lat, lng, address: d.display_name.split(",").slice(0, 3).join(", ") })
+            }
+          }
+        } catch { /* address not critical */ }
+      },
+      (err) => {
+        setGeoLoading(false)
+        if (err.code === 1) toast.error("Permiso de ubicación denegado")
+        else toast.error("No se pudo obtener la ubicación")
+      },
+      { timeout: 10_000, enableHighAccuracy: true }
+    )
   }
 
   /** Navigate between confirm wizard sub-steps with direction tracking */
@@ -281,6 +327,10 @@ export function ReceiptScanner() {
       if (!isAdditional && previewUrl) {
         setImageUrl(previewUrl)
       }
+      // Store file reference for later upload to Supabase Storage
+      if (!isAdditional) {
+        setReceiptFile(fileToProcess)
+      }
 
       // Gemini primero -> Groq segundo -> Tesseract último
       const data = await runApiOcr(fileToProcess as File)
@@ -314,53 +364,59 @@ export function ReceiptScanner() {
     })
 
     const mediaType = file.type || "image/jpeg"
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 35_000)
 
+    // 1. Intentar con Gemini (controlador independiente)
     try {
-      // 1. Intentar con Gemini
+      const geminiCtrl = new AbortController()
+      const geminiTimeout = setTimeout(() => geminiCtrl.abort(), 30_000)
       try {
-        const res = await authFetch("/api/ocr", { base64, mediaType, provider: "gemini" }, { signal: controller.signal })
+        const res = await authFetch("/api/ocr", { base64, mediaType, provider: "gemini" }, { signal: geminiCtrl.signal })
+        clearTimeout(geminiTimeout)
         if (res.ok) {
           setOcrEngine("gemini")
           return await res.json() as OcrResultInput
         }
-        // Log actual API error for debugging
         const errBody = await res.json().catch(() => ({})) as Record<string, unknown>
         console.warn(`[OCR] Gemini ${res.status}:`, errBody)
-        // Quota exceeded → skip Groq too (likely same key family)
         if (res.status === 429 || String(errBody?.error).includes("quota")) {
-          throw new Error("quota_exceeded")
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        if (msg === "quota_exceeded") {
-          console.warn("[OCR] Quota excedida — usando Tesseract")
+          // Quota exceeded → skip Groq (same keys), go to Tesseract
+          clearTimeout(geminiTimeout)
+          toast.info("Cuota de IA agotada — usando OCR local")
           setOcrEngine("tesseract")
           return runTesseract(file, setOcrProgress)
         }
-        console.warn("[OCR] Gemini falló (red/auth), intentando Groq...", err)
+      } catch (err) {
+        clearTimeout(geminiTimeout)
+        const isAbort = err instanceof Error && err.name === "AbortError"
+        console.warn(isAbort ? "[OCR] Gemini timeout" : "[OCR] Gemini error", err)
       }
+    } catch { /* ignore setup errors */ }
 
-      // 2. Intentar con Groq (Llama 3.2 Vision)
+    // 2. Intentar con Groq (controlador independiente)
+    try {
+      const groqCtrl = new AbortController()
+      const groqTimeout = setTimeout(() => groqCtrl.abort(), 30_000)
       try {
-        const res = await authFetch("/api/ocr", { base64, mediaType, provider: "groq" }, { signal: controller.signal })
+        const res = await authFetch("/api/ocr", { base64, mediaType, provider: "groq" }, { signal: groqCtrl.signal })
+        clearTimeout(groqTimeout)
         if (res.ok) {
           setOcrEngine("groq")
           return await res.json() as OcrResultInput
         }
-        const errBody = await res.json().catch(() => ({}))
+        const errBody = await res.json().catch(() => ({})) as Record<string, unknown>
         console.warn(`[OCR] Groq ${res.status}:`, errBody)
       } catch (err) {
-        console.warn("[OCR] Groq falló (red/auth), usando Tesseract...", err)
+        clearTimeout(groqTimeout)
+        const isAbort = err instanceof Error && err.name === "AbortError"
+        console.warn(isAbort ? "[OCR] Groq timeout" : "[OCR] Groq error", err)
       }
+    } catch { /* ignore setup errors */ }
 
-      // 3. Fallback final a Tesseract (Local)
-      setOcrEngine("tesseract")
-      return runTesseract(file, setOcrProgress)
-    } finally {
-      clearTimeout(timeout)
-    }
+    // 3. Fallback final a Tesseract (Local)
+    console.info("[OCR] Fallback a Tesseract OCR local")
+    toast.info("Usando OCR local — puede tardar un poco más")
+    setOcrEngine("tesseract")
+    return runTesseract(file, setOcrProgress)
   }
 
   function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
@@ -467,6 +523,22 @@ export function ReceiptScanner() {
       return
     }
     try {
+      // Upload receipt image to Supabase Storage if available
+      let receiptImageUrl: string | null = null
+      if (receiptFile && user) {
+        try {
+          const idToken = await user.getIdToken()
+          const fileToUpload = receiptFile instanceof File
+            ? receiptFile
+            : new File([receiptFile], "receipt.jpg", { type: "image/jpeg" })
+          const { url } = await uploadReceipt(fileToUpload, idToken)
+          receiptImageUrl = url
+        } catch (err) {
+          console.warn("[Receipt upload]", err)
+          // Non-fatal — save expense without the image URL
+        }
+      }
+
       const expenseData = {
         merchant: form.merchant || "Sin nombre",
         date: form.date ? parseLocalDate(form.date) : new Date(),
@@ -480,8 +552,11 @@ export function ReceiptScanner() {
         currency: form.currency,
         notes: form.notes,
         tags: form.tags,
-        receiptImageUrl: null,
+        receiptImageUrl,
         account: activeAccount,
+        project: form.project || undefined,
+        privacy: form.privacy,
+        geo: geo ? { lat: geo.lat, lng: geo.lng } : undefined,
       }
 
       const dup = checkDuplicate({ merchant: expenseData.merchant, total: expenseData.total })
@@ -560,6 +635,9 @@ export function ReceiptScanner() {
           notes: form.notes,
           tags: [...form.tags, "division-recibo"],
           receiptImageUrl: null,
+          project: form.project || undefined,
+          privacy: form.privacy,
+          geo: geo ? { lat: geo.lat, lng: geo.lng } : undefined,
         })
         createdIds.push(id)
       }
@@ -812,23 +890,67 @@ export function ReceiptScanner() {
                         />
                       </div>
 
-                      {/* Notes — collapsible */}
+                      {/* Notes + Project + Geo — collapsible */}
                       <div className="rounded-lg border overflow-hidden">
                         <button
                           type="button"
                           onClick={() => toggleSection("notes1")}
                           className="w-full flex items-center justify-between py-2 px-3 text-xs font-mono uppercase tracking-widest text-muted-foreground bg-muted/30 hover:bg-muted/50 transition-colors"
                         >
-                          <span>Notas (opcional)</span>
+                          <span>Detalles adicionales</span>
                           {openSections.has("notes1") ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                         </button>
                         {openSections.has("notes1") && (
-                          <div className="p-3 border-t">
-                            <Input
-                              value={form.notes}
-                              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                              placeholder="Notas opcionales..."
-                            />
+                          <div className="p-3 border-t space-y-3">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">Notas</Label>
+                              <Input
+                                value={form.notes}
+                                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                                placeholder="Notas opcionales..."
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">Proyecto</Label>
+                              <Input
+                                value={form.project}
+                                onChange={(e) => setForm({ ...form, project: e.target.value })}
+                                placeholder="Nombre del proyecto (opcional)"
+                              />
+                            </div>
+                            {/* Geolocation capture */}
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">Ubicación</Label>
+                              {geo ? (
+                                <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-xs">
+                                  <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
+                                  <span className="flex-1 truncate text-foreground">
+                                    {geo.address ?? `${geo.lat}, ${geo.lng}`}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setGeo(null)}
+                                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full gap-2 h-9 text-xs"
+                                  onClick={captureGeo}
+                                  disabled={geoLoading}
+                                >
+                                  {geoLoading
+                                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    : <Navigation className="h-3.5 w-3.5" />}
+                                  {geoLoading ? "Obteniendo ubicación..." : "Capturar ubicación GPS"}
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -981,6 +1103,21 @@ export function ReceiptScanner() {
                         {form.notes && (
                           <p className="text-xs text-muted-foreground border-t pt-2">{form.notes}</p>
                         )}
+                        {(form.project || geo) && (
+                          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground border-t pt-2">
+                            {form.project && (
+                              <span className="flex items-center gap-1">
+                                <FileText className="h-3 w-3" /> {form.project}
+                              </span>
+                            )}
+                            {geo && (
+                              <span className="flex items-center gap-1 max-w-[200px] truncate">
+                                <MapPin className="h-3 w-3 shrink-0" />
+                                {geo.address ?? `${geo.lat}, ${geo.lng}`}
+                              </span>
+                            )}
+                          </div>
+                        )}
                         {(parseFloat(form.subtotal) > 0 || parseFloat(form.tax) > 0) && (
                           <div className="flex gap-4 text-xs text-muted-foreground border-t pt-2">
                             {parseFloat(form.subtotal) > 0 && (
@@ -1043,6 +1180,22 @@ export function ReceiptScanner() {
                         </button>
                         {openSections.has("recurring3") && (
                           <div className="border-t p-3 space-y-3">
+                            {/* Privacy */}
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                <Globe className="h-3 w-3" /> Privacidad
+                              </Label>
+                              <Select
+                                value={form.privacy}
+                                onValueChange={(v) => setForm({ ...form, privacy: v as "private" | "public" })}
+                              >
+                                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="private">🔒 Privado (solo tú)</SelectItem>
+                                  <SelectItem value="public">🌐 Público (círculo de confianza)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                             <label className="flex items-center gap-2 cursor-pointer">
                               <input
                                 type="checkbox"
