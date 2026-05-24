@@ -62,13 +62,16 @@ function QuickChip({
   onTap,
   onDelete,
   loading,
+  catColor,
 }: {
   item: QuickExpense
   onTap: () => void
   onDelete: () => void
   loading: boolean
+  catColor?: string
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const bgColor = catColor ? `${catColor}18` : undefined
 
   return (
     <div className="relative group shrink-0">
@@ -76,21 +79,23 @@ function QuickChip({
         onClick={onTap}
         disabled={loading}
         className={cn(
-          "flex flex-col items-center gap-1.5 w-20 py-3 px-2 rounded-2xl border bg-card",
-          "hover:border-primary/50 hover:bg-primary/5 active:scale-95",
+          "flex flex-col items-center gap-1.5 w-20 py-3.5 px-2 rounded-2xl border",
+          "hover:-translate-y-1 hover:shadow-md active:scale-95 active:translate-y-0",
           "transition-all duration-150 text-center",
+          catColor ? "border-transparent" : "border-border bg-card hover:border-primary/40",
           loading && "opacity-60 cursor-not-allowed"
         )}
+        style={bgColor ? { backgroundColor: bgColor } : undefined}
       >
         {loading ? (
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         ) : (
-          <span className="text-2xl leading-none">{item.icon}</span>
+          <span className="text-3xl leading-none">{item.icon}</span>
         )}
-        <span className="text-[10px] font-medium leading-tight truncate w-full text-center">
+        <span className="text-[10px] font-semibold leading-tight truncate w-full text-center mt-0.5">
           {item.label}
         </span>
-        <span className="text-[10px] text-muted-foreground font-mono">
+        <span className="text-[10px] text-muted-foreground font-mono tabular-nums">
           {formatCurrency(item.amount, item.currency)}
         </span>
       </button>
@@ -396,6 +401,8 @@ function ManageDialog({
 
 export function QuickExpenses() {
   const { data: quickExpenses = [], error: quickExpensesError } = useQuickExpenses()
+  const { data: categories = [] } = useCategories()
+  const allCats = categories.length > 0 ? categories : DEFAULT_CATEGORIES
   const deleteQuick = useDeleteQuickExpense()
   const addExpense = useAddExpense()
   const [manageOpen, setManageOpen] = useState(false)
@@ -453,15 +460,19 @@ export function QuickExpenses() {
       </div>
 
       <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none">
-        {quickExpenses.map((q) => (
-          <QuickChip
-            key={q.id}
-            item={q}
-            onTap={() => handleTap(q)}
-            onDelete={() => deleteQuick.mutate(q.id)}
-            loading={loadingId === q.id}
-          />
-        ))}
+        {quickExpenses.map((q) => {
+          const cat = allCats.find((c) => c.id === q.category)
+          return (
+            <QuickChip
+              key={q.id}
+              item={q}
+              onTap={() => handleTap(q)}
+              onDelete={() => deleteQuick.mutate(q.id)}
+              loading={loadingId === q.id}
+              catColor={cat?.color}
+            />
+          )
+        })}
 
         {/* Add new button */}
         <button
