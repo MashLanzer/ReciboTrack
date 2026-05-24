@@ -8,6 +8,10 @@ import { CategorySuggestion } from "@/components/shared/category-suggestion"
 import { DEFAULT_CATEGORIES, CURRENCIES } from "@/lib/constants"
 import { useDuplicateDetection } from "@/hooks/use-duplicate-detection"
 import { DuplicateWarning } from "@/components/expenses/duplicate-warning"
+import { ExpenseTemplateSelector } from "@/components/expenses/expense-template-selector"
+import { useCreateTemplate } from "@/hooks/use-expense-templates"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 
 const PAYMENT_OPTIONS = ["Efectivo", "Débito", "Visa", "Mastercard", "American Express", "Transferencia", "PayPal", "Otro"]
 import { formatCurrency, cn } from "@/lib/utils"
@@ -42,6 +46,10 @@ export function QuickAddSheet() {
   })
   const [geo, setGeo] = useState<GeoPickerValue | null>(null)
   const [duplicateDismissed, setDuplicateDismissed] = useState(false)
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false)
+  const [templateName, setTemplateName] = useState("")
+  const [templateIcon, setTemplateIcon] = useState("📌")
+  const createTemplate = useCreateTemplate()
 
   // ── Duplicate detection ──────────────────────────────────────────────────────
   const potentialDuplicates = useDuplicateDetection(form.merchant, parseFloat(form.total) || 0)
@@ -77,6 +85,32 @@ export function QuickAddSheet() {
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [quickAddOpen, setQuickAddOpen])
+
+  async function handleSaveTemplate() {
+    if (!templateName.trim()) {
+      toast.error("Ingresa un nombre para la plantilla")
+      return
+    }
+    try {
+      await createTemplate.mutateAsync({
+        name: templateName.trim(),
+        icon: templateIcon || "📌",
+        merchant: form.merchant,
+        category: form.category,
+        amount: parseFloat(form.total) || 0,
+        currency: form.currency,
+        account: "personal",
+        notes: form.notes,
+        tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
+      })
+      toast.success("Plantilla guardada")
+      setSaveTemplateOpen(false)
+      setTemplateName("")
+      setTemplateIcon("📌")
+    } catch {
+      toast.error("Error al guardar plantilla")
+    }
+  }
 
   async function handleSave() {
     const totalNum = parseFloat(form.total)
@@ -166,6 +200,20 @@ export function QuickAddSheet() {
 
           {/* Form */}
           <div className="p-4 space-y-3">
+            {/* Template selector */}
+            <ExpenseTemplateSelector
+              onSelect={(t) => setForm((f) => ({
+                ...f,
+                merchant: t.merchant,
+                total: String(t.amount),
+                category: t.category,
+                currency: t.currency,
+                notes: t.notes,
+                tags: t.tags.join(", "),
+              }))}
+              currentFormValues={form}
+            />
+
             {/* Merchant + category suggestion */}
             <div className="space-y-1.5">
               <Input
@@ -286,7 +334,7 @@ export function QuickAddSheet() {
           )}
 
           {/* Save */}
-          <div className="px-4 pb-4">
+          <div className="px-4 pb-4 space-y-2">
             <Button
               className="w-full h-11 gap-2 text-sm font-semibold"
               onClick={handleSave}
@@ -297,9 +345,56 @@ export function QuickAddSheet() {
                 ? "Guardando…"
                 : `Añadir ${form.total ? formatCurrency(parseFloat(form.total) || 0, form.currency) : "gasto"}`}
             </Button>
+            <Button
+              variant="secondary"
+              className="w-full h-9 text-xs"
+              onClick={() => setSaveTemplateOpen(true)}
+              type="button"
+            >
+              Guardar como plantilla
+            </Button>
           </div>
         </div>
       </div>
+
+      <Dialog open={saveTemplateOpen} onOpenChange={setSaveTemplateOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Guardar como plantilla</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="qs-tpl-name">Nombre</Label>
+              <Input
+                id="qs-tpl-name"
+                placeholder="Ej: Nafta, Café, Almuerzo…"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSaveTemplate()}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="qs-tpl-icon">Emoji</Label>
+              <Input
+                id="qs-tpl-icon"
+                placeholder="📌"
+                value={templateIcon}
+                onChange={(e) => setTemplateIcon(e.target.value)}
+                className="text-lg"
+                maxLength={4}
+              />
+            </div>
+            <Button
+              className="w-full"
+              onClick={handleSaveTemplate}
+              disabled={createTemplate.isPending || !templateName.trim()}
+            >
+              {createTemplate.isPending ? "Guardando…" : "Guardar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
