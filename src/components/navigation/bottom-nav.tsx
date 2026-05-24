@@ -172,20 +172,17 @@ export function BottomNav() {
         <div className="mx-3 mb-2 rounded-2xl border bg-background/98 backdrop-blur-md shadow-xl overflow-hidden">
           <div className="p-2 grid grid-cols-3 gap-1">
             <ActionBtn
-              icon={<ScanLine className="h-5 w-5 text-violet-600 dark:text-violet-400" />}
-              iconBg="bg-violet-500/10"
+              icon={<ScanLine className="h-[22px] w-[22px]" />}
               label="Escanear recibo"
               onClick={openScanner}
             />
             <ActionBtn
-              icon={<PenLine className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
-              iconBg="bg-blue-500/10"
+              icon={<PenLine className="h-[22px] w-[22px]" />}
               label="Gasto manual"
               onClick={openQuickAdd}
             />
             <ActionBtn
-              icon={<TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
-              iconBg="bg-emerald-500/10"
+              icon={<TrendingUp className="h-[22px] w-[22px]" />}
               label="Añadir ingreso"
               onClick={openIncome}
             />
@@ -514,27 +511,22 @@ export function BottomNav() {
 
 function ActionBtn({
   icon,
-  iconBg,
   label,
   onClick,
 }: {
   icon: React.ReactNode
-  iconBg?: string
   label: string
   onClick: () => void
 }) {
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-2.5 px-2 py-4 rounded-xl hover:bg-accent active:scale-95 active:transition-none transition-all duration-150"
+      className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl
+        text-muted-foreground hover:text-foreground hover:bg-accent
+        active:scale-95 active:transition-none transition-all duration-150"
     >
-      <span className={cn(
-        "h-10 w-10 rounded-2xl flex items-center justify-center shrink-0",
-        iconBg ?? "bg-muted"
-      )}>
-        {icon}
-      </span>
-      <span className="text-[11px] font-semibold leading-tight text-center">{label}</span>
+      {icon}
+      <span className="text-[11px] font-medium leading-tight text-center">{label}</span>
     </button>
   )
 }
