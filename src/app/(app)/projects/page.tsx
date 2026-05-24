@@ -462,7 +462,7 @@ function DetailSection({
           expenses.map((e) => {
             const cat = allCats.find((c) => c.id === e.category)
             const dateStr = e.date
-              ? format(new Date(e.date as string), "d MMM yyyy", { locale: es })
+              ? format(new Date(e.date as unknown as string), "d MMM yyyy", { locale: es })
               : ""
             return (
               <div
