@@ -71,7 +71,28 @@ export function TopCategoriesCard() {
       .slice(0, 5)
   }, [expenses, categories])
 
-  if (expLoading || catLoading) return <Skeleton className="h-44 rounded-2xl" />
+  if (expLoading || catLoading) return (
+    <div className="rounded-2xl border bg-card overflow-hidden">
+      <div className="px-4 py-3 border-b flex items-center justify-between">
+        <Skeleton className="h-4 w-36" />
+        <Skeleton className="h-3.5 w-14" />
+      </div>
+      <div className="divide-y divide-border/30">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="flex items-center gap-3 px-4 py-3">
+            <Skeleton className="h-8 w-8 rounded-lg shrink-0" />
+            <div className="flex-1 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-3.5" style={{ width: `${50 + i * 10}%` }} />
+                <Skeleton className="h-3.5 w-14" />
+              </div>
+              <Skeleton className="h-1.5 w-full rounded-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
   if (topCats.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed bg-card/50 p-8 text-center space-y-2">

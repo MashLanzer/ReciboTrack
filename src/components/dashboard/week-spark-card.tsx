@@ -68,7 +68,24 @@ export function WeekSparkCard() {
     return { days, thisTotal, lastTotal, delta, cheapest, priciest: cheapest !== priciest ? priciest : null }
   }, [expenses, thisWeekStart, now, lastWeekStart])
 
-  if (isLoading) return <Skeleton className="h-40 rounded-2xl" />
+  if (isLoading) return (
+    <div className="rounded-2xl border bg-card p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-5 w-16 rounded-full" />
+      </div>
+      <div className="flex items-end gap-1.5 h-16 pt-2">
+        {[40, 70, 55, 90, 65, 80, 45].map((h, i) => (
+          <Skeleton key={i} className="flex-1 rounded-t-sm" style={{ height: `${h}%` }} />
+        ))}
+      </div>
+      <div className="flex justify-between">
+        {["L","M","X","J","V","S","D"].map((d) => (
+          <Skeleton key={d} className="h-3 w-4" />
+        ))}
+      </div>
+    </div>
+  )
 
   if (thisTotal === 0 && lastTotal === 0) {
     return (

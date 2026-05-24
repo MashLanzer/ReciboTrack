@@ -114,7 +114,32 @@ export function ActivityFeed() {
 
   const groups = useMemo(() => groupByDay(categoryFiltered), [categoryFiltered])
 
-  if (isLoading) return <Skeleton className="h-48 rounded-2xl" />
+  if (isLoading) return (
+    <div className="rounded-2xl border bg-card overflow-hidden">
+      <div className="px-4 py-3 border-b flex items-center justify-between">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-3.5 w-16" />
+      </div>
+      <div className="divide-y divide-border/20">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="flex items-center gap-3 px-4 py-2.5">
+            <Skeleton className="h-8 w-8 rounded-xl shrink-0" />
+            <div className="flex-1 space-y-1.5 min-w-0">
+              <Skeleton className="h-3.5" style={{ width: `${55 + (i % 3) * 12}%` }} />
+              <Skeleton className="h-3 w-20" />
+            </div>
+            <div className="text-right space-y-1.5 shrink-0">
+              <Skeleton className="h-3.5 w-14 ml-auto" />
+              <Skeleton className="h-3 w-10 ml-auto" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="px-4 py-3 border-t bg-muted/20">
+        <Skeleton className="h-3.5 w-48 mx-auto" />
+      </div>
+    </div>
+  )
   if (filtered.length === 0) {
     return (
       <div className="rounded-2xl border border-border/50 bg-muted/20 p-8 text-center space-y-2">
