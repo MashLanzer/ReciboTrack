@@ -1,13 +1,11 @@
-/**
- * PATCH  /api/expenses/[id]  — Actualiza campos de un gasto
- * DELETE /api/expenses/[id]  — Elimina un gasto
- */
-
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
 import { getSupabase } from "@/lib/supabase/server"
 
 type Params = { params: Promise<{ id: string }> }
+
+const TRACKED_FIELDS = ["merchant", "category", "total", "notes", "account", "currency"] as const
+type TrackedField = typeof TRACKED_FIELDS[number]
 
 // ── PATCH ─────────────────────────────────────────────────────────────────────
 
@@ -24,7 +22,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Body inválido" }, { status: 400 })
   }
 
-  // Mapear camelCase → snake_case para los campos permitidos
+  const supabase = getSupabase()
+
+  const { data: current } = await supabase
+    .from("expenses")
+    .select("merchant, category, total, notes, account, currency")
+    .eq("id", id)
+    .eq("uid", uid)
+    .single()
+
   const allowed: Record<string, string> = {
     merchant:        "merchant",
     date:            "date",
@@ -54,7 +60,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   for (const [camel, snake] of Object.entries(allowed)) {
     if (camel in body) patch[snake] = body[camel]
   }
-  // Geolocalización — objeto anidado → columnas planas
   if ("geo" in body) {
     const geo = body.geo as { lat?: number; lng?: number; accuracy?: number } | null
     patch.geo_lat      = geo?.lat ?? null
@@ -62,13 +67,32 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     patch.geo_accuracy = geo?.accuracy ?? null
   }
 
-  const { error } = await getSupabase()
+  const { error } = await supabase
     .from("expenses")
     .update(patch)
     .eq("id", id)
-    .eq("uid", uid)  // seguridad: solo el dueño puede editar
+    .eq("uid", uid)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (current) {
+    const historyRows = TRACKED_FIELDS
+      .filter((field: TrackedField) => {
+        const incoming = body[field]
+        return incoming !== undefined && String(current[field] ?? "") !== String(incoming)
+      })
+      .map((field: TrackedField) => ({
+        expense_id: id,
+        uid,
+        field,
+        old_value: String(current[field] ?? ""),
+        new_value: String(body[field] ?? ""),
+      }))
+
+    if (historyRows.length > 0) {
+      await supabase.from("expense_history").insert(historyRows)
+    }
+  }
 
   return NextResponse.json({ ok: true })
 }
@@ -85,7 +109,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     .from("expenses")
     .delete()
     .eq("id", id)
-    .eq("uid", uid)  // seguridad: solo el dueño puede borrar
+    .eq("uid", uid)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
