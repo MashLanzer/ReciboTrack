@@ -16,6 +16,7 @@
 
 import * as fs from "node:fs"
 import * as path from "node:path"
+import * as crypto from "node:crypto"
 import * as admin from "firebase-admin"
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 
@@ -54,6 +55,32 @@ function initSupabase(): SupabaseClient {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY no configurados")
   return createClient(url, key, { auth: { persistSession: false } })
+}
+
+// ── Conversión de IDs Firestore → UUID determinístico ─────────────────────────
+// Firestore usa strings aleatorios; Supabase espera UUID.
+// Usamos SHA-1 del ID original formateado como UUID v5 (determinístico e idempotente).
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function toUUID(firestoreId: string): string {
+  if (UUID_RE.test(firestoreId)) return firestoreId.toLowerCase()
+  // SHA-1 → 40 hex chars → tomar 32 → formatear como UUID v4
+  const hash = crypto.createHash("sha1").update(`recibotrack:${firestoreId}`).digest("hex")
+  return [
+    hash.slice(0, 8),
+    hash.slice(8, 12),
+    "4" + hash.slice(13, 16),        // version 4
+    ((parseInt(hash[16], 16) & 0x3) | 0x8).toString(16) + hash.slice(17, 20), // variant
+    hash.slice(20, 32),
+  ].join("-")
+}
+
+// Mantiene un mapeo firestoreId → uuid para referencias cruzadas
+const idMap = new Map<string, string>()
+function mapId(firestoreId: string): string {
+  if (!idMap.has(firestoreId)) idMap.set(firestoreId, toUUID(firestoreId))
+  return idMap.get(firestoreId)!
 }
 
 // ── Helpers de transformación ──────────────────────────────────────────────────
@@ -148,7 +175,7 @@ async function migrateExpenses(uid: string, db: admin.firestore.Firestore, sb: S
   const rows = snap.docs.map((d) => {
     const e = d.data()
     return {
-      id:                d.id,
+      id:                mapId(d.id),
       uid,
       account:           e.account ?? "personal",
       merchant:          e.merchant ?? "",
@@ -188,7 +215,7 @@ async function migrateCategories(uid: string, db: admin.firestore.Firestore, sb:
   const rows = snap.docs.map((d) => {
     const c = d.data()
     return {
-      id:         d.id,
+      id:         d.id,   // slug TEXT (ej: "combustible") — no UUID
       uid,
       name:       c.name ?? "",
       icon:       c.icon ?? null,
@@ -206,7 +233,7 @@ async function migrateBudgets(uid: string, db: admin.firestore.Firestore, sb: Su
   const rows = snap.docs.map((d) => {
     const b = d.data()
     return {
-      id:            d.id,
+      id:            mapId(d.id),
       uid,
       category_id:   b.categoryId ?? b.category ?? "",
       monthly_limit: num(b.monthlyLimit ?? b.limit),
@@ -222,7 +249,7 @@ async function migrateRecurring(uid: string, db: admin.firestore.Firestore, sb: 
   const rows = snap.docs.map((d) => {
     const r = d.data()
     return {
-      id:                      d.id,
+      id:                      mapId(d.id),
       uid,
       merchant:                r.merchant ?? "",
       category:                r.category ?? null,
@@ -250,7 +277,7 @@ async function migrateGoals(uid: string, db: admin.firestore.Firestore, sb: Supa
   const rows = snap.docs.map((d) => {
     const g = d.data()
     return {
-      id:             d.id,
+      id:             mapId(d.id),
       uid,
       type:           g.type ?? "saving",
       name:           g.name ?? "",
@@ -270,7 +297,7 @@ async function migrateTravelBudgets(uid: string, db: admin.firestore.Firestore, 
   const rows = snap.docs.map((d) => {
     const t = d.data()
     return {
-      id:          d.id,
+      id:          mapId(d.id),
       uid,
       name:        t.name ?? "",
       emoji:       t.emoji ?? null,
@@ -290,7 +317,7 @@ async function migrateIncome(uid: string, db: admin.firestore.Firestore, sb: Sup
   const rows = snap.docs.map((d) => {
     const i = d.data()
     return {
-      id:         d.id,
+      id:         mapId(d.id),
       uid,
       date:       tsToDate(i.date) ?? new Date().toISOString().slice(0,10),
       category:   i.category ?? null,
@@ -309,7 +336,7 @@ async function migrateTrustedCircle(uid: string, db: admin.firestore.Firestore, 
   const rows = snap.docs.map((d) => {
     const m = d.data()
     return {
-      id:                  d.id,
+      id:                  mapId(d.id),
       owner_uid:           uid,
       member_uid:          m.memberUid ?? null,
       email:               m.email ?? "",
@@ -327,7 +354,7 @@ async function migrateQuickExpenses(uid: string, db: admin.firestore.Firestore, 
   const rows = snap.docs.map((d) => {
     const q = d.data()
     return {
-      id:             d.id,
+      id:             mapId(d.id),
       uid,
       label:          q.label ?? "",
       merchant:       q.merchant ?? null,
@@ -349,7 +376,7 @@ async function migrateCategoryRules(uid: string, db: admin.firestore.Firestore, 
   const rows = snap.docs.map((d) => {
     const r = d.data()
     return {
-      id:          d.id,
+      id:          mapId(d.id),
       uid,
       name:        r.name ?? null,
       field:       r.field ?? "merchant",
@@ -369,7 +396,7 @@ async function migrateClients(uid: string, db: admin.firestore.Firestore, sb: Su
   const rows = snap.docs.map((d) => {
     const c = d.data()
     return {
-      id:         d.id,
+      id:         mapId(d.id),
       uid,
       name:       c.name ?? "",
       email:      c.email ?? null,
@@ -388,7 +415,7 @@ async function migrateTemplates(uid: string, db: admin.firestore.Firestore, sb: 
   const rows = snap.docs.map((d) => {
     const t = d.data()
     return {
-      id:             d.id,
+      id:             mapId(d.id),
       uid,
       merchant:       t.merchant ?? "",
       category:       t.category ?? null,
@@ -411,7 +438,7 @@ async function migrateAutomations(uid: string, db: admin.firestore.Firestore, sb
   const rows = snap.docs.map((d) => {
     const a = d.data()
     return {
-      id:               d.id,
+      id:               mapId(d.id),
       uid,
       name:             a.name ?? "",
       enabled:          bool(a.enabled, true),
@@ -432,16 +459,24 @@ async function migratePortals(uid: string, db: admin.firestore.Firestore, sb: Su
   const rows = snap.docs.map((d) => {
     const p = d.data()
     return {
-      id:           d.id,
+      id:           mapId(d.id),
       uid,
       token:        p.token ?? d.id,
       name:         p.name ?? null,
-      categories:   arr(p.categories),
-      mask_amounts: bool(p.maskAmounts),
-      hide_dates:   bool(p.hideDates),
-      expires_at:   tsToIso(p.expiresAt),
-      access_count: num(p.accessCount),
-      created_at:   tsToIso(p.createdAt) ?? new Date().toISOString(),
+      // Schema migración 002: permissions JSONB (fusiona categories + maskAmounts + hideDates)
+      role:         p.role ?? "custom",
+      permissions:  p.permissions ?? {
+        categories:  arr(p.categories),
+        maskAmounts: bool(p.maskAmounts),
+        hideDates:   bool(p.hideDates),
+      },
+      revoked:          bool(p.revoked),
+      last_accessed_at: tsToIso(p.lastAccessedAt),
+      target_label:     p.targetLabel ?? "",
+      owner_name:       p.ownerName ?? "",
+      expires_at:       tsToIso(p.expiresAt),
+      access_count:     num(p.accessCount),
+      created_at:       tsToIso(p.createdAt) ?? new Date().toISOString(),
     }
   })
   await upsert(sb, "portals", rows, dry)
@@ -507,7 +542,7 @@ async function migrateIncomeCat(uid: string, db: admin.firestore.Firestore, sb: 
   const rows = snap.docs.map((d) => {
     const c = d.data()
     return {
-      id:         d.id,
+      id:         d.id,   // slug TEXT
       uid,
       name:       c.name ?? "",
       emoji:      c.emoji ?? null,
@@ -545,7 +580,7 @@ async function migrateEntities(uid: string, db: admin.firestore.Firestore, sb: S
   const rows = snap.docs.map((d) => {
     const e = d.data()
     return {
-      id:          d.id,
+      id:          mapId(d.id),
       uid,
       type:        e.type ?? "merchant",
       name:        e.name ?? "",
@@ -565,7 +600,7 @@ async function migrateEntityEdges(uid: string, db: admin.firestore.Firestore, sb
   const rows = snap.docs.map((d) => {
     const e = d.data()
     return {
-      id:         d.id,
+      id:         mapId(d.id),
       uid,
       from_id:    e.fromId ?? "",
       to_id:      e.toId ?? "",
@@ -587,7 +622,7 @@ async function migrateGroups(db: admin.firestore.Firestore, sb: SupabaseClient, 
   for (const d of snap.docs) {
     const g = d.data()
     const groupRow = {
-      id:          d.id,
+      id:          mapId(d.id),
       name:        g.name ?? "",
       emoji:       g.emoji ?? null,
       currency:    g.currency ?? "USD",
@@ -607,8 +642,8 @@ async function migrateGroups(db: admin.firestore.Firestore, sb: SupabaseClient, 
     const expRows = expSnap.docs.map((ed) => {
       const e = ed.data()
       return {
-        id:                ed.id,
-        group_id:          d.id,
+        id:                mapId(ed.id),
+        group_id:          mapId(d.id),
         paid_by:           e.paidBy ?? "",
         merchant:          e.merchant ?? "",
         total:             num(e.total),
@@ -629,8 +664,8 @@ async function migrateGroups(db: admin.firestore.Firestore, sb: SupabaseClient, 
     const setRows = setSnap.docs.map((sd) => {
       const s = sd.data()
       return {
-        id:         sd.id,
-        group_id:   d.id,
+        id:         mapId(sd.id),
+        group_id:   mapId(d.id),
         from_uid:   s.fromUid ?? "",
         to_uid:     s.toUid ?? "",
         amount:     num(s.amount),
