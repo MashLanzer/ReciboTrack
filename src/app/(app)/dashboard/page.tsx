@@ -156,129 +156,129 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {dashMode === "normal" && (<>
+      {dashMode === "normal" && (
+        <div className="contents section-stagger">
+        {/* ── Alerts ────────────────────────────────────────────────────── */}
+        <RecurringBanner />
+        <MultiCurrencyBanner />
 
-      {/* ── Alerts ────────────────────────────────────────────────────── */}
-      <RecurringBanner />
-      <MultiCurrencyBanner />
+        {/* ── Today widget ──────────────────────────────────────────────── */}
+        <TodayWidget />
 
-      {/* ── Today widget ──────────────────────────────────────────────── */}
-      <TodayWidget />
+        {/* ── Hero balance ──────────────────────────────────────────────── */}
+        <HeroBalanceCard />
 
-      {/* ── Hero balance ──────────────────────────────────────────────── */}
-      <HeroBalanceCard />
+        {/* ── Monthly recap (collapsible) ───────────────────────────────── */}
+        <button
+          onClick={() => setShowRecap(s => !s)}
+          className="w-full flex items-center justify-between rounded-2xl border border-border/50 bg-muted/30 px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
+        >
+          <span>Resumen del mes</span>
+          <CollapsibleChevron open={showRecap} />
+        </button>
+        <CollapsibleContent open={showRecap}>
+          <MonthlyRecapCard />
+        </CollapsibleContent>
 
-      {/* ── Monthly recap (collapsible) ───────────────────────────────── */}
-      <button
-        onClick={() => setShowRecap(s => !s)}
-        className="w-full flex items-center justify-between rounded-2xl border border-border/50 bg-muted/30 px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
-      >
-        <span>Resumen del mes</span>
-        <CollapsibleChevron open={showRecap} />
-      </button>
-      <CollapsibleContent open={showRecap}>
-        <MonthlyRecapCard />
-      </CollapsibleContent>
-
-      {/* ── Quick actions ─────────────────────────────────────────────── */}
-      <div className="flex gap-3">
-        <QuickBtn
-          icon={ScanLine}
-          label="Escanear"
-          onClick={() => setScannerOpen(true)}
-          accent
-        />
-        <QuickBtn
-          icon={Plus}
-          label="Añadir"
-          onClick={() => setQuickAddOpen(true)}
-        />
-        <QuickBtn
-          icon={Search}
-          label="Buscar"
-          onClick={() => setCommandOpen(true)}
-        />
-      </div>
-
-      {/* ── Asesor IA — entrada rápida ───────────────────────────────── */}
-      <Link href="/analytics" className="block group">
-        <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/5 to-primary/8 px-4 py-3.5 hover:shadow-md hover:border-primary/35 active:scale-[0.99] transition-all duration-150">
-          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Sparkles className="h-5 w-5 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold">Asesor Financiero IA</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Pregunta cualquier cosa sobre tus finanzas</p>
-          </div>
-          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 group-hover:translate-x-0.5 transition-transform" />
+        {/* ── Quick actions ─────────────────────────────────────────────── */}
+        <div className="flex gap-3">
+          <QuickBtn
+            icon={ScanLine}
+            label="Escanear"
+            onClick={() => setScannerOpen(true)}
+            accent
+          />
+          <QuickBtn
+            icon={Plus}
+            label="Añadir"
+            onClick={() => setQuickAddOpen(true)}
+          />
+          <QuickBtn
+            icon={Search}
+            label="Buscar"
+            onClick={() => setCommandOpen(true)}
+          />
         </div>
-      </Link>
 
-      {/* ── Pinned items bar (Feature J) ──────────────────────────────── */}
-      <PinnedItemsBar />
+        {/* ── Asesor IA — entrada rápida ───────────────────────────────── */}
+        <Link href="/analytics" className="block group">
+          <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/5 to-primary/8 px-4 py-3.5 hover:shadow-md hover:border-primary/35 active:scale-[0.99] transition-all duration-150">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold">Asesor Financiero IA</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Pregunta cualquier cosa sobre tus finanzas</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </Link>
 
-      {/* ── KPI bento ─────────────────────────────────────────────────── */}
-      <div className="space-y-2">
-        <SectionLabel>Métricas</SectionLabel>
-        <KPIBento />
-      </div>
+        {/* ── Pinned items bar (Feature J) ──────────────────────────────── */}
+        <PinnedItemsBar />
 
-      {/* ── Week spark ────────────────────────────────────────────────── */}
-      <div className="space-y-2">
-        <SectionLabel>Esta semana</SectionLabel>
-        <WeekSparkCard />
-      </div>
-
-      {/* ── Top categories ────────────────────────────────────────────── */}
-      <div className="space-y-2">
-        <SectionLabel>Distribución del mes</SectionLabel>
-        <TopCategoriesCard />
-      </div>
-
-      {/* ── Goals widget ──────────────────────────────────────────────── */}
-      <GoalsWidget />
-
-      {/* ── 📅 Recuerdos y logros (collapsible) ─────────────────────────── */}
-      <button
-        onClick={() => setShowMemories(s => !s)}
-        className="w-full flex items-center justify-between rounded-2xl border border-border/50 bg-muted/30 px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
-      >
-        <span>Recuerdos y logros</span>
-        <CollapsibleChevron open={showMemories} />
-      </button>
-      <CollapsibleContent open={showMemories} className="space-y-3">
-        <MemoriesWidget />
-        <HighlightsWidget />
-        <AnniversaryWidget />
-        <p className="text-xs text-muted-foreground text-center py-2">
-          Los recuerdos aparecen cuando llevas más tiempo usando la app
-        </p>
-      </CollapsibleContent>
-
-      {/* ── Activity feed ─────────────────────────────────────────────── */}
-      <div className="space-y-2">
-        <SectionLabel>Actividad reciente</SectionLabel>
-        <ActivityFeed />
-      </div>
-
-      {/* ── Analytics toggle ──────────────────────────────────────────── */}
-      <button
-        onClick={() => setShowAnalytics(s => !s)}
-        className="w-full flex items-center justify-between rounded-2xl border border-border/50 bg-muted/30 px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
-      >
-        <div className="flex items-center gap-2">
-          <BarChart2 className="h-4 w-4" />
-          {showAnalytics ? "Ocultar análisis" : "Ver análisis completo"}
+        {/* ── KPI bento ─────────────────────────────────────────────────── */}
+        <div className="space-y-2">
+          <SectionLabel>Métricas</SectionLabel>
+          <KPIBento />
         </div>
-        <CollapsibleChevron open={showAnalytics} />
-      </button>
 
-      <CollapsibleContent open={showAnalytics} className="space-y-2">
-        <SectionLabel>Análisis detallado</SectionLabel>
-        <DashboardStats />
-      </CollapsibleContent>
+        {/* ── Week spark ────────────────────────────────────────────────── */}
+        <div className="space-y-2">
+          <SectionLabel>Esta semana</SectionLabel>
+          <WeekSparkCard />
+        </div>
 
-      </>)} {/* END dashMode normal */}
+        {/* ── Top categories ────────────────────────────────────────────── */}
+        <div className="space-y-2">
+          <SectionLabel>Distribución del mes</SectionLabel>
+          <TopCategoriesCard />
+        </div>
+
+        {/* ── Goals widget ──────────────────────────────────────────────── */}
+        <GoalsWidget />
+
+        {/* ── 📅 Recuerdos y logros (collapsible) ─────────────────────────── */}
+        <button
+          onClick={() => setShowMemories(s => !s)}
+          className="w-full flex items-center justify-between rounded-2xl border border-border/50 bg-muted/30 px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
+        >
+          <span>Recuerdos y logros</span>
+          <CollapsibleChevron open={showMemories} />
+        </button>
+        <CollapsibleContent open={showMemories} className="space-y-3">
+          <MemoriesWidget />
+          <HighlightsWidget />
+          <AnniversaryWidget />
+          <p className="text-xs text-muted-foreground text-center py-2">
+            Los recuerdos aparecen cuando llevas más tiempo usando la app
+          </p>
+        </CollapsibleContent>
+
+        {/* ── Activity feed ─────────────────────────────────────────────── */}
+        <div className="space-y-2">
+          <SectionLabel>Actividad reciente</SectionLabel>
+          <ActivityFeed />
+        </div>
+
+        {/* ── Analytics toggle ──────────────────────────────────────────── */}
+        <button
+          onClick={() => setShowAnalytics(s => !s)}
+          className="w-full flex items-center justify-between rounded-2xl border border-border/50 bg-muted/30 px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
+        >
+          <div className="flex items-center gap-2">
+            <BarChart2 className="h-4 w-4" />
+            {showAnalytics ? "Ocultar análisis" : "Ver análisis completo"}
+          </div>
+          <CollapsibleChevron open={showAnalytics} />
+        </button>
+
+        <CollapsibleContent open={showAnalytics} className="space-y-2">
+          <SectionLabel>Análisis detallado</SectionLabel>
+          <DashboardStats />
+        </CollapsibleContent>
+        </div>
+      )} {/* END dashMode normal */}
 
     </div>
   )
@@ -294,13 +294,13 @@ function AccountBadge() {
       className={cn(
         "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold border transition-all",
         activeAccount === "business"
-          ? "border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-400"
+          ? "border-business/30 bg-business/10 text-business"
           : "border-primary/30 bg-primary/8 text-primary"
       )}
     >
       <span className={cn(
         "h-2 w-2 rounded-full",
-        activeAccount === "business" ? "bg-violet-500" : "bg-primary"
+        activeAccount === "business" ? "bg-business" : "bg-primary"
       )} />
       {activeAccount === "business" ? "Negocio" : "Personal"}
     </button>
