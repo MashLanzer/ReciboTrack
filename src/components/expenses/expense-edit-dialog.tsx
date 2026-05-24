@@ -166,7 +166,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
         <DialogHeader>
           <DialogTitle>Editar gasto</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+        <form onSubmit={handleSubmit} className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
 
           {/* ── Duplicate warning ── */}
           {duplicates.length > 0 && (
@@ -192,171 +192,214 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2 space-y-1.5">
-              <Label>Comercio</Label>
-              <Input
-                list="merchant-suggestions"
-                value={form.merchant}
-                onChange={(e) => setForm({ ...form, merchant: e.target.value })}
-                required
-              />
-              {knownMerchants.length > 0 && (
-                <datalist id="merchant-suggestions">
-                  {knownMerchants.map((m) => <option key={m} value={m} />)}
-                </datalist>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label>Fecha</Label>
-              <Input
-                type="date"
-                value={form.date}
-                min="2000-01-01"
-                max="2030-12-31"
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
-                required
-              />
-              {form.date && (() => {
-                const d = new Date(form.date)
-                const y = d.getFullYear()
-                const invalid = isNaN(d.getTime()) || y < 2000 || y > 2030
-                return invalid ? (
-                  <p className="text-[10px] text-destructive">Fecha inválida — debe estar entre 2000 y 2030</p>
-                ) : null
-              })()}
-            </div>
-            <div className="space-y-1.5">
-              <Label>Total</Label>
-              <Input type="number" inputMode="decimal" step="0.01" value={form.total} onChange={(e) => setForm({ ...form, total: e.target.value })} className="tabular-nums" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Subtotal</Label>
-              <Input type="number" inputMode="decimal" step="0.01" value={form.subtotal} onChange={(e) => setForm({ ...form, subtotal: e.target.value })} className="tabular-nums" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Impuestos</Label>
-              <Input type="number" inputMode="decimal" step="0.01" value={form.tax} onChange={(e) => setForm({ ...form, tax: e.target.value })} className="tabular-nums" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Categoría</Label>
-              <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>{cat.icon} {cat.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <CategorySuggestion
-                merchant={form.merchant}
-                currentCategory={form.category}
-                onAccept={(cat) => setForm((f) => ({ ...f, category: cat }))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Moneda</Label>
-              <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Método de pago</Label>
-              <Select value={form.paymentMethod || "__none__"} onValueChange={(v) => setForm({ ...form, paymentMethod: v === "__none__" ? "" : v })}>
-                <SelectTrigger><SelectValue placeholder="Sin especificar" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Sin especificar</SelectItem>
-                  {PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Referencia</Label>
-              <Input value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} placeholder="Nº transacción" />
-            </div>
-            <div className="col-span-2 space-y-1.5">
-              <Label>Notas</Label>
-              <CashtagInput
-                value={form.notes}
-                onChange={(v) => setForm({ ...form, notes: v })}
-                placeholder="Notas... escribe $categoria para vincular"
-              />
-            </div>
-            <div className="col-span-2 space-y-1.5">
-              <Label>Cliente / Proyecto <span className="text-muted-foreground font-normal">(opcional)</span></Label>
-              <Input
-                list="project-suggestions"
-                placeholder="Nombre del cliente o proyecto..."
-                value={form.project}
-                onChange={(e) => setForm({ ...form, project: e.target.value })}
-              />
-              {projectNames.length > 0 && (
-                <datalist id="project-suggestions">
-                  {projectNames.map((name) => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
-              )}
-            </div>
-            <div className="col-span-2 space-y-1.5">
-              <Label>Etiquetas</Label>
-              <div className="flex gap-2">
+          {/* ── Section: Básico ── */}
+          <div>
+            <SectionDivider label="Básico" />
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div className="col-span-2 space-y-1.5">
+                <Label>Comercio</Label>
                 <Input
-                  list="tag-suggestions"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag() } }}
-                  placeholder="trabajo, viaje, deducible..."
-                  className="flex-1"
+                  list="merchant-suggestions"
+                  value={form.merchant}
+                  onChange={(e) => setForm({ ...form, merchant: e.target.value })}
+                  required
                 />
-                {knownTags.length > 0 && (
-                  <datalist id="tag-suggestions">
-                    {knownTags.filter((t) => !form.tags.includes(t)).map((t) => (
-                      <option key={t} value={t} />
+                {knownMerchants.length > 0 && (
+                  <datalist id="merchant-suggestions">
+                    {knownMerchants.map((m) => <option key={m} value={m} />)}
+                  </datalist>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label>Fecha</Label>
+                <Input
+                  type="date"
+                  value={form.date}
+                  min="2000-01-01"
+                  max="2030-12-31"
+                  onChange={(e) => setForm({ ...form, date: e.target.value })}
+                  required
+                />
+                {form.date && (() => {
+                  const d = new Date(form.date)
+                  const y = d.getFullYear()
+                  const invalid = isNaN(d.getTime()) || y < 2000 || y > 2030
+                  return invalid ? (
+                    <p className="text-[10px] text-destructive">Fecha inválida — debe estar entre 2000 y 2030</p>
+                  ) : null
+                })()}
+              </div>
+              {/* Total — highlighted */}
+              <div className="space-y-1.5">
+                <Label className="font-semibold">Total</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={form.total}
+                    onChange={(e) => setForm({ ...form, total: e.target.value })}
+                    className="tabular-nums font-bold text-destructive border-destructive/30 bg-destructive/5 focus:border-destructive/60 pr-14"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-destructive/60">
+                    {form.currency}
+                  </span>
+                </div>
+                {/* Running total hint when items present */}
+                {items.length > 0 && (() => {
+                  const itemsTotal = items.reduce((s, it) => s + it.price * it.quantity, 0)
+                  const diff = Math.abs(parseFloat(form.total) - itemsTotal)
+                  return diff > 0.01 ? (
+                    <p className="text-[10px] text-amber-600 font-medium">
+                      Artículos suman {formatCurrency(itemsTotal, form.currency)} — diff {formatCurrency(diff, form.currency)}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-emerald-600 font-medium">✓ Total coincide con artículos</p>
+                  )
+                })()}
+              </div>
+              <div className="space-y-1.5">
+                <Label>Subtotal</Label>
+                <Input type="number" inputMode="decimal" step="0.01" value={form.subtotal} onChange={(e) => setForm({ ...form, subtotal: e.target.value })} className="tabular-nums" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Impuestos</Label>
+                <Input type="number" inputMode="decimal" step="0.01" value={form.tax} onChange={(e) => setForm({ ...form, tax: e.target.value })} className="tabular-nums" />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Section: Clasificación ── */}
+          <div>
+            <SectionDivider label="Clasificación" />
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div className="space-y-1.5">
+                <Label>Categoría</Label>
+                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>{cat.icon} {cat.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <CategorySuggestion
+                  merchant={form.merchant}
+                  currentCategory={form.category}
+                  onAccept={(cat) => setForm((f) => ({ ...f, category: cat }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Moneda</Label>
+                <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Método de pago</Label>
+                <Select value={form.paymentMethod || "__none__"} onValueChange={(v) => setForm({ ...form, paymentMethod: v === "__none__" ? "" : v })}>
+                  <SelectTrigger><SelectValue placeholder="Sin especificar" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Sin especificar</SelectItem>
+                    {PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Referencia</Label>
+                <Input value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} placeholder="Nº transacción" />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Section: Extras ── */}
+          <div>
+            <SectionDivider label="Extras" />
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div className="col-span-2 space-y-1.5">
+                <Label>Notas</Label>
+                <CashtagInput
+                  value={form.notes}
+                  onChange={(v) => setForm({ ...form, notes: v })}
+                  placeholder="Notas... escribe $categoria para vincular"
+                />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Cliente / Proyecto <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+                <Input
+                  list="project-suggestions"
+                  placeholder="Nombre del cliente o proyecto..."
+                  value={form.project}
+                  onChange={(e) => setForm({ ...form, project: e.target.value })}
+                />
+                {projectNames.length > 0 && (
+                  <datalist id="project-suggestions">
+                    {projectNames.map((name) => (
+                      <option key={name} value={name} />
                     ))}
                   </datalist>
                 )}
-                <Button type="button" variant="outline" size="icon" onClick={addTag}>
-                  <Plus className="h-4 w-4" />
-                </Button>
               </div>
-              {form.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {form.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="gap-1 cursor-pointer"
-                      onClick={() => removeTag(tag)}>
-                      {tag} <X className="h-3 w-3" />
-                    </Badge>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Etiquetas</Label>
+                <div className="flex gap-2">
+                  <Input
+                    list="tag-suggestions"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag() } }}
+                    placeholder="trabajo, viaje, deducible..."
+                    className="flex-1"
+                  />
+                  {knownTags.length > 0 && (
+                    <datalist id="tag-suggestions">
+                      {knownTags.filter((t) => !form.tags.includes(t)).map((t) => (
+                        <option key={t} value={t} />
+                      ))}
+                    </datalist>
+                  )}
+                  <Button type="button" variant="outline" size="icon" onClick={addTag}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                {form.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {form.tags.map((tag) => (
+                      <Badge key={tag} variant="secondary" className="gap-1 cursor-pointer"
+                        onClick={() => removeTag(tag)}>
+                        {tag} <X className="h-3 w-3" />
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Privacy */}
+              <div className="col-span-2 space-y-1.5">
+                <Label>Privacidad</Label>
+                <div className="flex gap-2">
+                  {([
+                    { value: "private", label: "🔒 Privado" },
+                    { value: "group",   label: "👥 Grupo" },
+                    { value: "public",  label: "🌍 Público" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, privacy: opt.value })}
+                      className={`flex-1 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors ${
+                        form.privacy === opt.value
+                          ? "border-foreground bg-accent font-semibold"
+                          : "border-border text-muted-foreground hover:border-muted-foreground"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
                   ))}
                 </div>
-              )}
-            </div>
-
-            {/* Privacy */}
-            <div className="col-span-2 space-y-1.5">
-              <Label>Privacidad</Label>
-              <div className="flex gap-2">
-                {([
-                  { value: "private", label: "🔒 Privado" },
-                  { value: "group",   label: "👥 Grupo" },
-                  { value: "public",  label: "🌍 Público" },
-                ] as const).map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setForm({ ...form, privacy: opt.value })}
-                    className={`flex-1 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors ${
-                      form.privacy === opt.value
-                        ? "border-foreground bg-accent font-semibold"
-                        : "border-border text-muted-foreground hover:border-muted-foreground"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
               </div>
             </div>
           </div>
@@ -473,5 +516,17 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
         initialDescription={form.merchant || undefined}
       />
     </Dialog>
+  )
+}
+
+// ─── Helper ───────────────────────────────────────────────────────────────────
+
+function SectionDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-px flex-1 bg-border/50" />
+      <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/60 shrink-0">{label}</span>
+      <div className="h-px flex-1 bg-border/50" />
+    </div>
   )
 }
