@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { Loader2, Plus, X, ChevronDown, ChevronUp, ShoppingCart, AlertTriangle, Split, Archive } from "lucide-react"
-import { format, subDays, addDays, isValid, parseISO } from "date-fns"
+import { format, subDays, addDays, subMonths, startOfMonth, endOfMonth, isValid, parseISO } from "date-fns"
 import { formatCurrency } from "@/lib/utils"
 import { CategorySuggestion } from "@/components/shared/category-suggestion"
 import { CashtagInput } from "@/components/ui/cashtag-input"
@@ -27,7 +27,11 @@ interface Props {
 
 export function ExpenseEditDialog({ expense, onClose }: Props) {
   const { data: categories = [] } = useCategories()
-  const { projectNames, expenses: allExpenses } = useProjects()
+  const { data: projects = [] } = useProjects()
+  const projectNames = projects.map((p) => p.name)
+  const sixMonthsAgo = useMemo(() => startOfMonth(subMonths(new Date(), 5)), [])
+  const sixMonthsEnd = useMemo(() => endOfMonth(new Date()), [])
+  const { data: allExpenses = [] } = useExpensesPeriod(sixMonthsAgo, sixMonthsEnd)
   const updateExpense = useUpdateExpense()
   const archiveExpense = useArchiveExpense()
   const [splitOpen, setSplitOpen] = useState(false)
