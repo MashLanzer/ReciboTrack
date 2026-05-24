@@ -1,13 +1,19 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
-import { useProjects, useRenameProject, type ProjectSummary } from "@/hooks/use-projects"
+import {
+  useProjects,
+  useProjectDetail,
+  useCreateProject,
+  useUpdateProject,
+  useDeleteProject,
+} from "@/hooks/use-projects"
+import { useClients } from "@/hooks/use-clients"
 import { useCategories } from "@/hooks/use-categories"
-import { useProjectBudgets, useSetProjectBudget } from "@/hooks/use-project-budgets"
+import { useAddExpense } from "@/hooks/use-expenses"
 import { DEFAULT_CATEGORIES } from "@/lib/constants"
 import { formatCurrency, cn } from "@/lib/utils"
-import { format, differenceInDays } from "date-fns"
+import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -21,604 +27,425 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
   ArrowLeft,
   Briefcase,
   Receipt,
-  ExternalLink,
   Pencil,
-  Calendar,
-  TrendingUp,
   Wallet,
-  AlertTriangle,
   Plus,
+  Trash2,
+  Archive,
+  User,
+  FileText,
 } from "lucide-react"
 import { toast } from "sonner"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Progress } from "@/components/ui/progress"
-import { useExpensesPeriod, useAddExpense } from "@/hooks/use-expenses"
-import { startOfMonth, subMonths, endOfMonth } from "date-fns"
-import type { Expense } from "@/types"
+import type { Project, ProjectInput } from "@/types"
+
+// ─── Preset colors ────────────────────────────────────────────────────────────
+
+const PRESET_COLORS = [
+  "#6366f1", // indigo
+  "#8b5cf6", // violet
+  "#ec4899", // pink
+  "#f59e0b", // amber
+  "#10b981", // emerald
+  "#3b82f6", // blue
+]
+
+// ─── Status helpers ───────────────────────────────────────────────────────────
+
+type StatusFilter = "active" | "all" | "archived"
+
+function statusLabel(s: Project["status"]) {
+  if (s === "active") return "Activo"
+  if (s === "completed") return "Completado"
+  return "Archivado"
+}
+
+function statusVariant(s: Project["status"]): "default" | "secondary" | "outline" {
+  if (s === "active") return "default"
+  if (s === "completed") return "secondary"
+  return "outline"
+}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ProjectsPage() {
-  const now = useMemo(() => new Date(), [])
-  const { isLoading } = useExpensesPeriod(startOfMonth(subMonths(now, 5)), endOfMonth(now))
-  const { projects, expenses } = useProjects()
-  const { data: categories = [] } = useCategories()
-  const { data: budgets = {} } = useProjectBudgets()
-  const setBudget = useSetProjectBudget()
-  const addExpense = useAddExpense()
-  const allCats = categories.length > 0 ? categories : DEFAULT_CATEGORIES
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active")
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editProject, setEditProject] = useState<Project | null>(null)
 
-  const [selected, setSelected] = useState<string | null>(null)
-  const [renameTarget, setRenameTarget] = useState<ProjectSummary | null>(null)
-  const [budgetTarget, setBudgetTarget] = useState<ProjectSummary | null>(null)
-  const [budgetInput, setBudgetInput] = useState("")
-  const [newProjectOpen, setNewProjectOpen] = useState(false)
-  const [newProjectName, setNewProjectName] = useState("")
-  const [creatingProject, setCreatingProject] = useState(false)
-
-  const selectedProject = projects.find((p) => p.name === selected)
-  const projectExpenses = useMemo(
-    () => (selected ? expenses.filter((e) => e.project === selected) : []),
-    [selected, expenses]
-  )
-
-  async function handleCreateProject() {
-    const name = newProjectName.trim()
-    if (!name) { toast.error("El nombre del proyecto es obligatorio"); return }
-    if (projects.some((p) => p.name === name)) {
-      toast.error("Ya existe un proyecto con ese nombre")
-      return
-    }
-    setCreatingProject(true)
-    try {
-      await addExpense.mutateAsync({
-        merchant: name,
-        date: new Date(),
-        items: [],
-        subtotal: 0,
-        tax: 0,
-        total: 0.01,
-        paymentMethod: null,
-        reference: null,
-        category: "otros",
-        currency: "USD",
-        notes: "Placeholder de proyecto",
-        tags: [],
-        receiptImageUrl: null,
-        project: name,
-      })
-      toast.success(`Proyecto "${name}" creado`)
-      setNewProjectOpen(false)
-      setNewProjectName("")
-    } catch {
-      toast.error("Error al crear el proyecto")
-    } finally {
-      setCreatingProject(false)
-    }
-  }
+  const apiStatus = statusFilter === "active" ? undefined : statusFilter
+  const { data: projects = [], isLoading } = useProjects(apiStatus)
 
   return (
     <>
       <div className="container max-w-2xl mx-auto px-4 py-6 space-y-5">
-        {/* ── Header ─────────────────────────────────────────────────────── */}
-        {selected ? (
-          <DetailHeader
-            project={selectedProject!}
-            allCats={allCats}
-            onBack={() => setSelected(null)}
-            onRename={() => setRenameTarget(selectedProject!)}
+        {selectedId ? (
+          <DetailSection
+            id={selectedId}
+            onBack={() => setSelectedId(null)}
+            onEdit={(p) => setEditProject(p)}
           />
         ) : (
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <Briefcase className="h-5 w-5 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="font-bold text-xl">Proyectos</h1>
-                <p className="text-xs text-muted-foreground">
-                  {projects.length > 0
-                    ? `${projects.length} proyecto${projects.length !== 1 ? "s" : ""} · últimos 6 meses`
-                    : "Asigna gastos a proyectos para verlos aquí"}
-                </p>
-              </div>
-            </div>
-            <Button onClick={() => { setNewProjectName(""); setNewProjectOpen(true) }} className="gap-2 shrink-0">
-              <Plus className="h-4 w-4" />
-              Nuevo proyecto
-            </Button>
-          </div>
-        )}
-
-        {/* ── Content ────────────────────────────────────────────────────── */}
-        {isLoading ? (
-          <div className="space-y-3">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="rounded-xl border p-4 space-y-2">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="h-9 w-9 rounded-lg" />
-                  <div className="flex-1 space-y-1.5">
-                    <Skeleton className="h-4 w-1/3" />
-                    <Skeleton className="h-3 w-1/4" />
-                  </div>
-                  <Skeleton className="h-5 w-16" />
-                </div>
-                <Skeleton className="h-1.5 w-full rounded-full" />
-              </div>
-            ))}
-          </div>
-        ) : selected ? (
-          <DetailView
-            project={selectedProject!}
-            expenses={projectExpenses}
-            allCats={allCats}
-            budget={budgets[selectedProject?.name ?? ""] ?? null}
-            onSetBudget={() => {
-              setBudgetTarget(selectedProject!)
-              setBudgetInput(String(budgets[selectedProject?.name ?? ""] ?? ""))
-            }}
-          />
-        ) : (
-          <ListView
-            projects={projects}
-            allCats={allCats}
-            budgets={budgets}
-            onSelect={setSelected}
-            onRename={setRenameTarget}
-            onSetBudget={(p) => { setBudgetTarget(p); setBudgetInput(String(budgets[p.name] ?? "")) }}
-          />
-        )}
-      </div>
-
-      {/* ── Rename dialog (outside scroll area) ────────────────────────── */}
-      {renameTarget && (
-        <RenameDialog
-          project={renameTarget}
-          onClose={() => setRenameTarget(null)}
-          onRenamed={(newName) => {
-            if (selected) setSelected(newName)
-            setRenameTarget(null)
-          }}
-        />
-      )}
-
-      {/* ── New project dialog ─────────────────────────────────────────── */}
-      <Dialog open={newProjectOpen} onOpenChange={setNewProjectOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Briefcase className="h-4 w-4" />
-              Nuevo proyecto
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <p className="text-sm text-muted-foreground">
-              Los proyectos se crean al etiquetar gastos. Este acceso rápido crea un gasto placeholder de $0.01 con el nombre del proyecto.
-            </p>
-            <div>
-              <Label className="text-xs mb-1 block">Nombre del proyecto *</Label>
-              <Input
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleCreateProject()}
-                placeholder="Mi proyecto, Cliente XYZ..."
-                autoFocus
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setNewProjectOpen(false)}>Cancelar</Button>
-            <Button
-              onClick={handleCreateProject}
-              disabled={creatingProject || !newProjectName.trim()}
-            >
-              {creatingProject ? "Creando…" : "Crear proyecto"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Budget dialog ─────────────────────────────────────────────── */}
-      {budgetTarget && (
-        <Dialog open onOpenChange={() => setBudgetTarget(null)}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Wallet className="h-4 w-4" />
-                Presupuesto para "{budgetTarget.name}"
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3 py-2">
-              <p className="text-sm text-muted-foreground">
-                Define un límite de gasto para este proyecto. Deja vacío para eliminar.
-              </p>
-              <div>
-                <Label className="text-xs mb-1 block">Presupuesto (0 = sin límite)</Label>
-                <Input
-                  type="number" inputMode="decimal"
-                  min={0}
-                  step={10}
-                  value={budgetInput}
-                  onChange={(e) => setBudgetInput(e.target.value)}
-                  placeholder="Sin límite"
-                  className="tabular-nums"
-                  autoFocus
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setBudgetTarget(null)}>Cancelar</Button>
-              <Button
-                onClick={async () => {
-                  const v = parseFloat(budgetInput)
-                  try {
-                    await setBudget.mutateAsync({
-                      projectName: budgetTarget.name,
-                      budget: isNaN(v) || v === 0 ? null : v,
-                    })
-                    toast.success("Presupuesto guardado")
-                    setBudgetTarget(null)
-                  } catch {
-                    toast.error("Error al guardar presupuesto")
-                  }
-                }}
-                disabled={setBudget.isPending}
-              >
-                Guardar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-    </>
-  )
-}
-
-// ─── List view ────────────────────────────────────────────────────────────────
-
-function ListView({
-  projects,
-  allCats,
-  budgets,
-  onSelect,
-  onRename,
-  onSetBudget,
-}: {
-  projects: ProjectSummary[]
-  allCats: { id: string; icon: string; name: string }[]
-  budgets: Record<string, number>
-  onSelect: (name: string) => void
-  onRename: (p: ProjectSummary) => void
-  onSetBudget: (p: ProjectSummary) => void
-}) {
-  const maxTotal = projects[0]?.total ?? 1
-
-  if (projects.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-border/60 bg-muted/20 flex flex-col items-center justify-center py-16 gap-4 text-center">
-        <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
-          <Briefcase className="h-7 w-7 text-muted-foreground/50" />
-        </div>
-        <div className="space-y-1">
-          <p className="font-semibold">Sin proyectos todavía</p>
-          <p className="text-sm text-muted-foreground max-w-64">
-            Al editar un gasto, escribe el nombre del proyecto en el campo correspondiente.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-3">
-      {projects.map((p, i) => {
-        const pct = maxTotal > 0 ? (p.total / maxTotal) * 100 : 0
-        const days = differenceInDays(p.lastDate, p.firstDate)
-        const catIcons = p.topCategories
-          .map(({ catId }) => allCats.find((c) => c.id === catId)?.icon)
-          .filter(Boolean) as string[]
-
-        return (
-          <button
-            key={p.name}
-            onClick={() => onSelect(p.name)}
-            className="stagger-item w-full text-left rounded-2xl border p-4 hover:bg-accent/30 hover:shadow-sm transition-all duration-150 space-y-3 group"
-            style={{ "--i": i } as React.CSSProperties}
-          >
-            <div className="flex items-start justify-between gap-3">
-              {/* Left: icon + name + meta */}
+          <>
+            {/* Header */}
+            <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                   <Briefcase className="h-5 w-5 text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-semibold truncate leading-tight">{p.name}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-muted-foreground">
-                      {p.count} gasto{p.count !== 1 ? "s" : ""}
-                    </span>
-                    {catIcons.length > 0 && (
-                      <span className="text-xs">{catIcons.join(" ")}</span>
-                    )}
-                    {days > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        · {days}d
-                      </span>
-                    )}
-                  </div>
+                  <h1 className="font-bold text-xl">Proyectos</h1>
+                  <p className="text-xs text-muted-foreground">
+                    {projects.length > 0
+                      ? `${projects.length} proyecto${projects.length !== 1 ? "s" : ""}`
+                      : "Sin proyectos todavía"}
+                  </p>
                 </div>
               </div>
+              <Button onClick={() => setCreateOpen(true)} className="gap-2 shrink-0">
+                <Plus className="h-4 w-4" />
+                Nuevo proyecto
+              </Button>
+            </div>
 
-              {/* Right: total + actions */}
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="text-right">
-                  <p className="text-lg font-bold tabular-nums">{formatCurrency(p.total)}</p>
-                  {budgets[p.name] && (
-                    <p className={cn(
-                      "text-xs tabular-nums",
-                      p.total > budgets[p.name] ? "text-destructive" : "text-muted-foreground"
-                    )}>
-                      {p.total > budgets[p.name] && "⚠ "}
-                      /{formatCurrency(budgets[p.name])}
-                    </p>
+            {/* Status filter */}
+            <div className="flex gap-2">
+              {(["active", "all", "archived"] as StatusFilter[]).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className={cn(
+                    "text-xs px-3 py-1.5 rounded-full border transition-colors",
+                    statusFilter === s
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border hover:bg-accent"
+                  )}
+                >
+                  {s === "active" ? "Activos" : s === "all" ? "Todos" : "Archivados"}
+                </button>
+              ))}
+            </div>
+
+            {/* List */}
+            {isLoading ? (
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="rounded-xl border p-4 space-y-2">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-9 w-9 rounded-lg" />
+                      <div className="flex-1 space-y-1.5">
+                        <Skeleton className="h-4 w-1/3" />
+                        <Skeleton className="h-3 w-1/4" />
+                      </div>
+                      <Skeleton className="h-5 w-16" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : projects.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border/60 bg-muted/20 flex flex-col items-center justify-center py-16 gap-4 text-center">
+                <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
+                  <Briefcase className="h-7 w-7 text-muted-foreground/50" />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-semibold">Sin proyectos</p>
+                  <p className="text-sm text-muted-foreground max-w-64">
+                    Crea tu primer proyecto para gestionar gastos por cliente o trabajo.
+                  </p>
+                </div>
+                <Button onClick={() => setCreateOpen(true)} variant="outline" className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Nuevo proyecto
+                </Button>
+              </div>
+            ) : (
+              <ProjectList projects={projects} onSelect={setSelectedId} />
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Create dialog */}
+      <ProjectFormDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onDone={() => setCreateOpen(false)}
+      />
+
+      {/* Edit dialog */}
+      {editProject && (
+        <ProjectFormDialog
+          open={!!editProject}
+          onOpenChange={(open) => { if (!open) setEditProject(null) }}
+          project={editProject}
+          onDone={() => setEditProject(null)}
+        />
+      )}
+    </>
+  )
+}
+
+// ─── Project list ─────────────────────────────────────────────────────────────
+
+function ProjectList({
+  projects,
+  onSelect,
+}: {
+  projects: Project[]
+  onSelect: (id: string) => void
+}) {
+  return (
+    <div className="space-y-3">
+      {projects.map((p, i) => (
+        <button
+          key={p.id}
+          onClick={() => onSelect(p.id)}
+          className="stagger-item w-full text-left rounded-2xl border p-4 hover:bg-accent/30 hover:shadow-sm transition-all duration-150 space-y-3 group"
+          style={{ "--i": i } as React.CSSProperties}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              {/* Color dot */}
+              <div
+                className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: `${p.color}20` }}
+              >
+                <div
+                  className="h-3 w-3 rounded-full"
+                  style={{ backgroundColor: p.color }}
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold truncate leading-tight">{p.name}</p>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  {p.clientName && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <User className="h-3 w-3" />
+                      {p.clientName}
+                    </span>
+                  )}
+                  {p.description && (
+                    <span className="text-xs text-muted-foreground truncate max-w-32">
+                      {p.description}
+                    </span>
                   )}
                 </div>
-                <div className="flex items-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={(ev) => { ev.stopPropagation(); onSetBudget(p) }}
-                    className="p-1 rounded-lg hover:bg-muted transition-all"
-                    aria-label="Presupuesto"
-                  >
-                    <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
-                  </button>
-                  <button
-                    onClick={(ev) => { ev.stopPropagation(); onRename(p) }}
-                    className="p-1 rounded-lg hover:bg-muted transition-all"
-                    aria-label="Renombrar proyecto"
-                  >
-                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                  </button>
-                </div>
               </div>
             </div>
-
-            {/* Progress bar (vs max project) */}
-            <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full bg-primary/70 transition-all"
-                style={{ width: `${pct}%` }}
-              />
+            <div className="flex items-center gap-2 shrink-0">
+              {p.budget && (
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {formatCurrency(p.budget, p.currency)}
+                </span>
+              )}
+              <Badge variant={statusVariant(p.status)} className="text-xs">
+                {statusLabel(p.status)}
+              </Badge>
             </div>
-
-            {/* Budget bar */}
-            {budgets[p.name] && (
-              <div className="space-y-0.5">
-                <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-all",
-                      p.total > budgets[p.name] ? "bg-destructive" : "bg-green-500/70"
-                    )}
-                    style={{ width: `${Math.min((p.total / budgets[p.name]) * 100, 100)}%` }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Presupuesto: {Math.round((p.total / budgets[p.name]) * 100)}%
-                </p>
-              </div>
-            )}
-          </button>
-        )
-      })}
+          </div>
+          {p.budget && (
+            <div className="space-y-1">
+              <Progress value={0} className="h-1.5" />
+              <p className="text-xs text-muted-foreground">
+                Presupuesto: {formatCurrency(p.budget, p.currency)}
+              </p>
+            </div>
+          )}
+        </button>
+      ))}
     </div>
   )
 }
 
-// ─── Detail header ─────────────────────────────────────────────────────────────
+// ─── Detail section ───────────────────────────────────────────────────────────
 
-function DetailHeader({
-  project,
-  allCats,
+function DetailSection({
+  id,
   onBack,
-  onRename,
+  onEdit,
 }: {
-  project: ProjectSummary
-  allCats: { id: string; icon: string; name: string }[]
+  id: string
   onBack: () => void
-  onRename: () => void
+  onEdit: (p: Project) => void
 }) {
-  const router = useRouter()
-  if (!project) return null
+  const { data, isLoading } = useProjectDetail(id)
+  const updateProject = useUpdateProject()
+  const deleteProject = useDeleteProject()
+  const { data: categories = [] } = useCategories()
+  const allCats = categories.length > 0 ? categories : DEFAULT_CATEGORIES
+  const [addExpenseOpen, setAddExpenseOpen] = useState(false)
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-9 w-9 rounded-lg" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-5 w-1/3" />
+            <Skeleton className="h-3 w-1/4" />
+          </div>
+        </div>
+        <Skeleton className="h-24 w-full rounded-xl" />
+        <Skeleton className="h-32 w-full rounded-xl" />
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <div className="text-center py-10 text-muted-foreground">
+        <p className="text-sm">Proyecto no encontrado</p>
+        <Button variant="ghost" className="mt-2" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Volver
+        </Button>
+      </div>
+    )
+  }
+
+  const { project, expenses } = data
+  const total = expenses.reduce((s, e) => s + (e.total as number), 0)
+
+  async function handleArchive() {
+    const newStatus = project.status === "archived" ? "active" : "archived"
+    try {
+      await updateProject.mutateAsync({ id: project.id, status: newStatus })
+      toast.success(newStatus === "archived" ? "Proyecto archivado" : "Proyecto reactivado")
+    } catch {
+      toast.error("Error al actualizar el proyecto")
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm(`¿Eliminar el proyecto "${project.name}"? Los gastos asociados quedarán sin proyecto.`)) return
+    try {
+      await deleteProject.mutateAsync(project.id)
+      toast.success("Proyecto eliminado")
+      onBack()
+    } catch {
+      toast.error("Error al eliminar el proyecto")
+    }
+  }
+
+  const budgetPct = project.budget && total > 0 ? Math.min((total / project.budget) * 100, 100) : 0
+  const overBudget = project.budget ? total > project.budget : false
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
+        <div
+          className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
+          style={{ backgroundColor: `${project.color}20` }}
+        >
+          <div
+            className="h-3 w-3 rounded-full"
+            style={{ backgroundColor: project.color }}
+          />
+        </div>
         <div className="flex-1 min-w-0">
-          <h1 className="font-serif text-xl truncate">{project.name}</h1>
-          <p className="text-xs text-muted-foreground">
-            {project.count} gasto{project.count !== 1 ? "s" : ""} · {formatCurrency(project.total)}
-          </p>
+          <h1 className="font-bold text-xl truncate">{project.name}</h1>
+          {project.clientName && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <User className="h-3 w-3" />
+              {project.clientName}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onRename}
-            title="Renombrar proyecto"
-          >
+          <Badge variant={statusVariant(project.status)}>{statusLabel(project.status)}</Badge>
+          <Button variant="ghost" size="icon" onClick={() => onEdit(project)} title="Editar proyecto">
             <Pencil className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            title="Ver en Gastos"
-            onClick={() => router.push(`/expenses?q=${encodeURIComponent(project.name)}`)}
+            onClick={handleArchive}
+            title={project.status === "archived" ? "Reactivar" : "Archivar"}
           >
-            <ExternalLink className="h-4 w-4" />
+            <Archive className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleDelete}
+            title="Eliminar proyecto"
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       </div>
-    </div>
-  )
-}
 
-// ─── Detail view ──────────────────────────────────────────────────────────────
-
-function DetailView({
-  project,
-  expenses,
-  allCats,
-  budget,
-  onSetBudget,
-}: {
-  project: ProjectSummary
-  expenses: Expense[]
-  allCats: { id: string; icon: string; name: string }[]
-  budget: number | null
-  onSetBudget: () => void
-}) {
-  if (!project) return null
-
-  // Category breakdown
-  const catTotals = useMemo(() => {
-    const map = new Map<string, number>()
-    expenses.forEach((e) => {
-      map.set(e.category, (map.get(e.category) ?? 0) + e.total)
-    })
-    return [...map.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .map(([catId, total]) => ({
-        catId,
-        total,
-        cat: allCats.find((c) => c.id === catId),
-        pct: project.total > 0 ? (total / project.total) * 100 : 0,
-      }))
-  }, [expenses, allCats, project.total])
-
-  const days = differenceInDays(project.lastDate, project.firstDate)
-
-  return (
-    <div className="space-y-4">
-      {/* Summary stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card>
-          <CardContent className="p-4 space-y-1">
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Calendar className="h-3.5 w-3.5" />
-              <span className="text-xs">Período</span>
-            </div>
-            <p className="text-sm font-semibold">
-              {format(project.firstDate, "d MMM", { locale: es })}
-              {days > 0 && ` → ${format(project.lastDate, "d MMM", { locale: es })}`}
-            </p>
-            {days > 0 && (
-              <p className="text-xs text-muted-foreground">{days} días</p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 space-y-1">
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <TrendingUp className="h-3.5 w-3.5" />
-              <span className="text-xs">Media por gasto</span>
-            </div>
-            <p className="text-sm font-semibold tabular-nums">
-              {formatCurrency(project.count > 0 ? project.total / project.count : 0)}
-            </p>
-            <p className="text-xs text-muted-foreground">{project.count} gastos</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Budget card */}
+      {/* Info card */}
       <Card>
-        <CardContent className="p-4 space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Wallet className="h-3.5 w-3.5" />
-              <span className="text-xs">Presupuesto</span>
+        <CardContent className="p-4 space-y-3">
+          {project.description && (
+            <div className="flex items-start gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+              <p className="text-sm text-muted-foreground">{project.description}</p>
             </div>
-            <Button size="sm" variant="outline" className="h-6 text-xs gap-1 px-2" onClick={onSetBudget}>
-              <Pencil className="h-2.5 w-2.5" />
-              {budget ? "Cambiar" : "Definir"}
-            </Button>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Gastos del proyecto</p>
+              <p className="font-bold tabular-nums">{formatCurrency(total, project.currency)}</p>
+            </div>
+            {project.budget && (
+              <div>
+                <p className="text-xs text-muted-foreground">Presupuesto</p>
+                <p className={cn("font-bold tabular-nums", overBudget && "text-destructive")}>
+                  {formatCurrency(project.budget, project.currency)}
+                </p>
+              </div>
+            )}
           </div>
-          {budget ? (
-            <div className="space-y-1.5">
+          {project.budget && (
+            <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className={cn(
-                  "font-semibold tabular-nums",
-                  project.total > budget ? "text-destructive" : ""
-                )}>
-                  {formatCurrency(project.total)} / {formatCurrency(budget)}
+                <span className={cn(overBudget ? "text-destructive font-medium" : "text-muted-foreground")}>
+                  {Math.round((total / project.budget) * 100)}% usado
                 </span>
-                <span className={cn(
-                  "tabular-nums",
-                  project.total > budget ? "text-destructive font-medium" : "text-muted-foreground"
-                )}>
-                  {Math.round((project.total / budget) * 100)}%
-                  {project.total > budget && " ⚠"}
-                </span>
+                {overBudget && (
+                  <span className="text-destructive font-medium">
+                    Excedido +{formatCurrency(total - project.budget, project.currency)}
+                  </span>
+                )}
               </div>
               <Progress
-                value={Math.min((project.total / budget) * 100, 100)}
-                className="h-2"
+                value={budgetPct}
+                className={cn("h-2", overBudget && "[&>div]:bg-destructive")}
               />
-              {project.total > budget && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  Excedido por {formatCurrency(project.total - budget)}
-                </p>
-              )}
             </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">Sin presupuesto definido</p>
           )}
         </CardContent>
       </Card>
 
-      {/* Category breakdown */}
-      {catTotals.length > 0 && (
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Por categoría
-            </p>
-            <div className="space-y-2.5">
-              {catTotals.map(({ catId, total, cat, pct }) => (
-                <div key={catId} className="space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-base leading-none shrink-0">{cat?.icon ?? "📦"}</span>
-                      <span className="text-sm truncate">{cat?.name ?? catId}</span>
-                    </div>
-                    <span className="text-sm font-semibold tabular-nums shrink-0">
-                      {formatCurrency(total)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-primary/60 transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-muted-foreground w-8 text-right">
-                      {pct.toFixed(0)}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Add expense button */}
+      <Button
+        className="w-full gap-2"
+        variant="outline"
+        onClick={() => setAddExpenseOpen(true)}
+      >
+        <Plus className="h-4 w-4" />
+        Añadir gasto al proyecto
+      </Button>
 
       {/* Expense list */}
       <div className="space-y-2">
@@ -628,16 +455,19 @@ function DetailView({
         {expenses.length === 0 ? (
           <div className="text-center py-10 text-muted-foreground">
             <Receipt className="h-8 w-8 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">Sin gastos en este período</p>
+            <p className="text-sm">Sin gastos en este proyecto</p>
+            <p className="text-xs mt-1">Usa el botón de arriba para añadir el primer gasto.</p>
           </div>
         ) : (
           expenses.map((e) => {
             const cat = allCats.find((c) => c.id === e.category)
+            const dateStr = e.date
+              ? format(new Date(e.date as string), "d MMM yyyy", { locale: es })
+              : ""
             return (
               <div
-                key={e.id}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-l-[3px] hover:bg-muted/30 transition-colors"
-                style={{ borderLeftColor: (cat as { color?: string })?.color ?? "hsl(var(--border))" }}
+                key={e.id as string}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl border hover:bg-muted/30 transition-colors"
               >
                 <div
                   className="h-8 w-8 rounded-lg flex items-center justify-center text-sm shrink-0"
@@ -646,79 +476,337 @@ function DetailView({
                   {cat?.icon ?? "📦"}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{e.merchant}</p>
+                  <p className="text-sm font-medium truncate">{e.merchant as string}</p>
                   <p className="text-xs text-muted-foreground">
-                    {format(e.date.toDate(), "d MMM yyyy", { locale: es })}
-                    {e.notes ? ` · ${e.notes}` : ""}
+                    {dateStr}
+                    {(e.notes as string) ? ` · ${e.notes}` : ""}
                   </p>
                 </div>
                 <p className="text-sm font-semibold tabular-nums shrink-0 text-destructive">
-                  -{formatCurrency(e.total, e.currency)}
+                  -{formatCurrency(e.total as number, e.currency as string)}
                 </p>
               </div>
             )
           })
         )}
       </div>
+
+      {/* Add expense dialog */}
+      <AddExpenseDialog
+        open={addExpenseOpen}
+        onOpenChange={setAddExpenseOpen}
+        projectId={project.id}
+        projectName={project.name}
+        allCats={allCats}
+        onDone={() => setAddExpenseOpen(false)}
+      />
     </div>
   )
 }
 
-// ─── Rename dialog ────────────────────────────────────────────────────────────
+// ─── Add expense dialog ───────────────────────────────────────────────────────
 
-function RenameDialog({
-  project,
-  onClose,
-  onRenamed,
+function AddExpenseDialog({
+  open,
+  onOpenChange,
+  projectId,
+  projectName,
+  allCats,
+  onDone,
 }: {
-  project: ProjectSummary
-  onClose: () => void
-  onRenamed: (newName: string) => void
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  projectId: string
+  projectName: string
+  allCats: { id: string; icon: string; name: string }[]
+  onDone: () => void
 }) {
-  const [name, setName] = useState(project.name)
-  const rename = useRenameProject()
+  const addExpense = useAddExpense()
+  const [merchant, setMerchant] = useState("")
+  const [amount, setAmount] = useState("")
+  const [category, setCategory] = useState("otros")
+  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"))
+  const [notes, setNotes] = useState("")
+  const [saving, setSaving] = useState(false)
 
-  async function handleSave() {
-    if (!name.trim() || name.trim() === project.name) {
-      onClose()
-      return
-    }
+  async function handleSubmit() {
+    if (!merchant.trim()) { toast.error("El nombre del comercio es obligatorio"); return }
+    const total = parseFloat(amount)
+    if (isNaN(total) || total <= 0) { toast.error("El importe debe ser mayor a 0"); return }
+
+    setSaving(true)
     try {
-      await rename.mutateAsync({ expenseIds: project.expenseIds, newName: name.trim() })
-      toast.success(`Proyecto renombrado a "${name.trim()}"`)
-      onRenamed(name.trim())
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Error al renombrar")
+      await addExpense.mutateAsync({
+        merchant: merchant.trim(),
+        date: new Date(date + "T12:00:00"),
+        items: [],
+        subtotal: total,
+        tax: 0,
+        total,
+        paymentMethod: null,
+        reference: null,
+        category,
+        currency: "USD",
+        notes: notes.trim(),
+        tags: [],
+        receiptImageUrl: null,
+        projectId,
+        project: projectName,
+      })
+      toast.success("Gasto añadido al proyecto")
+      setMerchant("")
+      setAmount("")
+      setNotes("")
+      setCategory("otros")
+      setDate(format(new Date(), "yyyy-MM-dd"))
+      onDone()
+    } catch {
+      toast.error("Error al añadir el gasto")
+    } finally {
+      setSaving(false)
     }
   }
 
   return (
-    <Dialog open onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Renombrar proyecto</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Receipt className="h-4 w-4" />
+            Añadir gasto al proyecto
+          </DialogTitle>
         </DialogHeader>
-        <div className="py-2">
-          <p className="text-sm text-muted-foreground mb-3">
-            Se actualizarán {project.count} gasto{project.count !== 1 ? "s" : ""}.
-          </p>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSave()}
-            placeholder="Nombre del proyecto"
-            autoFocus
-          />
+        <div className="space-y-3 py-2">
+          <div>
+            <Label className="text-xs mb-1 block">Comercio / descripción *</Label>
+            <Input
+              value={merchant}
+              onChange={(e) => setMerchant(e.target.value)}
+              placeholder="Nombre del comercio"
+              autoFocus
+            />
+          </div>
+          <div>
+            <Label className="text-xs mb-1 block">Importe *</Label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step={0.01}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              className="tabular-nums"
+            />
+          </div>
+          <div>
+            <Label className="text-xs mb-1 block">Categoría</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {allCats.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.icon} {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs mb-1 block">Fecha</Label>
+            <Input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label className="text-xs mb-1 block">Notas</Label>
+            <Input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Notas opcionales…"
+            />
+          </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancelar
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleSubmit} disabled={saving || !merchant.trim() || !amount}>
+            {saving ? "Guardando…" : "Añadir gasto"}
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={rename.isPending || !name.trim()}
-          >
-            {rename.isPending ? "Guardando…" : "Guardar"}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Project form dialog ──────────────────────────────────────────────────────
+
+function ProjectFormDialog({
+  open,
+  onOpenChange,
+  project,
+  onDone,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  project?: Project
+  onDone: () => void
+}) {
+  const { data: clients = [] } = useClients()
+  const createProject = useCreateProject()
+  const updateProject = useUpdateProject()
+
+  const isEdit = !!project
+
+  const [name, setName] = useState(project?.name ?? "")
+  const [clientId, setClientId] = useState<string>(project?.clientId ?? "__none__")
+  const [description, setDescription] = useState(project?.description ?? "")
+  const [budget, setBudget] = useState(project?.budget != null ? String(project.budget) : "")
+  const [color, setColor] = useState(project?.color ?? PRESET_COLORS[0])
+  const [status, setStatus] = useState<"active" | "completed">(
+    project?.status === "completed" ? "completed" : "active"
+  )
+  const [saving, setSaving] = useState(false)
+
+  async function handleSubmit() {
+    if (!name.trim()) { toast.error("El nombre del proyecto es obligatorio"); return }
+
+    const input: ProjectInput = {
+      name: name.trim(),
+      clientId: clientId === "__none__" ? null : clientId,
+      description: description.trim() || null,
+      budget: budget ? parseFloat(budget) || null : null,
+      currency: "USD",
+      status,
+      color,
+    }
+
+    setSaving(true)
+    try {
+      if (isEdit && project) {
+        await updateProject.mutateAsync({ id: project.id, ...input })
+        toast.success("Proyecto actualizado")
+      } else {
+        await createProject.mutateAsync(input)
+        toast.success("Proyecto creado")
+      }
+      onDone()
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Error al guardar el proyecto")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Briefcase className="h-4 w-4" />
+            {isEdit ? "Editar proyecto" : "Nuevo proyecto"}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          {/* Name */}
+          <div>
+            <Label className="text-xs mb-1 block">Nombre *</Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              placeholder="Nombre del proyecto"
+              autoFocus
+            />
+          </div>
+
+          {/* Client */}
+          <div>
+            <Label className="text-xs mb-1 block">Cliente</Label>
+            <Select value={clientId} onValueChange={setClientId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sin cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Sin cliente</SelectItem>
+                {clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Description */}
+          <div>
+            <Label className="text-xs mb-1 block">Descripción</Label>
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Descripción opcional…"
+            />
+          </div>
+
+          {/* Budget */}
+          <div>
+            <Label className="text-xs mb-1 block flex items-center gap-1">
+              <Wallet className="h-3 w-3" />
+              Presupuesto
+            </Label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step={10}
+              value={budget}
+              onChange={(e) => setBudget(e.target.value)}
+              placeholder="Sin límite"
+              className="tabular-nums"
+            />
+          </div>
+
+          {/* Status */}
+          <div>
+            <Label className="text-xs mb-1 block">Estado</Label>
+            <Select value={status} onValueChange={(v) => setStatus(v as "active" | "completed")}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Activo</SelectItem>
+                <SelectItem value="completed">Completado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Color */}
+          <div>
+            <Label className="text-xs mb-1 block">Color</Label>
+            <div className="flex gap-2">
+              {PRESET_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setColor(c)}
+                  className={cn(
+                    "h-7 w-7 rounded-full border-2 transition-transform",
+                    color === c ? "border-foreground scale-110" : "border-transparent"
+                  )}
+                  style={{ backgroundColor: c }}
+                  aria-label={`Color ${c}`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleSubmit} disabled={saving || !name.trim()}>
+            {saving ? "Guardando…" : isEdit ? "Guardar cambios" : "Crear proyecto"}
           </Button>
         </DialogFooter>
       </DialogContent>
