@@ -159,53 +159,38 @@ export function BottomNav() {
         />
       )}
 
-      {/* ── Speed dial + FAB — esquina inferior derecha ─────────────────── */}
+      {/* ── Action sheet (scanner / gasto / ingreso) ─────────────────────── */}
       <div
-        className="fixed right-4 z-50 md:hidden flex flex-col items-end gap-2.5"
-        style={{ bottom: "calc(4rem + env(safe-area-inset-bottom, 0px) + 1rem)" }}
+        className={cn(
+          "fixed left-0 right-0 z-40 md:hidden transition-all duration-200 ease-out",
+          actionOpen
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 translate-y-3 pointer-events-none"
+        )}
+        style={{ bottom: "calc(4rem + env(safe-area-inset-bottom, 0px))" }}
       >
-        {/* Chips de acción — aparecen con stagger hacia arriba */}
-        {actionOpen && (
-          <>
-            <SpeedDialChip
-              icon={<TrendingUp className="h-4 w-4" />}
-              iconClass="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-              label="Añadir ingreso"
-              onClick={openIncome}
-              delay="80ms"
-            />
-            <SpeedDialChip
-              icon={<PenLine className="h-4 w-4" />}
-              iconClass="bg-blue-500/15 text-blue-600 dark:text-blue-400"
-              label="Gasto manual"
-              onClick={openQuickAdd}
-              delay="40ms"
-            />
-            <SpeedDialChip
-              icon={<ScanLine className="h-4 w-4" />}
-              iconClass="bg-violet-500/15 text-violet-600 dark:text-violet-400"
+        <div className="mx-3 mb-2 rounded-2xl border bg-background/98 backdrop-blur-md shadow-xl overflow-hidden">
+          <div className="p-2 grid grid-cols-3 gap-1">
+            <ActionBtn
+              icon={<ScanLine className="h-5 w-5 text-violet-600 dark:text-violet-400" />}
+              iconBg="bg-violet-500/10"
               label="Escanear recibo"
               onClick={openScanner}
-              delay="0ms"
             />
-          </>
-        )}
-
-        {/* Botón FAB */}
-        <button
-          onClick={() => { setActionOpen((o) => !o); setMoreOpen(false) }}
-          aria-label={actionOpen ? "Cerrar" : "Añadir"}
-          className={cn(
-            "flex h-14 w-14 items-center justify-center rounded-full shrink-0",
-            "bg-primary text-primary-foreground",
-            "shadow-[0_8px_28px_-4px_hsl(var(--primary)/0.55)]",
-            "transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-            "active:scale-[0.88] active:shadow-none active:transition-none",
-            actionOpen ? "rotate-45" : "rotate-0"
-          )}
-        >
-          <Plus className="h-7 w-7" />
-        </button>
+            <ActionBtn
+              icon={<PenLine className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
+              iconBg="bg-blue-500/10"
+              label="Gasto manual"
+              onClick={openQuickAdd}
+            />
+            <ActionBtn
+              icon={<TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
+              iconBg="bg-emerald-500/10"
+              label="Añadir ingreso"
+              onClick={openIncome}
+            />
+          </div>
+        </div>
       </div>
 
       {/* ── "Más" slide-up panel ─────────────────────────────────────────── */}
@@ -391,45 +376,102 @@ export function BottomNav() {
           shadow-[0_-1px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_-1px_16px_rgba(0,0,0,0.35)]"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
-        <div className="flex h-16 items-center justify-around px-1">
+        <div className="flex h-16 items-center px-1">
 
-          {/* Nav items: Dashboard, Gastos, Análisis */}
-          {NAV_ITEMS.slice(0, 3).map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(href + "/")
-            const justActivated = animatingHref === href
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  "relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl min-w-[56px]",
-                  "transition-[color,background-color] duration-200",
-                  active
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                )}
-              >
-                <Icon className={cn(
-                  "h-5 w-5 transition-transform duration-200",
-                  active ? "stroke-[2.5] scale-110" : "scale-100",
-                  justActivated && "nav-icon-pop"
-                )} />
-                <span className={cn(
-                  "text-[11px] font-medium transition-[font-weight] duration-200",
-                  active && "font-semibold",
-                  justActivated && "nav-label-in"
-                )}>{label}</span>
-                {active && (
-                  <span className={cn(
-                    "absolute bottom-0.5 h-[3px] w-4 rounded-full bg-foreground origin-center",
-                    justActivated && "nav-dot-grow"
+          {/* Left: Dashboard + Gastos */}
+          <div className="flex flex-1 items-center justify-around">
+            {NAV_ITEMS.slice(0, 2).map(({ href, label, icon: Icon }) => {
+              const active = pathname === href || pathname.startsWith(href + "/")
+              const justActivated = animatingHref === href
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl min-w-[56px]",
+                    "transition-[color,background-color] duration-200",
+                    active
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  )}
+                >
+                  <Icon className={cn(
+                    "h-5 w-5 transition-transform duration-200",
+                    active ? "stroke-[2.5] scale-110" : "scale-100",
+                    justActivated && "nav-icon-pop"
                   )} />
-                )}
-              </Link>
-            )
-          })}
+                  <span className={cn(
+                    "text-[11px] font-medium transition-[font-weight] duration-200",
+                    active && "font-semibold",
+                    justActivated && "nav-label-in"
+                  )}>{label}</span>
+                  {active && (
+                    <span className={cn(
+                      "absolute bottom-0.5 h-[3px] w-4 rounded-full bg-foreground origin-center",
+                      justActivated && "nav-dot-grow"
+                    )} />
+                  )}
+                </Link>
+              )
+            })}
+          </div>
 
-          {/* "Más" toggle */}
+          {/* Center: FAB inline en el nav */}
+          <div className="flex items-center justify-center w-16 shrink-0">
+            <button
+              onClick={() => { setActionOpen((o) => !o); setMoreOpen(false) }}
+              aria-label={actionOpen ? "Cerrar" : "Añadir"}
+              className={cn(
+                "flex h-12 w-12 items-center justify-center rounded-full",
+                "bg-primary text-primary-foreground",
+                "shadow-[0_4px_20px_-2px_hsl(var(--primary)/0.6)]",
+                "transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+                "active:scale-[0.88] active:shadow-none active:transition-none",
+                actionOpen ? "rotate-45" : "rotate-0"
+              )}
+            >
+              <Plus className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Right: Análisis + Más */}
+          <div className="flex flex-1 items-center justify-around">
+            {NAV_ITEMS.slice(2, 3).map(({ href, label, icon: Icon }) => {
+              const active = pathname === href || pathname.startsWith(href + "/")
+              const justActivated = animatingHref === href
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl min-w-[56px]",
+                    "transition-[color,background-color] duration-200",
+                    active
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  )}
+                >
+                  <Icon className={cn(
+                    "h-5 w-5 transition-transform duration-200",
+                    active ? "stroke-[2.5] scale-110" : "scale-100",
+                    justActivated && "nav-icon-pop"
+                  )} />
+                  <span className={cn(
+                    "text-[11px] font-medium transition-[font-weight] duration-200",
+                    active && "font-semibold",
+                    justActivated && "nav-label-in"
+                  )}>{label}</span>
+                  {active && (
+                    <span className={cn(
+                      "absolute bottom-0.5 h-[3px] w-4 rounded-full bg-foreground origin-center",
+                      justActivated && "nav-dot-grow"
+                    )} />
+                  )}
+                </Link>
+              )
+            })}
+
+            {/* "Más" toggle */}
             <button
               onClick={() => { setMoreOpen((o) => !o); setActionOpen(false) }}
               className={cn(
@@ -461,45 +503,38 @@ export function BottomNav() {
                 <span className="absolute bottom-0.5 h-[3px] w-4 rounded-full bg-foreground origin-center" />
               )}
             </button>
-        </div>
+          </div>{/* end Right */}
+        </div>{/* end main flex */}
       </nav>
     </>
   )
 }
 
-// ─── Speed dial chip ─────────────────────────────────────────────────────────
+// ─── Action button ────────────────────────────────────────────────────────────
 
-function SpeedDialChip({
+function ActionBtn({
   icon,
-  iconClass,
+  iconBg,
   label,
   onClick,
-  delay,
 }: {
   icon: React.ReactNode
-  iconClass: string
+  iconBg?: string
   label: string
   onClick: () => void
-  delay: string
 }) {
   return (
     <button
       onClick={onClick}
-      className={cn(
-        "flex items-center gap-2.5 rounded-2xl border bg-background/95 backdrop-blur-sm",
-        "shadow-lg pl-1.5 pr-4 py-1.5",
-        "hover:shadow-xl hover:border-primary/20 active:scale-[0.97] active:transition-none transition-all duration-150",
-        "animate-[fadeSlideUp_0.2s_ease-out_both]"
-      )}
-      style={{ animationDelay: delay }}
+      className="flex flex-col items-center gap-2.5 px-2 py-4 rounded-xl hover:bg-accent active:scale-95 active:transition-none transition-all duration-150"
     >
       <span className={cn(
-        "h-8 w-8 rounded-xl flex items-center justify-center shrink-0",
-        iconClass
+        "h-10 w-10 rounded-2xl flex items-center justify-center shrink-0",
+        iconBg ?? "bg-muted"
       )}>
         {icon}
       </span>
-      <span className="text-sm font-semibold whitespace-nowrap">{label}</span>
+      <span className="text-[11px] font-semibold leading-tight text-center">{label}</span>
     </button>
   )
 }
