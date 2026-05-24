@@ -14,10 +14,20 @@ import { readFileSync } from "fs"
 import { join } from "path"
 
 const SECRET = "run-migrations-now"
-const DB_HOST = "db.jfzvkzhimrehowwntnhm.supabase.co"
-const DB_USER = "postgres"
+const PROJECT_REF = "jfzvkzhimrehowwntnhm"
 const DB_NAME = "postgres"
-const DB_PORT = 5432
+
+// Intentamos múltiples hosts en orden hasta que uno resuelva
+const DB_CONFIGS = [
+  // Session pooler us-east-1 (Vercel IAD1 está en us-east-1)
+  { host: `aws-0-us-east-1.pooler.supabase.com`, port: 5432, user: `postgres.${PROJECT_REF}` },
+  // Session pooler us-west-1
+  { host: `aws-0-us-west-1.pooler.supabase.com`,  port: 5432, user: `postgres.${PROJECT_REF}` },
+  // Session pooler eu-west-1
+  { host: `aws-0-eu-west-1.pooler.supabase.com`,  port: 5432, user: `postgres.${PROJECT_REF}` },
+  // Directo (por si acaso)
+  { host: `db.${PROJECT_REF}.supabase.co`,          port: 5432, user: "postgres" },
+]
 
 const migrations = [
   "004_extend_groups_schema.sql",
@@ -36,18 +46,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "dbPassword requerido" }, { status: 400 })
   }
 
-  const client = new pg.Client({
-    host: DB_HOST,
-    port: DB_PORT,
-    user: DB_USER,
-    password: body.dbPassword,
-    database: DB_NAME,
-    ssl: { rejectUnauthorized: false },
-  })
+  // Prueba configs en orden hasta conectar
+  let client: pg.Client | null = null
+  let connectedConfig: string | null = null
+  const connErrors: string[] = []
+  for (const cfg of DB_CONFIGS) {
+    const c = new pg.Client({ host: cfg.host, port: cfg.port, user: cfg.user, password: body.dbPassword, database: DB_NAME, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 5000 })
+    try {
+      await c.connect()
+      client = c
+      connectedConfig = `${cfg.user}@${cfg.host}:${cfg.port}`
+      break
+    } catch (e) {
+      connErrors.push(`${cfg.host}: ${(e as Error).message}`)
+      await c.end().catch(() => {})
+    }
+  }
+  if (!client) {
+    return NextResponse.json({ error: "No se pudo conectar a ningún host", details: connErrors }, { status: 500 })
+  }
+
   const results: { migration: string; status: string; error?: string }[] = []
 
   try {
-    await client.connect()
+    // client ya conectado
 
     for (const filename of migrations) {
       const sqlPath = join(process.cwd(), "supabase", "migrations", filename)
@@ -73,5 +95,5 @@ export async function POST(req: NextRequest) {
   }
 
   const allOk = results.every((r) => r.status === "ok")
-  return NextResponse.json({ results }, { status: allOk ? 200 : 207 })
+  return NextResponse.json({ connectedVia: connectedConfig, results }, { status: allOk ? 200 : 207 })
 }
