@@ -95,6 +95,9 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error("[POST /api/groups] Supabase error:", error.message, error.details, error.hint)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json(rowToGroup(data as Record<string, unknown>), { status: 201 })
 }
