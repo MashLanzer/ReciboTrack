@@ -367,26 +367,29 @@ export function BottomNav() {
         </div>
       </div>
 
-      {/* ── FAB — fixed independently at z-50 so it never gets clipped ────── */}
-      {/* Extracted from <nav> (z-40) so the top half of the circle is always */}
-      {/* above page content regardless of scroll position.                    */}
+      {/* ── FAB — positioned completely above the nav bar ───────────────── */}
+      {/* bottom = 4rem (nav h-16) + safe-area + 0.75rem gap                 */}
+      {/* This guarantees the full circle is always above the tab bar.        */}
       <div
         className="fixed left-1/2 -translate-x-1/2 z-50 md:hidden"
-        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
+        style={{ bottom: "calc(4rem + env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
       >
         <button
           onClick={() => { setActionOpen((o) => !o); setMoreOpen(false) }}
-          aria-label="Añadir"
+          aria-label={actionOpen ? "Cerrar" : "Añadir"}
           className={cn(
             "flex h-14 w-14 items-center justify-center rounded-full",
             "bg-primary text-primary-foreground",
-            "transition-[transform,box-shadow,ring] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-            actionOpen
-              ? "rotate-45 scale-90 shadow-md ring-4 ring-primary/25"
-              : "rotate-0 scale-100 shadow-lg active:scale-90"
+            // Glow shadow — matches primary color
+            "shadow-[0_8px_28px_-4px_hsl(var(--primary)/0.55)]",
+            // Smooth spring rotation only — no scale change on open/close
+            "transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+            // Press feedback: fast compress + shadow collapse
+            "active:scale-[0.88] active:shadow-none active:transition-none",
+            actionOpen ? "rotate-45" : "rotate-0"
           )}
         >
-          <Plus className="h-6 w-6 transition-transform duration-300" />
+          <Plus className="h-7 w-7" />
         </button>
       </div>
 
