@@ -17,6 +17,7 @@ import { DashboardStats }     from "@/components/dashboard/dashboard-stats"
 import { MultiCurrencyBanner } from "@/components/dashboard/multicurrency-banner"
 import { RecurringBanner }    from "@/components/expenses/recurring-banner"
 import { GoalsWidget }        from "@/components/dashboard/goals-widget"
+import { HealthScoreWidget }  from "@/components/dashboard/health-score-widget"
 import { MemoriesWidget }     from "@/components/dashboard/memories-widget"
 import { AnniversaryWidget }  from "@/components/dashboard/anniversary-widget"
 import { HighlightsWidget }   from "@/components/dashboard/highlights-widget"
@@ -280,6 +281,9 @@ export default function DashboardPage() {
 
         {/* ── Goals widget ──────────────────────────────────────────────── */}
         <GoalsWidget />
+
+        {/* ── Health score ──────────────────────────────────────────────── */}
+        <HealthScoreWidget />
 
         {/* ── 📅 Recuerdos y logros (collapsible) ─────────────────────────── */}
         <button
