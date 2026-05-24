@@ -64,6 +64,37 @@ function emptyForm() {
   }
 }
 
+// ─── Circular ring progress ───────────────────────────────────────────────────
+
+function RingProgress({ pct, isComplete, urgency }: { pct: number; isComplete: boolean; urgency: "ok" | "warn" | "done" }) {
+  const r = 26
+  const circ = 2 * Math.PI * r
+  const offset = circ - (Math.min(pct, 100) / 100) * circ
+  const strokeColor =
+    isComplete || urgency === "done" ? "#22c55e" :
+    urgency === "warn" ? "#f59e0b" :
+    "hsl(var(--primary))"
+  return (
+    <div className="relative shrink-0 w-[64px] h-[64px]">
+      <svg width="64" height="64" viewBox="0 0 64 64" style={{ transform: "rotate(-90deg)" }}>
+        <circle cx="32" cy="32" r={r} fill="none" strokeWidth="5.5"
+          style={{ stroke: "hsl(var(--muted-foreground) / 0.15)" }} />
+        <circle cx="32" cy="32" r={r} fill="none" strokeWidth="5.5"
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          style={{ stroke: strokeColor, transition: "stroke-dashoffset 0.7s ease" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-[11px] font-black tabular-nums">
+          {isComplete ? "✓" : `${Math.round(pct)}%`}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 // ─── Goal Card ────────────────────────────────────────────────────────────────
 
 // Extended Goal type to include optional dailyContribution field
@@ -181,9 +212,9 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
           </button>
         </div>
 
-        {/* Amounts */}
-        <div className="flex items-end justify-between">
-          <div>
+        {/* Amounts + ring */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
             <p className="text-2xl font-bold tabular-nums">
               {formatCurrency(goal.currentAmount, goal.currency)}
             </p>
@@ -191,14 +222,10 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
               de {formatCurrency(goal.targetAmount, goal.currency)}
             </p>
           </div>
-          <p className="text-sm font-semibold text-muted-foreground">{pct.toFixed(0)}%</p>
-        </div>
-
-        {/* Progress bar */}
-        <div className="h-2 rounded-full bg-muted overflow-hidden">
-          <div
-            className={cn("h-full rounded-full transition-all", barColor)}
-            style={{ width: `${pct}%` }}
+          <RingProgress
+            pct={pct}
+            isComplete={isComplete}
+            urgency={isComplete ? "done" : deadlinePct > 70 ? "warn" : "ok"}
           />
         </div>
 

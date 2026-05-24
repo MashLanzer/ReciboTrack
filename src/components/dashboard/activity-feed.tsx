@@ -140,9 +140,13 @@ export function ActivityFeed() {
     return (
       <div
         key={e.id}
-        className="flex items-center gap-3 px-4 py-2.5 group hover:bg-accent/30 transition-colors"
+        className="flex items-center gap-3 px-4 py-2.5 group hover:bg-muted/50 transition-colors border-l-[3px]"
+        style={{ borderLeftColor: catMeta?.color ?? "transparent" }}
       >
-        <div className="h-8 w-8 rounded-xl bg-muted flex items-center justify-center shrink-0 text-sm">
+        <div
+          className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0 text-sm"
+          style={{ backgroundColor: catMeta?.color ? `${catMeta.color}20` : "hsl(var(--muted))" }}
+        >
           {emoji}
         </div>
         <div className="flex-1 min-w-0">
@@ -288,14 +292,19 @@ export function ActivityFeed() {
           {groups.map(group => (
             <div key={group.dateKey}>
               {/* Day header */}
-              <div className="flex items-center justify-between px-4 py-2 bg-muted/30">
+              <div className={cn(
+                "flex items-center gap-2 px-4 py-2",
+                group.isToday ? "bg-primary/5" : "bg-muted/25"
+              )}>
+                <div className="h-px flex-1 bg-border/50" />
                 <p className={cn(
-                  "text-[11px] font-semibold capitalize",
+                  "text-[10px] font-semibold uppercase tracking-widest capitalize shrink-0",
                   group.isToday ? "text-primary" : "text-muted-foreground"
                 )}>
                   {group.label}
                 </p>
-                <p className="text-[11px] font-bold tabular-nums text-muted-foreground">
+                <div className="h-px flex-1 bg-border/50" />
+                <p className="text-[10px] font-bold tabular-nums text-muted-foreground/70 shrink-0">
                   {formatCurrency(group.total)}
                 </p>
               </div>

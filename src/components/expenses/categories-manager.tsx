@@ -100,58 +100,66 @@ export function CategoriesManager() {
       />
 
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">Predeterminadas</p>
-        <div className="grid gap-2">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="h-px flex-1 bg-border/50" />
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground shrink-0">Predeterminadas</p>
+          <div className="h-px flex-1 bg-border/50" />
+        </div>
+        <div className="grid gap-1.5">
           {defaults.map((cat) => (
-            <Card key={cat.id}>
-              <CardContent className="py-3 px-4 flex items-center gap-3">
-                <div
-                  className="h-9 w-9 rounded-lg flex items-center justify-center text-base shrink-0"
-                  style={{ backgroundColor: `${cat.color}20`, borderColor: `${cat.color}40`, border: "1px solid" }}
-                >
-                  {cat.icon}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{cat.name}</p>
-                </div>
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
-              </CardContent>
-            </Card>
+            <div
+              key={cat.id}
+              className="group flex items-center gap-3 py-2.5 px-3 rounded-xl border bg-card border-l-[3px] transition-all duration-150 hover:bg-muted/40 hover:shadow-sm"
+              style={{ borderLeftColor: cat.color }}
+            >
+              <div
+                className="h-8 w-8 rounded-lg flex items-center justify-center text-base shrink-0"
+                style={{ backgroundColor: `${cat.color}20` }}
+              >
+                {cat.icon}
+              </div>
+              <p className="text-sm font-medium flex-1 truncate">{cat.name}</p>
+              <div className="h-2 w-2 rounded-full shrink-0 opacity-50" style={{ backgroundColor: cat.color }} />
+            </div>
           ))}
         </div>
       </div>
 
       {custom.length > 0 && (
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">Personalizadas</p>
-          <div className="grid gap-2">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="h-px flex-1 bg-border/50" />
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground shrink-0">Personalizadas</p>
+            <div className="h-px flex-1 bg-border/50" />
+          </div>
+          <div className="grid gap-1.5">
             {custom.map((cat) => (
-              <Card key={cat.id}>
-                <CardContent className="py-3 px-4 flex items-center gap-3">
-                  <div
-                    className="h-9 w-9 rounded-lg flex items-center justify-center text-base shrink-0"
-                    style={{ backgroundColor: `${cat.color}20`, borderColor: `${cat.color}40`, border: "1px solid" }}
+              <div
+                key={cat.id}
+                className="group flex items-center gap-3 py-2.5 px-3 rounded-xl border bg-card border-l-[3px] transition-all duration-150 hover:bg-muted/40 hover:shadow-sm"
+                style={{ borderLeftColor: cat.color }}
+              >
+                <div
+                  className="h-8 w-8 rounded-lg flex items-center justify-center text-base shrink-0"
+                  style={{ backgroundColor: `${cat.color}20` }}
+                >
+                  {cat.icon}
+                </div>
+                <p className="text-sm font-semibold flex-1 truncate">{cat.name}</p>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(cat)}>
+                    <Edit className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleDelete(cat)}
                   >
-                    {cat.icon}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{cat.name}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(cat)}>
-                      <Edit className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => handleDelete(cat)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
             ))}
           </div>
         </div>

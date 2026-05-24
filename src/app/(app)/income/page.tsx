@@ -85,16 +85,16 @@ export default function IncomePage() {
       <IncomeSourcesBreakdown />
 
       {/* Month selector */}
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
         {options.map((opt, i) => (
           <button
             key={i}
             onClick={() => setSelected(i)}
             className={cn(
-              "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors capitalize",
+              "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all capitalize",
               selected === i
-                ? "bg-foreground text-background"
-                : "bg-muted text-muted-foreground hover:text-foreground"
+                ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/20 ring-offset-1"
+                : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
             )}
           >
             {opt.label}

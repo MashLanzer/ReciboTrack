@@ -203,18 +203,24 @@ function TripCard({ budget, onDelete }: { budget: TravelBudget; onDelete: () => 
       </div>
 
       {/* Progress */}
-      <div className="px-4 pb-3 space-y-2">
+      <div className="px-4 pb-3 space-y-2.5">
+        {/* Amounts row */}
         <div className="flex items-end justify-between">
-          <p className="text-2xl font-bold tabular-nums">
-            {formatCurrency(spent, budget.currency)}
-          </p>
-          <p className="text-xs text-muted-foreground tabular-nums">
-            de {formatCurrency(budget.totalLimit, budget.currency)}
-          </p>
+          <div>
+            <p className="text-2xl font-bold tabular-nums">{formatCurrency(spent, budget.currency)}</p>
+            <p className="text-[11px] text-muted-foreground">gastado</p>
+          </div>
+          <div className="text-right">
+            <p className={cn("text-base font-bold tabular-nums", remaining < 0 ? "text-destructive" : "text-emerald-600 dark:text-emerald-400")}>
+              {remaining < 0 ? "-" : "+"}{formatCurrency(Math.abs(remaining), budget.currency)}
+            </p>
+            <p className="text-[11px] text-muted-foreground">{remaining < 0 ? "excedido" : "restante"}</p>
+          </div>
         </div>
-        <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+        {/* Gauge bar */}
+        <div className="h-3 rounded-full bg-muted overflow-hidden">
           <div
-            className={cn("h-full rounded-full transition-all", barColor)}
+            className={cn("h-full rounded-full transition-all duration-700", barColor)}
             style={{ width: `${pct}%` }}
           />
         </div>

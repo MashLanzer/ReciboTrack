@@ -16,13 +16,23 @@ export default function CategoriesPage() {
         <CategoriesManager />
       </ErrorBoundary>
 
-      <div className="border-t pt-6">
+      <div className="relative pt-6">
+        <div className="absolute inset-x-0 top-0 flex items-center gap-3">
+          <div className="h-px flex-1 bg-border/60" />
+          <span className="shrink-0 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/60">Reglas automáticas</span>
+          <div className="h-px flex-1 bg-border/60" />
+        </div>
         <ErrorBoundary label="Reglas de categorías" compact>
           <CategoryRules />
         </ErrorBoundary>
       </div>
 
-      <div className="border-t pt-6">
+      <div className="relative pt-6">
+        <div className="absolute inset-x-0 top-0 flex items-center gap-3">
+          <div className="h-px flex-1 bg-border/60" />
+          <span className="shrink-0 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/60">Límites mensuales</span>
+          <div className="h-px flex-1 bg-border/60" />
+        </div>
         <ErrorBoundary label="Límites por categoría" compact>
           <CategoryLimitsSettings />
         </ErrorBoundary>
