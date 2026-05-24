@@ -88,45 +88,77 @@ function RuleCard({
 }) {
   return (
     <div className={cn(
-      "rounded-xl border p-4 space-y-2 transition-opacity",
-      !rule.enabled && "opacity-50"
+      "rounded-xl border bg-card p-4 space-y-2.5 transition-all duration-200 hover:shadow-sm",
+      rule.enabled
+        ? "border-primary/20 hover:border-primary/40"
+        : "opacity-50 grayscale-[0.4]"
     )}>
       <div className="flex items-start gap-3">
-        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-          <Zap className="h-4 w-4 text-primary" />
+        {/* Icon — active glows */}
+        <div className={cn(
+          "h-9 w-9 rounded-xl flex items-center justify-center shrink-0 transition-colors",
+          rule.enabled ? "bg-primary/10" : "bg-muted"
+        )}>
+          <Zap className={cn("h-4 w-4", rule.enabled ? "text-primary" : "text-muted-foreground")} />
         </div>
+
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate">{rule.name}</p>
-          <p className="text-xs text-muted-foreground">
-            Si <span className="font-medium text-foreground">{triggerDescription(rule)}</span>{" "}
-            → <span className="font-medium text-foreground">{ACTION_LABELS[rule.action]}</span>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-bold truncate">{rule.name}</p>
+            {rule.enabled && (
+              <span className="shrink-0 inline-flex h-4 items-center rounded-full bg-green-500/15 px-1.5 text-[10px] font-semibold text-green-700 dark:text-green-400">
+                activa
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Si{" "}
+            <span className="font-semibold text-foreground">{triggerDescription(rule)}</span>
+            {" → "}
+            <span className="font-semibold text-foreground">{ACTION_LABELS[rule.action]}</span>
           </p>
           {rule.actionValue && (
-            <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+            <p className="text-[11px] text-muted-foreground mt-0.5 truncate font-mono">
               {rule.actionValue}
             </p>
           )}
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <button onClick={onToggle} className="text-muted-foreground hover:text-foreground transition-colors">
+
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button
+            onClick={onToggle}
+            className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
+            title={rule.enabled ? "Desactivar" : "Activar"}
+          >
             {rule.enabled
               ? <ToggleRight className="h-5 w-5 text-primary" />
-              : <ToggleLeft className="h-5 w-5" />}
+              : <ToggleLeft className="h-5 w-5 text-muted-foreground" />}
           </button>
-          <button onClick={onEdit} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+          <button
+            onClick={onEdit}
+            className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title="Editar"
+          >
             <Pencil className="h-3.5 w-3.5" />
           </button>
-          <button onClick={onDelete} className="p-1 text-muted-foreground hover:text-destructive transition-colors">
+          <button
+            onClick={onDelete}
+            className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            title="Eliminar"
+          >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
 
       {rule.lastFiredAt && (
-        <p className="text-[11px] text-muted-foreground pl-11">
-          Última ejecución:{" "}
-          {rule.lastFiredAt.toDate().toLocaleDateString("es", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-        </p>
+        <div className="flex items-center gap-1.5 pl-12">
+          <div className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+          <p className="text-[11px] text-muted-foreground">
+            Ejecutada{" "}
+            {rule.lastFiredAt.toDate().toLocaleDateString("es", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+          </p>
+        </div>
       )}
     </div>
   )
@@ -349,7 +381,25 @@ export function AutomationsClient() {
 
       {isLoading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="rounded-xl border bg-card p-4 space-y-2.5">
+              <div className="flex items-start gap-3">
+                <Skeleton className="h-9 w-9 rounded-xl shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-12 rounded-full" />
+                  </div>
+                  <Skeleton className="h-3 w-full" />
+                </div>
+                <div className="flex gap-0.5 shrink-0">
+                  <Skeleton className="h-8 w-8 rounded-lg" />
+                  <Skeleton className="h-8 w-8 rounded-lg" />
+                  <Skeleton className="h-8 w-8 rounded-lg" />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : rules.length === 0 ? (
         <div className="rounded-2xl border border-border/50 bg-muted/20 p-12 text-center space-y-3">
