@@ -1291,6 +1291,37 @@ function RecurringItem({
               </div>
             </>
           )}
+
+          {/* Price history section */}
+          {t.priceHistory && t.priceHistory.length > 0 && (
+            <div className="pt-2 border-t border-border/50 space-y-1.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Historial de precios
+              </p>
+              {[...t.priceHistory].reverse().map((entry, idx) => {
+                const pct = entry.previousTotal > 0
+                  ? ((entry.newTotal - entry.previousTotal) / entry.previousTotal) * 100
+                  : 0
+                const isIncrease = pct > 0
+                return (
+                  <div key={idx} className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-muted-foreground shrink-0">{entry.date}</span>
+                    <div className="flex items-center gap-1.5 ml-auto tabular-nums">
+                      <span className="text-muted-foreground">{formatCurrency(entry.previousTotal, t.currency)}</span>
+                      <span className="text-muted-foreground">→</span>
+                      <span className="font-medium">{formatCurrency(entry.newTotal, t.currency)}</span>
+                      <span className={cn(
+                        "font-semibold",
+                        isIncrease ? "text-destructive" : "text-income"
+                      )}>
+                        {isIncrease ? "+" : ""}{pct.toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
         </div>
       </div>
