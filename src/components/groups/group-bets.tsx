@@ -63,12 +63,12 @@ function BetCard({ bet, members, onJoin, onResolve }: {
             <p className="text-sm font-semibold leading-tight">{bet.title}</p>
             <Badge
               variant="outline"
-              className={cn("text-[11px] px-1.5 py-0 shrink-0", statusColor)}
+              className={cn("text-xs px-1.5 py-0 shrink-0", statusColor)}
             >
               {bet.status === "resolved" ? "Resuelto" : bet.status === "active" ? "Activo" : "Abierto"}
             </Badge>
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Creado por {creator?.displayName ?? bet.creatorId}
           </p>
         </div>
@@ -80,13 +80,13 @@ function BetCard({ bet, members, onJoin, onResolve }: {
       {/* Details */}
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="rounded-lg bg-muted/40 px-3 py-2">
-          <p className="text-muted-foreground text-[11px]">Meta</p>
+          <p className="text-muted-foreground text-xs">Meta</p>
           <p className="font-semibold tabular-nums">{formatCurrency(bet.targetAmount, bet.currency)}</p>
-          <p className="text-muted-foreground text-[11px]">{bet.period === "week" ? "esta semana" : "este mes"}</p>
+          <p className="text-muted-foreground text-xs">{bet.period === "week" ? "esta semana" : "este mes"}</p>
         </div>
         <div className="rounded-lg bg-muted/40 px-3 py-2">
-          <p className="text-muted-foreground text-[11px]">Apuesta</p>
-          <p className="font-medium text-[11px] leading-snug">{bet.stake}</p>
+          <p className="text-muted-foreground text-xs">Apuesta</p>
+          <p className="font-medium text-xs leading-snug">{bet.stake}</p>
         </div>
       </div>
 
@@ -98,7 +98,7 @@ function BetCard({ bet, members, onJoin, onResolve }: {
           {bet.participants.includes(uid) && " · Participas"}
         </p>
         {bet.category && (
-          <Badge variant="secondary" className="ml-auto text-[11px] px-1.5">
+          <Badge variant="secondary" className="ml-auto text-xs px-1.5">
             {bet.category}
           </Badge>
         )}
@@ -106,7 +106,7 @@ function BetCard({ bet, members, onJoin, onResolve }: {
 
       {/* Time remaining or ends at */}
       {bet.status !== "resolved" && (
-        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Clock className="h-3 w-3" />
           {remaining === 0
             ? "Vence hoy"
@@ -122,7 +122,7 @@ function BetCard({ bet, members, onJoin, onResolve }: {
           <p className="text-xs font-semibold text-green-700 dark:text-green-400">
             🏆 Ganador: {bet.result.winnerName}
           </p>
-          <p className="text-[11px] text-green-600/70 dark:text-green-500/70">
+          <p className="text-xs text-green-600/70 dark:text-green-500/70">
             Gastó {formatCurrency(bet.result.actualAmount, bet.currency)}
           </p>
         </div>
@@ -145,7 +145,7 @@ function BetCard({ bet, members, onJoin, onResolve }: {
         <Button
           size="sm"
           variant="outline"
-          className="w-full text-xs h-8 gap-1.5 text-amber-600 border-amber-500/30 hover:bg-amber-500/10"
+          className="w-full text-xs h-8 gap-1.5 text-warning border-warning/30 hover:bg-warning/10"
           onClick={() => { setSelectedWinnerId(""); setResolveOpen(true) }}
         >
           <Trophy className="h-3.5 w-3.5" />
@@ -164,7 +164,7 @@ function BetCard({ bet, members, onJoin, onResolve }: {
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-sm font-semibold flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-amber-500" />
+              <Trophy className="h-4 w-4 text-warning" />
               ¿Quién ganó el reto?
             </p>
             <p className="text-xs text-muted-foreground">
@@ -180,7 +180,7 @@ function BetCard({ bet, members, onJoin, onResolve }: {
                     onClick={() => setSelectedWinnerId(pUid)}
                     className={`w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-colors ${
                       selectedWinnerId === pUid
-                        ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                        ? "border-warning bg-warning/10 text-warning"
                         : "border-border hover:bg-muted/50"
                     }`}
                   >
@@ -204,7 +204,7 @@ function BetCard({ bet, members, onJoin, onResolve }: {
               </Button>
               <Button
                 size="sm"
-                className="flex-1 gap-1.5 bg-amber-500 hover:bg-amber-600 text-white"
+                className="flex-1 gap-1.5 bg-warning hover:bg-warning/90 text-white"
                 disabled={!selectedWinnerId}
                 onClick={() => {
                   const winner = members.find((m) => m.uid === selectedWinnerId)
@@ -321,7 +321,7 @@ export function GroupBets({ groupId, members }: Props) {
           <Target className="h-4 w-4 text-primary" />
           <p className="text-sm font-semibold">Retos del grupo</p>
           {bets.length > 0 && (
-            <span className="text-[11px] rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
+            <span className="text-xs rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
               {bets.length}
             </span>
           )}
@@ -369,7 +369,7 @@ export function GroupBets({ groupId, members }: Props) {
       {resolved.length > 0 && (
         <div className="space-y-3">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-            <Trophy className="h-3.5 w-3.5 text-amber-500" />
+            <Trophy className="h-3.5 w-3.5 text-warning" />
             Resueltos
           </p>
           {resolved.map((bet) => (
@@ -452,7 +452,7 @@ export function GroupBets({ groupId, members }: Props) {
                 value={stake}
                 onChange={(e) => setStake(e.target.value)}
               />
-              <p className="text-[11px] text-muted-foreground">¿Qué gana el que más se controla?</p>
+              <p className="text-xs text-muted-foreground">¿Qué gana el que más se controla?</p>
             </div>
 
             <Button className="w-full" onClick={handleCreate} disabled={saving}>

@@ -75,7 +75,7 @@ export function AiSuggestions({ expenses3months }: Props) {
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-xs font-bold leading-snug">💡 {s.titulo}</p>
                   {s.ahorroEstimado != null && s.ahorroEstimado > 0 && (
-                    <span className="shrink-0 inline-flex items-center rounded-full bg-green-500/15 px-2 py-0.5 text-[11px] font-semibold text-green-700 dark:text-green-400 whitespace-nowrap">
+                    <span className="shrink-0 inline-flex items-center rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-semibold text-green-700 dark:text-green-400 whitespace-nowrap">
                       Ahorra ~{s.ahorroEstimado}€/mes
                     </span>
                   )}

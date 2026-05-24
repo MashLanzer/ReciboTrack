@@ -23,9 +23,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   const patch: Record<string, unknown> = {}
-  if ("monthlyLimit" in body) patch.monthly_limit = body.monthlyLimit
-  if ("currency"     in body) patch.currency      = body.currency
-  if ("categoryId"   in body) patch.category_id   = body.categoryId
+  if ("monthlyLimit"    in body) patch.monthly_limit    = body.monthlyLimit
+  if ("currency"        in body) patch.currency         = body.currency
+  if ("categoryId"      in body) patch.category_id      = body.categoryId
+  if ("rolloverEnabled" in body) patch.rollover_enabled = body.rolloverEnabled
 
   const { error } = await getSupabase()
     .from("budgets")

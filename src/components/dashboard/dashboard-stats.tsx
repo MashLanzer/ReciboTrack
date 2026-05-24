@@ -115,7 +115,7 @@ function Delta({ value, invert = false }: { value: number; invert?: boolean }) {
   if (value === 0) return <Minus className="h-3 w-3 text-muted-foreground inline" />
   const bad = invert ? value < 0 : value > 0
   return (
-    <span className={cn("inline-flex items-center gap-0.5 text-[11px] tabular-nums font-medium", bad ? "text-destructive" : "text-green-600")}>
+    <span className={cn("inline-flex items-center gap-0.5 text-xs tabular-nums font-medium", bad ? "text-destructive" : "text-green-600")}>
       {value > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
       {Math.abs(value).toFixed(1)}%
     </span>
@@ -293,7 +293,7 @@ export function DashboardStats() {
               {format(monthStart, "MMMM yyyy", { locale: es })}
             </p>
             {activeAccount === 'business' && (
-              <span className="text-[9px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">Negocio</span>
+              <span className="text-[9px] font-semibold bg-warning/15 text-warning px-1.5 py-0.5 rounded-full">Negocio</span>
             )}
           </div>
           <div className="flex items-end justify-between">
@@ -438,11 +438,11 @@ export function DashboardStats() {
                             <div className="flex items-center gap-1 mt-0.5">
                               <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden w-16">
                                 <div
-                                  className={cn("h-full rounded-full transition-all", isOverLimit ? "bg-destructive" : isWarning ? "bg-amber-500" : "bg-green-500")}
+                                  className={cn("h-full rounded-full transition-all", isOverLimit ? "bg-destructive" : isWarning ? "bg-warning" : "bg-green-500")}
                                   style={{ width: `${limitPct}%` }}
                                 />
                               </div>
-                              <span className={cn("text-[9px] tabular-nums font-medium", isOverLimit ? "text-destructive" : isWarning ? "text-amber-600" : "text-muted-foreground")}>
+                              <span className={cn("text-[9px] tabular-nums font-medium", isOverLimit ? "text-destructive" : isWarning ? "text-warning" : "text-muted-foreground")}>
                                 {isOverLimit ? "⚠ " : ""}{formatCurrency(cat.total)}/{formatCurrency(limit)}
                               </span>
                             </div>
@@ -641,7 +641,7 @@ function FixedProjectionCard({
             Proyección con gastos fijos
           </CardTitle>
           {pendingItems.length > 0 && (
-            <span className="flex items-center gap-1 text-[10px] text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full">
+            <span className="flex items-center gap-1 text-[10px] text-warning bg-warning/10 px-2 py-0.5 rounded-full">
               <AlertCircle className="h-3 w-3" />
               {pendingItems.length} pendiente{pendingItems.length !== 1 ? "s" : ""}
             </span>
@@ -658,7 +658,7 @@ function FixedProjectionCard({
           </div>
           <div>
             <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Pendiente fijo</p>
-            <p className="text-sm font-bold tabular-nums mt-0.5 text-amber-600">{formatCurrency(pendingAmount)}</p>
+            <p className="text-sm font-bold tabular-nums mt-0.5 text-warning">{formatCurrency(pendingAmount)}</p>
             <p className="text-[10px] text-muted-foreground">{pendingItems.length} recurrente{pendingItems.length !== 1 ? "s" : ""}</p>
           </div>
           <div>
@@ -676,7 +676,7 @@ function FixedProjectionCard({
               style={{ width: `${spendPct}%` }}
             />
             <div
-              className="h-full bg-amber-500/60 transition-all"
+              className="h-full bg-warning/60 transition-all"
               style={{ width: `${pendingPct}%` }}
             />
           </div>
@@ -686,7 +686,7 @@ function FixedProjectionCard({
               Gastado
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-amber-500/60 inline-block" />
+              <span className="w-2 h-2 rounded-full bg-warning/60 inline-block" />
               Pendiente fijo
             </span>
             <span className="flex items-center gap-1">
@@ -717,7 +717,7 @@ function FixedProjectionCard({
                     <p className={cn(
                       "text-[10px]",
                       isToday ? "text-destructive font-medium" :
-                      isSoon  ? "text-amber-600" :
+                      isSoon  ? "text-warning" :
                                 "text-muted-foreground"
                     )}>
                       {isToday

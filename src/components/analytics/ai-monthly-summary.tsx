@@ -31,7 +31,7 @@ function AISkeleton() {
         <Skeleton className="h-3.5 w-[85%] rounded-md" />
         <Skeleton className="h-3.5 w-[60%] rounded-md" />
       </div>
-      <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 pt-1">
+      <p className="text-xs text-muted-foreground flex items-center gap-1.5 pt-1">
         <Sparkles className="h-3 w-3 animate-pulse text-primary" />
         Analizando tus gastos con IA…
       </p>

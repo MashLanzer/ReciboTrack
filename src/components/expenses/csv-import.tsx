@@ -473,11 +473,11 @@ export function CsvImport({ open, onClose }: CsvImportProps) {
               <p className="font-medium text-foreground">Detección automática de bancos:</p>
               <div className="flex flex-wrap gap-1.5">
                 {BANK_PROFILES.map(b => (
-                  <span key={b.name} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-background text-[11px]">
+                  <span key={b.name} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-background text-xs">
                     {b.flag} {b.name}
                   </span>
                 ))}
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-background text-[11px]">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border bg-background text-xs">
                   + cualquier banco
                 </span>
               </div>
@@ -513,7 +513,7 @@ export function CsvImport({ open, onClose }: CsvImportProps) {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {headers.map((h, i) => (
                   <div key={i} className="space-y-1">
-                    <p className="text-[11px] font-mono text-muted-foreground truncate" title={h}>{h}</p>
+                    <p className="text-xs font-mono text-muted-foreground truncate" title={h}>{h}</p>
                     <Select value={roles[i]} onValueChange={(v) => {
                       const next = [...roles]
                       next[i] = v as ColumnRole

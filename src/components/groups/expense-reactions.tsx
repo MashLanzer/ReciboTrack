@@ -41,7 +41,7 @@ export function ExpenseReactions({ groupId, expenseId }: Props) {
           key={emoji}
           onClick={() => handleToggle(emoji)}
           className={cn(
-            "inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors",
+            "inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors",
             currentUserEmoji === emoji
               ? "border-primary/50 bg-primary/10 text-primary"
               : "border-border bg-muted/40 text-muted-foreground hover:border-muted-foreground"

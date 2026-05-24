@@ -677,7 +677,7 @@ export function ReceiptScanner() {
             {/* Plantillas de acceso rápido */}
             {templates.length > 0 && (
               <div className="space-y-2">
-                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Acceso rápido
                 </p>
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -1057,7 +1057,7 @@ export function ReceiptScanner() {
                         const confidence = isHighConf
                           ? { icon: "🟢", label: "Alta confianza", color: "text-green-700 dark:text-green-400" }
                           : isMedConf
-                          ? { icon: "🟡", label: "Confianza media — revisa los campos", color: "text-amber-600 dark:text-amber-400" }
+                          ? { icon: "🟡", label: "Confianza media — revisa los campos", color: "text-warning" }
                           : { icon: "🔴", label: "Baja confianza — verifica los datos", color: "text-destructive" }
                         return (
                           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -1066,8 +1066,8 @@ export function ReceiptScanner() {
                               ocrEngine === "gemini"
                                 ? "border-green-500/20 text-green-700 dark:text-green-400"
                                 : ocrEngine === "groq"
-                                ? "border-orange-500/20 text-orange-700 dark:text-orange-400"
-                                : "border-amber-500/20 text-amber-700 dark:text-amber-400"
+                                ? "border-warning/20 text-warning"
+                                : "border-warning/20 text-warning"
                             )}>
                               {ocrEngine === "gemini" ? "✨ Gemini 2.0 Flash" : ocrEngine === "groq" ? "🚀 Groq Llama 3.2" : "🔤 Tesseract OCR"}
                             </span>
@@ -1096,7 +1096,7 @@ export function ReceiptScanner() {
                               {form.total ? `${form.currency} ${parseFloat(form.total).toFixed(2)}` : "—"}
                             </p>
                             {form.paymentMethod && (
-                              <p className="text-[11px] text-muted-foreground">{form.paymentMethod}</p>
+                              <p className="text-xs text-muted-foreground">{form.paymentMethod}</p>
                             )}
                           </div>
                         </div>

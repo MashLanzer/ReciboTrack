@@ -216,7 +216,7 @@ export function BottomNav() {
           {quickExpenses.length > 0 && (
             <>
               <div className="px-4 pt-2 pb-1">
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
                   <Zap className="h-3 w-3" /> Accesos rápidos
                 </p>
                 <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1">
@@ -270,7 +270,7 @@ export function BottomNav() {
                       >
                         {alertCount > 0 && (
                           <span className="absolute top-1 right-1 h-3.5 min-w-[0.875rem] px-0.5 rounded-full
-                            bg-rose-500 text-white text-[8px] font-bold flex items-center justify-center">
+                            bg-destructive text-white text-[8px] font-bold flex items-center justify-center">
                             {alertCount}
                           </span>
                         )}
@@ -300,11 +300,11 @@ export function BottomNav() {
             >
               <Avatar className="h-8 w-8 shrink-0">
                 <AvatarImage src={user?.photoURL ?? ""} />
-                <AvatarFallback className="text-[11px]">{initials}</AvatarFallback>
+                <AvatarFallback className="text-xs">{initials}</AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold truncate leading-tight">{user?.displayName ?? "Perfil"}</p>
-                <p className="text-[11px] text-muted-foreground truncate leading-tight">{user?.email}</p>
+                <p className="text-xs text-muted-foreground truncate leading-tight">{user?.email}</p>
               </div>
             </Link>
           </div>
@@ -312,7 +312,7 @@ export function BottomNav() {
           {/* Account switcher + Buscar */}
           <div className="px-2 pb-1">
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/40">
-              <span className="text-[11px] font-medium text-muted-foreground shrink-0">Cuenta</span>
+              <span className="text-xs font-medium text-muted-foreground shrink-0">Cuenta</span>
               <div className="flex-1 flex justify-center">
                 <AccountSwitcher />
               </div>
@@ -339,14 +339,14 @@ export function BottomNav() {
               )}
             >
               <Users className="h-[18px] w-[18px]" />
-              <span className="text-[11px] font-medium">Grupos</span>
+              <span className="text-xs font-medium">Grupos</span>
             </Link>
             <button
               onClick={() => { setMoreOpen(false); setSplitOpen(true) }}
               className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
               <ArrowLeftRight className="h-[18px] w-[18px]" />
-              <span className="text-[11px] font-medium">Dividir</span>
+              <span className="text-xs font-medium">Dividir</span>
             </button>
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -354,14 +354,14 @@ export function BottomNav() {
             >
               <Sun className="h-[18px] w-[18px] dark:hidden" />
               <Moon className="h-[18px] w-[18px] hidden dark:block" />
-              <span className="text-[11px] font-medium">Tema</span>
+              <span className="text-xs font-medium">Tema</span>
             </button>
             <button
               onClick={handleSignOut}
               className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             >
               <LogOut className="h-[18px] w-[18px]" />
-              <span className="text-[11px] font-medium">Salir</span>
+              <span className="text-xs font-medium">Salir</span>
             </button>
           </div>
         </div>
@@ -398,7 +398,7 @@ export function BottomNav() {
                     justActivated && "nav-icon-pop"
                   )} />
                   <span className={cn(
-                    "text-[11px] font-medium transition-[font-weight] duration-200",
+                    "text-xs font-medium transition-[font-weight] duration-200",
                     active && "font-semibold",
                     justActivated && "nav-label-in"
                   )}>{label}</span>
@@ -454,7 +454,7 @@ export function BottomNav() {
                     justActivated && "nav-icon-pop"
                   )} />
                   <span className={cn(
-                    "text-[11px] font-medium transition-[font-weight] duration-200",
+                    "text-xs font-medium transition-[font-weight] duration-200",
                     active && "font-semibold",
                     justActivated && "nav-label-in"
                   )}>{label}</span>
@@ -481,7 +481,7 @@ export function BottomNav() {
               {/* Alert count badge on Más button */}
               {totalAlerts > 0 && !moreOpen && (
                 <span className="absolute top-1 right-2.5 h-4 min-w-[1rem] px-0.5 rounded-full
-                  bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center
+                  bg-destructive text-white text-[9px] font-bold flex items-center justify-center
                   animate-[fadeSlideUp_0.2s_ease-out_both]">
                   {totalAlerts}
                 </span>
@@ -494,7 +494,7 @@ export function BottomNav() {
                 (moreOpen || moreActive) && "stroke-[2.5]",
                 moreOpen && "rotate-90"
               )} />
-              <span className="text-[11px] font-medium">Más</span>
+              <span className="text-xs font-medium">Más</span>
               {/* Active dot for Más when a "more" route is active */}
               {moreActive && !moreOpen && totalAlerts === 0 && (
                 <span className="absolute bottom-0.5 h-[3px] w-4 rounded-full bg-foreground origin-center" />
@@ -526,7 +526,7 @@ function ActionBtn({
         active:scale-95 active:transition-none transition-all duration-150"
     >
       {icon}
-      <span className="text-[11px] font-medium leading-tight text-center">{label}</span>
+      <span className="text-xs font-medium leading-tight text-center">{label}</span>
     </button>
   )
 }

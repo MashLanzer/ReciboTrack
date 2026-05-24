@@ -529,14 +529,14 @@ export default function ProfilePage() {
                     >
                       <p className="font-semibold flex items-center gap-1.5 group-hover:underline underline-offset-2">
                         {user.displayName ?? "Sin nombre"}
-                        <span className="text-[11px] text-muted-foreground font-normal opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity">editar</span>
+                        <span className="text-xs text-muted-foreground font-normal opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity">editar</span>
                       </p>
                     </button>
                   )}
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">{user.email}</p>
                   <div className="flex items-center gap-2 mt-1.5">
-                    <Badge variant="outline" className="text-[11px]">{isGoogleUser ? "Google" : "Email"}</Badge>
-                    <p className="text-[11px] text-muted-foreground">Miembro desde {memberSince}</p>
+                    <Badge variant="outline" className="text-xs">{isGoogleUser ? "Google" : "Email"}</Badge>
+                    <p className="text-xs text-muted-foreground">Miembro desde {memberSince}</p>
                   </div>
                 </div>
               </div>
@@ -838,7 +838,7 @@ export default function ProfilePage() {
                   {(settings?.hiddenDefaultCategories?.length ?? 0) > 0 && (
                     <button
                       onClick={() => save({ hiddenDefaultCategories: [] })}
-                      className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+                      className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
                     >
                       Mostrar todas
                     </button>
@@ -876,7 +876,7 @@ export default function ProfilePage() {
                 >
                   <Download className="h-4 w-4" /> Exportar CSV genérico
                 </Button>
-                <p className="text-[11px] text-muted-foreground mt-1 pl-1">
+                <p className="text-xs text-muted-foreground mt-1 pl-1">
                   Columnas: fecha, comercio, categoría, total, moneda, notas. Compatible con Excel, Numbers y cualquier hoja de cálculo.
                 </p>
               </div>
@@ -893,7 +893,7 @@ export default function ProfilePage() {
                 >
                   <Download className="h-4 w-4" /> Exportar para Holded
                 </Button>
-                <p className="text-[11px] text-muted-foreground mt-1 pl-1">
+                <p className="text-xs text-muted-foreground mt-1 pl-1">
                   Formato Holded ERP: importa tus gastos directamente como facturas recibidas en tu cuenta de Holded.
                 </p>
               </div>
@@ -910,7 +910,7 @@ export default function ProfilePage() {
                 >
                   <Download className="h-4 w-4" /> Exportar para Contasimple
                 </Button>
-                <p className="text-[11px] text-muted-foreground mt-1 pl-1">
+                <p className="text-xs text-muted-foreground mt-1 pl-1">
                   Formato Contasimple: columnas adaptadas al ERP español para importar gastos como apuntes contables.
                 </p>
               </div>
@@ -933,7 +933,7 @@ export default function ProfilePage() {
                   <p className="text-sm font-semibold">Google Sheets</p>
                 </div>
                 <span className={cn(
-                  "text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full",
+                  "text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full",
                   settings?.sheetsLastUrl ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"
                 )}>
                   {settings?.sheetsLastUrl ? "Sincronizado" : "Sin conectar"}
@@ -978,7 +978,7 @@ export default function ProfilePage() {
                   <p className="text-sm font-semibold">Webhook personal</p>
                 </div>
                 <span className={cn(
-                  "text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full",
+                  "text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full",
                   webhookUrl ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"
                 )}>
                   {webhookUrl ? "Activo" : "Inactivo"}
@@ -1030,7 +1030,7 @@ export default function ProfilePage() {
               </div>
 
               {webhookUrl && (
-                <div className="rounded-lg bg-muted/40 border px-3 py-2 text-[11px] font-mono text-muted-foreground break-all">
+                <div className="rounded-lg bg-muted/40 border px-3 py-2 text-xs font-mono text-muted-foreground break-all">
                   POST → {webhookUrl}
                 </div>
               )}
@@ -1064,7 +1064,7 @@ export default function ProfilePage() {
                 </div>
                 <p className="text-xs text-muted-foreground">Copia el enlace y compártelo. Solo las personas con este link podrán ver los datos.</p>
                 <div className="rounded-lg bg-muted/60 border px-3 py-2 flex items-center gap-2">
-                  <code className="flex-1 text-[11px] font-mono break-all text-foreground">
+                  <code className="flex-1 text-xs font-mono break-all text-foreground">
                     {typeof window !== "undefined" ? `${window.location.origin}/portal/${newPortalToken}` : `/portal/${newPortalToken}`}
                   </code>
                   <Button size="sm" variant="ghost" className="h-7 shrink-0"
@@ -1144,15 +1144,15 @@ export default function ProfilePage() {
             <div className="p-4">
               <div className="grid grid-cols-3 gap-3">
                 <div className="text-center rounded-xl border bg-muted/20 p-3">
-                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Miembro desde</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Miembro desde</p>
                   <p className="text-sm font-bold mt-1">{memberSince}</p>
                 </div>
                 <div className="text-center rounded-xl border bg-muted/20 p-3">
-                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Recurrentes</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Recurrentes</p>
                   <p className="text-lg font-bold mt-0.5">{recurringData.length}</p>
                 </div>
                 <div className="text-center rounded-xl border bg-muted/20 p-3">
-                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Metas</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Metas</p>
                   <p className="text-lg font-bold mt-0.5">{goals.length}</p>
                 </div>
               </div>

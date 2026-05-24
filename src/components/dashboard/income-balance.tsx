@@ -305,7 +305,7 @@ export function IncomeBalance({ year, month }: IncomeBalanceProps) {
             </div>
             <Progress
               value={spentPct}
-              className={cn("h-2", spentPct > 90 ? "[&>div]:bg-destructive" : spentPct > 70 ? "[&>div]:bg-amber-500" : "[&>div]:bg-green-500")}
+              className={cn("h-2", spentPct > 90 ? "[&>div]:bg-destructive" : spentPct > 70 ? "[&>div]:bg-warning" : "[&>div]:bg-green-500")}
             />
           </div>
         )}
@@ -376,7 +376,7 @@ export function IncomeBalance({ year, month }: IncomeBalanceProps) {
           <div className="border-t pt-4 text-center space-y-2 py-2">
             <TrendingUp className="h-8 w-8 mx-auto text-muted-foreground/40" />
             <p className="text-sm text-muted-foreground">Sin ingresos registrados este mes</p>
-            <p className="text-[11px] text-muted-foreground/70">
+            <p className="text-xs text-muted-foreground/70">
               Añade tus ingresos para ver tu balance real
             </p>
           </div>

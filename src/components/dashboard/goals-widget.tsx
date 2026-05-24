@@ -51,7 +51,7 @@ export function GoalsWidget() {
                 <div className="flex items-center gap-1.5 min-w-0">
                   <p className="text-xs font-medium truncate">{goal.name}</p>
                   {goal.dailyContribution && goal.dailyContribution > 0 && (
-                    <span className="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
+                    <span className="text-[10px] bg-warning/15 text-warning px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
                       ⚡ {formatCurrency(goal.dailyContribution, goal.currency)}/d
                     </span>
                   )}

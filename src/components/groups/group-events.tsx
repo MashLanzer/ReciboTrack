@@ -114,7 +114,7 @@ export function GroupEvents({ groupId, members }: Props) {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold truncate">{event.title}</p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {format(event.date.toDate(), "d 'de' MMMM yyyy", { locale: es })}
                       {event.settled && " · ✅ Liquidado"}
                     </p>
@@ -144,7 +144,7 @@ export function GroupEvents({ groupId, members }: Props) {
                     <button
                       onClick={() => handleRsvp(event, !isAttending)}
                       className={cn(
-                        "flex-1 rounded-lg border py-1.5 text-[11px] font-medium transition-colors",
+                        "flex-1 rounded-lg border py-1.5 text-xs font-medium transition-colors",
                         isAttending
                           ? "border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400"
                           : "border-border text-muted-foreground hover:border-foreground"
@@ -155,7 +155,7 @@ export function GroupEvents({ groupId, members }: Props) {
                     {event.attendees.length >= 2 && (
                       <button
                         onClick={() => handleSettle(event)}
-                        className="flex-1 rounded-lg border border-primary/30 bg-primary/8 py-1.5 text-[11px] font-medium text-primary hover:bg-primary/12 transition-colors"
+                        className="flex-1 rounded-lg border border-primary/30 bg-primary/8 py-1.5 text-xs font-medium text-primary hover:bg-primary/12 transition-colors"
                       >
                         Liquidar
                       </button>

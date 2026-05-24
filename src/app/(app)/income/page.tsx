@@ -6,6 +6,8 @@ import { es } from "date-fns/locale"
 import { TrendingUp } from "lucide-react"
 import { IncomeBalance } from "@/components/dashboard/income-balance"
 import { IncomeSourcesBreakdown } from "@/components/income/income-sources-breakdown"
+import { IncomeProjection } from "@/components/income/income-projection"
+import { RecurringIncomeSettings } from "@/components/income/recurring-income-settings"
 import { useIncomePeriod } from "@/hooks/use-income"
 import { useExpensesPeriod } from "@/hooks/use-expenses"
 import { formatCurrency, cn } from "@/lib/utils"
@@ -81,6 +83,9 @@ export default function IncomePage() {
         </div>
       </div>
 
+      {/* Recurring income templates */}
+      <RecurringIncomeSettings />
+
       {/* Income sources breakdown */}
       <IncomeSourcesBreakdown />
 
@@ -147,6 +152,9 @@ export default function IncomePage() {
       {/* Income + Balance for selected month */}
       <IncomeBalance year={year} month={month} />
 
+      {/* Income projection based on last 3 months average */}
+      <IncomeProjection incomeData={allIncome} year={year} month={month} />
+
       {/* 6-month history table — data already loaded, zero extra queries */}
       {isLoading ? (
         <Card>
@@ -166,15 +174,15 @@ export default function IncomePage() {
       <Card>
         <CardContent className="p-0">
           <div className="px-4 py-3 border-b">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Historial 6 meses</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Historial 6 meses</p>
           </div>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b">
-                <th className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-4 py-2">Mes</th>
-                <th className="text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">Ingresos</th>
-                <th className="text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">Gastos</th>
-                <th className="text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-4 py-2">Balance</th>
+                <th className="text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground px-4 py-2">Mes</th>
+                <th className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">Ingresos</th>
+                <th className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">Gastos</th>
+                <th className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground px-4 py-2">Balance</th>
               </tr>
             </thead>
             <tbody>

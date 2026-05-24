@@ -63,7 +63,7 @@ function AuditLogDialog({
                 : Pencil
               const color = entry.action === "created" ? "text-green-600"
                 : entry.action === "deleted" ? "text-destructive"
-                : "text-amber-600"
+                : "text-warning"
               return (
                 <div key={entry.id} className="flex items-start gap-3 p-3 rounded-lg border bg-muted/20">
                   <div className={`mt-0.5 ${color}`}>
@@ -71,7 +71,7 @@ function AuditLogDialog({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate">{entry.summary}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {entry.byName} · {format(entry.timestamp.toDate(), "d MMM yyyy HH:mm", { locale: es })}
                     </p>
                   </div>
@@ -96,7 +96,7 @@ export function AuditLogButton({ groupId, expenseId, merchant, open: openProp, o
       {!isControlled && (
         <button
           onClick={(e) => { e.stopPropagation(); setOpen(true) }}
-          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded"
           title="Ver historial de cambios"
         >
           <History className="h-3 w-3" />

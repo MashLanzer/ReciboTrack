@@ -2,6 +2,7 @@
 
 import { useState, useRef, useMemo, useEffect } from "react"
 import { useCategoryBudgets, useSetCategoryBudget, useDeleteCategoryBudget } from "@/hooks/use-category-budgets"
+import { useBudgets, useSetBudgetRollover } from "@/hooks/use-budgets"
 import { useCategories } from "@/hooks/use-categories"
 import { useExpensesForMonth } from "@/hooks/use-expenses"
 import { useUserSettings } from "@/hooks/use-user-settings"
@@ -10,27 +11,52 @@ import { formatCurrency, cn } from "@/lib/utils"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import { StarButton } from "@/components/ui/star-button"
 import { Pencil, Check, X, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { SnoozeControls } from "@/components/notifications/snooze-controls"
 
 function getProgressColor(pct: number): string {
-  if (pct >= 90) return "[&>div]:bg-rose-500"
-  if (pct >= 70) return "[&>div]:bg-amber-500"
+  if (pct >= 100) return "[&>div]:bg-destructive"
+  if (pct >= 80)  return "[&>div]:bg-warning"
+  if (pct >= 50)  return "[&>div]:bg-info"
   return "[&>div]:bg-emerald-500"
 }
 
 function getPctColor(pct: number): string {
-  if (pct >= 90) return "text-rose-600"
-  if (pct >= 70) return "text-amber-600"
-  return "text-emerald-600"
+  if (pct >= 100) return "text-destructive"
+  if (pct >= 80)  return "text-warning"
+  if (pct >= 50)  return "text-info"
+  return "text-muted-foreground"
 }
 
 function getRingColor(pct: number): string {
   if (pct >= 90) return "hsl(0 84.2% 60.2%)"
   if (pct >= 70) return "#f59e0b"
   return "#22c55e"
+}
+
+function ThresholdBadges({ pct }: { pct: number }) {
+  return (
+    <div className="flex gap-1 flex-wrap">
+      {[50, 80, 100].map(threshold => (
+        <span
+          key={threshold}
+          className={cn(
+            "text-[10px] font-mono px-1.5 py-0.5 rounded-full border",
+            pct >= threshold
+              ? threshold === 100 ? "bg-destructive/15 border-destructive/30 text-destructive font-bold"
+              : threshold === 80  ? "bg-warning/15 border-warning/30 text-warning font-bold"
+              : "bg-info/15 border-info/30 text-info font-bold"
+              : "bg-muted border-border text-muted-foreground/50"
+          )}
+        >
+          {threshold}%
+        </span>
+      ))}
+    </div>
+  )
 }
 
 // ─── Mini donut ring (40 px, animated) ───────────────────────────────────────
@@ -140,13 +166,22 @@ export function CategoryBudgetsClient() {
   const { data: categories = [], isLoading: loadingCats } = useCategories()
   const { data: budgets = [], isLoading: loadingBudgets } = useCategoryBudgets(month)
   const { data: expenses = [], isLoading: loadingExp } = useExpensesForMonth(now.getFullYear(), now.getMonth() + 1)
+  const { data: globalBudgets = [] } = useBudgets()
 
   const setBudget = useSetCategoryBudget()
   const deleteBudget = useDeleteCategoryBudget()
+  const setRollover = useSetBudgetRollover()
   const { data: settings } = useUserSettings()
   const defaultCurrency = settings?.defaultCurrency ?? "USD"
   const { data: starred } = useStarred()
   const toggleStar = useToggleStarCategory()
+
+  // Map categoryId → global budget (for rollover)
+  const globalBudgetMap = useMemo(() => {
+    const map = new Map<string, (typeof globalBudgets)[0]>()
+    for (const b of globalBudgets) map.set(b.categoryId, b)
+    return map
+  }, [globalBudgets])
 
   // Map categoryId → budget
   const budgetMap = useMemo(() => {
@@ -279,17 +314,17 @@ export function CategoryBudgetsClient() {
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1">
               <div>
-                <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Con límite</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Con límite</p>
                 <p className="text-sm font-bold tabular-nums">{globalStats.budgetedCount}</p>
               </div>
               {globalStats.exceededCount > 0 && (
                 <div>
-                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Excedidas</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Excedidas</p>
                   <p className="text-sm font-bold tabular-nums text-rose-600">{globalStats.exceededCount}</p>
                 </div>
               )}
               <div>
-                <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Disponible</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Disponible</p>
                 <p className="text-sm font-bold tabular-nums">
                   {formatCurrency(Math.max(globalStats.totalBudget - globalStats.totalSpent, 0))}
                 </p>
@@ -305,6 +340,8 @@ export function CategoryBudgetsClient() {
         const hasBudget = !!budget && budget.amount > 0
         const pct = hasBudget ? Math.min((spent / budget.amount) * 100, 100) : 0
         const isEditing = editingId === cat.id
+        const globalBudget = globalBudgetMap.get(cat.id)
+        const rolloverEnabled = globalBudget?.rolloverEnabled ?? false
 
         return (
           <div
@@ -366,7 +403,7 @@ export function CategoryBudgetsClient() {
                       <MiniRing pct={pct} size={36} />
                       {/* Numeric label overlaid in centre (rotated back upright) */}
                       <span className={cn(
-                        "absolute inset-0 flex items-center justify-center text-[11px] font-bold tabular-nums leading-none",
+                        "absolute inset-0 flex items-center justify-center text-xs font-bold tabular-nums leading-none",
                         getPctColor(pct),
                       )}>
                         {pct.toFixed(0)}
@@ -401,22 +438,53 @@ export function CategoryBudgetsClient() {
                   className={cn("h-1.5", getProgressColor(pct))}
                 />
                 <div className="flex justify-between items-center">
-                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                  <span className="text-xs text-muted-foreground tabular-nums">
                     {formatCurrency(spent, budget.currency)} gastado
                   </span>
-                  <span className={cn("text-[11px] font-medium tabular-nums", getPctColor(pct))}>
+                  <span className={cn("text-xs font-medium tabular-nums", getPctColor(pct))}>
                     {pct >= 100
                       ? `Excedido por ${formatCurrency(spent - budget.amount, budget.currency)}`
                       : `Quedan ${formatCurrency(budget.amount - spent, budget.currency)}`}
                   </span>
                 </div>
+                {/* Multi-threshold badges */}
+                <ThresholdBadges pct={pct} />
+                {/* Rollover toggle */}
+                {globalBudget && (
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center gap-1.5">
+                      {rolloverEnabled && (
+                        <span className="text-[10px] font-medium text-info bg-info/10 border border-info/20 rounded-full px-1.5 py-0.5">
+                          ↩ Rollover activo
+                        </span>
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {rolloverEnabled
+                          ? "El sobrante del mes anterior se añade al límite"
+                          : "Activar rollover de sobrante"}
+                      </span>
+                    </div>
+                    <Switch
+                      checked={rolloverEnabled}
+                      onCheckedChange={async (checked) => {
+                        try {
+                          await setRollover.mutateAsync({ id: globalBudget.id, rolloverEnabled: checked })
+                          toast.success(checked ? "Rollover activado" : "Rollover desactivado")
+                        } catch {
+                          toast.error("Error al actualizar rollover")
+                        }
+                      }}
+                      aria-label="Activar rollover"
+                    />
+                  </div>
+                )}
                 {/* Snooze controls (Feature C) */}
                 <div className="flex justify-end pt-0.5">
                   <SnoozeControls categoryId={cat.id} />
                 </div>
               </div>
             ) : (
-              <p className="text-[11px] text-muted-foreground italic">
+              <p className="text-xs text-muted-foreground italic">
                 Sin límite — haz clic en el lápiz para definir un presupuesto
               </p>
             )}

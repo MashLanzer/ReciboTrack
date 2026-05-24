@@ -125,10 +125,10 @@ export function CategoryLimitsSettings() {
                   <div className="pl-9 space-y-1">
                     <Progress
                       value={pct}
-                      className={`h-1.5 ${isOver ? "[&>div]:bg-destructive" : isWarning ? "[&>div]:bg-amber-500" : ""}`}
+                      className={`h-1.5 ${isOver ? "[&>div]:bg-destructive" : isWarning ? "[&>div]:bg-warning" : ""}`}
                     />
-                    <div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
-                      <span className={isOver ? "text-destructive font-medium" : isWarning ? "text-amber-600 font-medium" : ""}>
+                    <div className="flex items-center justify-between text-xs tabular-nums text-muted-foreground">
+                      <span className={isOver ? "text-destructive font-medium" : isWarning ? "text-warning font-medium" : ""}>
                         {formatCurrency(spent)} gastado
                       </span>
                       <span>de {formatCurrency(limit)}</span>

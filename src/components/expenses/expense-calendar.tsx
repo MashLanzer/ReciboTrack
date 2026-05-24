@@ -41,8 +41,8 @@ function heatClass(amount: number, max: number): string {
   const ratio = amount / max
   if (ratio < 0.15) return "bg-emerald-100 dark:bg-emerald-950/50"
   if (ratio < 0.3)  return "bg-emerald-200 dark:bg-emerald-900/60"
-  if (ratio < 0.5)  return "bg-amber-100 dark:bg-amber-950/50"
-  if (ratio < 0.75) return "bg-amber-200 dark:bg-amber-900/60"
+  if (ratio < 0.5)  return "bg-warning/10 dark:bg-warning/5"
+  if (ratio < 0.75) return "bg-warning/20 dark:bg-warning/15"
   return "bg-rose-200 dark:bg-rose-900/60"
 }
 
@@ -51,8 +51,8 @@ function heatDotClass(amount: number, max: number): string {
   const ratio = amount / max
   if (ratio < 0.15) return "bg-emerald-400"
   if (ratio < 0.3)  return "bg-emerald-500"
-  if (ratio < 0.5)  return "bg-amber-400"
-  if (ratio < 0.75) return "bg-amber-500"
+  if (ratio < 0.5)  return "bg-warning/60"
+  if (ratio < 0.75) return "bg-warning"
   return "bg-rose-500"
 }
 
@@ -189,7 +189,7 @@ export function ExpenseCalendar() {
         {/* Weekday headers */}
         <div className="grid grid-cols-7 border-b">
           {WEEKDAYS.map((d) => (
-            <div key={d} className="py-2 text-center text-[11px] font-medium text-muted-foreground">
+            <div key={d} className="py-2 text-center text-xs font-medium text-muted-foreground">
               {d}
             </div>
           ))}
@@ -231,7 +231,7 @@ export function ExpenseCalendar() {
                 {/* Day number */}
                 <span
                   className={cn(
-                    "text-[11px] sm:text-xs font-medium leading-none",
+                    "text-xs sm:text-xs font-medium leading-none",
                     today
                       ? "h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px]"
                       : "",
@@ -269,7 +269,7 @@ export function ExpenseCalendar() {
       <div className="flex items-center gap-3 justify-end text-[10px] text-muted-foreground">
         <span>Menos</span>
         <div className="flex gap-1">
-          {["bg-emerald-200", "bg-amber-200", "bg-rose-200"].map((c) => (
+          {["bg-emerald-200", "bg-warning/20", "bg-rose-200"].map((c) => (
             <span key={c} className={cn("h-3 w-3 rounded-sm", c)} />
           ))}
         </div>
@@ -315,7 +315,7 @@ export function ExpenseCalendar() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{e.merchant}</p>
                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                        <span className="text-[11px] text-muted-foreground">{cat?.name ?? e.category}</span>
+                        <span className="text-xs text-muted-foreground">{cat?.name ?? e.category}</span>
                         {e.paymentMethod && (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
                             {e.paymentMethod}

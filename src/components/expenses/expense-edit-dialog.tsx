@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { Loader2, Plus, X, ChevronDown, ChevronUp, ShoppingCart, AlertTriangle, Split, Archive } from "lucide-react"
-import { format, subDays, addDays, isValid, parseISO } from "date-fns"
+import { format, subDays, addDays, subMonths, startOfMonth, endOfMonth, isValid, parseISO } from "date-fns"
 import { formatCurrency } from "@/lib/utils"
 import { CategorySuggestion } from "@/components/shared/category-suggestion"
 import { CashtagInput } from "@/components/ui/cashtag-input"
@@ -27,7 +27,11 @@ interface Props {
 
 export function ExpenseEditDialog({ expense, onClose }: Props) {
   const { data: categories = [] } = useCategories()
-  const { projectNames, expenses: allExpenses } = useProjects()
+  const { data: projects = [] } = useProjects()
+  const projectNames = projects.map((p) => p.name)
+  const sixMonthsAgo = useMemo(() => startOfMonth(subMonths(new Date(), 5)), [])
+  const sixMonthsEnd = useMemo(() => endOfMonth(new Date()), [])
+  const { data: allExpenses = [] } = useExpensesPeriod(sixMonthsAgo, sixMonthsEnd)
   const updateExpense = useUpdateExpense()
   const archiveExpense = useArchiveExpense()
   const [splitOpen, setSplitOpen] = useState(false)
@@ -170,14 +174,14 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
 
           {/* ── Duplicate warning ── */}
           {duplicates.length > 0 && (
-            <div className="flex items-start gap-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-2.5">
-              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2.5 rounded-xl bg-warning/10 border border-warning/30 px-3 py-2.5">
+              <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                <p className="text-xs font-semibold text-warning">
                   Posible duplicado — {duplicates.length} gasto{duplicates.length > 1 ? "s" : ""} similar{duplicates.length > 1 ? "es" : ""}
                 </p>
                 {duplicates.slice(0, 2).map((d) => (
-                  <p key={d.id} className="text-[11px] text-amber-600/80 mt-0.5">
+                  <p key={d.id} className="text-xs text-warning/80 mt-0.5">
                     {d.merchant} · {formatCurrency(d.total, d.currency)} · {format(d.date.toDate(), "d MMM", { locale: undefined })}
                   </p>
                 ))}
@@ -185,7 +189,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
               <button
                 type="button"
                 onClick={() => setDupDismissed(true)}
-                className="text-amber-500 hover:text-amber-700 transition-colors shrink-0"
+                className="text-warning hover:text-warning/70 transition-colors shrink-0"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -241,7 +245,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
                     onChange={(e) => setForm({ ...form, total: e.target.value })}
                     className="tabular-nums font-bold text-destructive border-destructive/30 bg-destructive/5 focus:border-destructive/60 pr-14"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-destructive/60">
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-destructive/60">
                     {form.currency}
                   </span>
                 </div>
@@ -250,7 +254,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
                   const itemsTotal = items.reduce((s, it) => s + it.price * it.quantity, 0)
                   const diff = Math.abs(parseFloat(form.total) - itemsTotal)
                   return diff > 0.01 ? (
-                    <p className="text-[10px] text-amber-600 font-medium">
+                    <p className="text-[10px] text-warning font-medium">
                       Artículos suman {formatCurrency(itemsTotal, form.currency)} — diff {formatCurrency(diff, form.currency)}
                     </p>
                   ) : (
@@ -390,7 +394,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
                       key={opt.value}
                       type="button"
                       onClick={() => setForm({ ...form, privacy: opt.value })}
-                      className={`flex-1 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors ${
+                      className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors ${
                         form.privacy === opt.value
                           ? "border-foreground bg-accent font-semibold"
                           : "border-border text-muted-foreground hover:border-muted-foreground"

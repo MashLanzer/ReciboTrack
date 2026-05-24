@@ -45,6 +45,31 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (camel in body) patch[snake] = body[camel]
   }
 
+  // If total is being changed, track the price history
+  if (typeof body.total === "number") {
+    const supabase = getSupabase()
+    const { data: current, error: fetchError } = await supabase
+      .from("recurring")
+      .select("total, price_history")
+      .eq("id", id)
+      .eq("uid", uid)
+      .single()
+
+    if (!fetchError && current) {
+      const currentTotal = Number(current.total)
+      const newTotal = body.total as number
+      if (currentTotal !== newTotal) {
+        const existingHistory = (current.price_history as unknown[] | null) ?? []
+        const newEntry = {
+          date: new Date().toISOString().slice(0, 10),
+          previousTotal: currentTotal,
+          newTotal,
+        }
+        patch.price_history = [...existingHistory, newEntry]
+      }
+    }
+  }
+
   const { error } = await getSupabase()
     .from("recurring")
     .update(patch)

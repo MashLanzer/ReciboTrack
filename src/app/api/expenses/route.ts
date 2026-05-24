@@ -44,6 +44,7 @@ function rowToExpense(row: Record<string, unknown>) {
     tags:             row.tags ?? [],
     receiptImageUrl:  row.receipt_image_url ?? null,
     project:          row.project ?? null,
+    projectId:        row.project_id ?? null,
     privacy:          row.privacy ?? "private",
     archived:         row.archived ?? false,
     flagged:          row.flagged ?? false,
@@ -68,18 +69,19 @@ export async function GET(req: NextRequest) {
   const { uid } = auth
 
   const sp = req.nextUrl.searchParams
-  const category  = sp.get("category")
-  const account   = sp.get("account")
-  const startDate = sp.get("startDate")
-  const endDate   = sp.get("endDate")
-  const search    = sp.get("search")?.toLowerCase()
-  const tagsRaw   = sp.get("tags")
-  const sort      = sp.get("sort") ?? "date_desc"
-  const page      = Math.max(1, parseInt(sp.get("page") ?? "1", 10))
-  const limit     = parseInt(sp.get("limit") ?? String(PER_PAGE), 10)
-  const archived  = sp.get("archived") === "true"
-  const flagged   = sp.get("flagged") === "true"
-  const all       = sp.get("all") === "true"
+  const category     = sp.get("category")
+  const account      = sp.get("account")
+  const startDate    = sp.get("startDate")
+  const endDate      = sp.get("endDate")
+  const search       = sp.get("search")?.toLowerCase()
+  const tagsRaw      = sp.get("tags")
+  const sort         = sp.get("sort") ?? "date_desc"
+  const page         = Math.max(1, parseInt(sp.get("page") ?? "1", 10))
+  const limit        = parseInt(sp.get("limit") ?? String(PER_PAGE), 10)
+  const archived     = sp.get("archived") === "true"
+  const flagged      = sp.get("flagged") === "true"
+  const all          = sp.get("all") === "true"
+  const projectOnly  = sp.get("project_only") === "true"
 
   const sb = getSupabase()
   let q = sb.from("expenses").select("*").eq("uid", uid)
@@ -92,6 +94,13 @@ export async function GET(req: NextRequest) {
   if (archived)  q = q.eq("archived", true)
   else           q = q.eq("archived", false)
   if (flagged)   q = q.eq("flagged", true)
+
+  // Project filtering: by default exclude project-linked expenses from general view
+  if (projectOnly) {
+    q = q.not("project_id", "is", null)
+  } else {
+    q = q.is("project_id", null)
+  }
 
   // Orden SQL
   const sortMap: Record<string, { column: string; ascending: boolean }> = {
@@ -178,6 +187,7 @@ export async function POST(req: NextRequest) {
       tags:              body.tags ?? [],
       receipt_image_url: body.receiptImageUrl ?? null,
       project:           body.project ?? null,
+      project_id:        body.projectId ?? null,
       privacy:           body.privacy ?? "private",
       archived:          body.archived ?? false,
       flagged:           body.flagged ?? false,

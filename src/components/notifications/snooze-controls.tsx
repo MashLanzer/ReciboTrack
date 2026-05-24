@@ -55,13 +55,13 @@ export function SnoozeControls({ categoryId }: SnoozeControlsProps) {
   if (snoozed && until) {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+        <span className="text-xs text-muted-foreground flex items-center gap-1">
           <BellOff className="h-3 w-3" />
           Silenciado hasta {format(until, "d MMM", { locale: es })}
         </span>
         <button
           onClick={handleReactivate}
-          className="text-[11px] font-semibold text-primary hover:underline"
+          className="text-xs font-semibold text-primary hover:underline"
         >
           Reactivar
         </button>
@@ -72,7 +72,7 @@ export function SnoozeControls({ categoryId }: SnoozeControlsProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 gap-1 text-[11px] text-muted-foreground hover:text-foreground px-2">
+        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground px-2">
           <BellOff className="h-3 w-3" />
           Silenciar
           <ChevronDown className="h-3 w-3" />

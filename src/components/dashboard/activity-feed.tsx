@@ -183,13 +183,13 @@ export function ActivityFeed() {
               <span className="text-[10px] shrink-0" title="Sugerido por IA">✨</span>
             )}
           </div>
-          <p className="text-[11px] text-muted-foreground">{catName}</p>
+          <p className="text-xs text-muted-foreground">{catName}</p>
         </div>
         <div className="text-right shrink-0">
           <p className="text-sm font-bold tabular-nums text-destructive">
             -{formatCurrency(e.total, e.currency)}
           </p>
-          <p className="text-[11px] text-muted-foreground">{relativeLabel(expDate(e))}</p>
+          <p className="text-xs text-muted-foreground">{relativeLabel(expDate(e))}</p>
         </div>
         {/* Flag button — siempre visible en móvil, hover en desktop */}
         <button
@@ -197,8 +197,8 @@ export function ActivityFeed() {
           className={cn(
             "h-7 w-7 rounded-lg flex items-center justify-center transition-all shrink-0",
             e.flagged
-              ? "text-amber-500"
-              : "text-muted-foreground/40 hover:text-amber-500 hover:bg-muted md:opacity-0 md:group-hover:opacity-100"
+              ? "text-warning"
+              : "text-muted-foreground/40 hover:text-warning hover:bg-muted md:opacity-0 md:group-hover:opacity-100"
           )}
           aria-label={e.flagged ? "Quitar pendiente" : "Marcar como pendiente"}
         >
@@ -226,7 +226,7 @@ export function ActivityFeed() {
           <p className="text-sm font-bold">Actividad reciente</p>
           <Link
             href="/expenses"
-            className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+            className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
           >
             Ver todos <ArrowRight className="h-3 w-3" />
           </Link>
@@ -268,7 +268,7 @@ export function ActivityFeed() {
           <button
             onClick={() => setPref("feedFilter", "todos")}
             className={cn(
-              "shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors",
+              "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors",
               selectedCategory === "todos"
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:text-foreground"
@@ -281,7 +281,7 @@ export function ActivityFeed() {
               key={cat.id}
               onClick={() => setPref("feedFilter", cat.id)}
               className={cn(
-                "shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors flex items-center gap-1",
+                "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors flex items-center gap-1",
                 selectedCategory === cat.id
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:text-foreground"
@@ -296,8 +296,8 @@ export function ActivityFeed() {
       {/* Smart mode: flat ranked list */}
       {feedMode === "smart" && (
         <div>
-          <div className="px-4 py-1.5 bg-amber-500/5 border-b border-amber-500/10">
-            <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+          <div className="px-4 py-1.5 bg-warning/5 border-b border-warning/10">
+            <p className="text-xs text-warning font-medium">
               ✨ Modo inteligente — gastos relevantes primero
             </p>
           </div>

@@ -1,127 +1,76 @@
 "use client"
-
-import { useExpensesPeriod } from "./use-expenses"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "./use-auth"
-import { useMemo } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiFetch } from "@/lib/api-client"
-import { startOfMonth, endOfMonth, subMonths } from "date-fns"
+import type { Project, ProjectInput, Expense } from "@/types"
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+export type { Project }
 
-export interface ProjectSummary {
-  name: string
-  total: number
-  count: number
-  firstDate: Date
-  lastDate: Date
-  /** top 3 categories by spend, [{catId, total}] */
-  topCategories: { catId: string; total: number }[]
-  /** ids of all expenses in this project (needed for rename) */
-  expenseIds: string[]
+export function useProjects(status?: string) {
+  const { user } = useAuth()
+  return useQuery({
+    queryKey: ["projects", user?.uid, status],
+    enabled: !!user,
+    queryFn: async () => {
+      const params = status ? `?status=${status}` : ""
+      const res = await apiFetch(`/api/projects${params}`)
+      if (!res.ok) throw new Error("Error cargando proyectos")
+      return res.json() as Promise<Project[]>
+    },
+  })
 }
 
-// ─── Hooks ────────────────────────────────────────────────────────────────────
-
-export function useProjects() {
-  const now = useMemo(() => new Date(), [])
-  const expenses = useExpensesPeriod(
-    startOfMonth(subMonths(now, 5)),
-    endOfMonth(now)
-  ).data ?? []
-
-  const projects = useMemo<ProjectSummary[]>(() => {
-    const map = new Map<string, {
-      total: number
-      count: number
-      firstDate: Date
-      lastDate: Date
-      catTotals: Map<string, number>
-      expenseIds: string[]
-    }>()
-
-    expenses.forEach((e) => {
-      if (!e.project) return
-      const d = e.date.toDate()
-      const existing = map.get(e.project)
-      if (existing) {
-        existing.total += e.total
-        existing.count++
-        if (d < existing.firstDate) existing.firstDate = d
-        if (d > existing.lastDate)  existing.lastDate  = d
-        existing.catTotals.set(e.category, (existing.catTotals.get(e.category) ?? 0) + e.total)
-        existing.expenseIds.push(e.id)
-      } else {
-        map.set(e.project, {
-          total: e.total,
-          count: 1,
-          firstDate: d,
-          lastDate: d,
-          catTotals: new Map([[e.category, e.total]]),
-          expenseIds: [e.id],
-        })
-      }
-    })
-
-    return [...map.entries()]
-      .map(([name, v]) => ({
-        name,
-        total: v.total,
-        count: v.count,
-        firstDate: v.firstDate,
-        lastDate: v.lastDate,
-        expenseIds: v.expenseIds,
-        topCategories: [...v.catTotals.entries()]
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 3)
-          .map(([catId, total]) => ({ catId, total })),
-      }))
-      .sort((a, b) => b.total - a.total)
-  }, [expenses])
-
-  // All unique project names (for autocomplete in forms)
-  const projectNames = useMemo(
-    () => [...new Set(expenses.map((e) => e.project).filter(Boolean))] as string[],
-    [expenses]
-  )
-
-  return { projects, projectNames, expenses }
+export function useProjectDetail(id: string | null) {
+  const { user } = useAuth()
+  return useQuery({
+    queryKey: ["projects", user?.uid, "detail", id],
+    enabled: !!user && !!id,
+    queryFn: async () => {
+      const res = await apiFetch(`/api/projects/${id}`)
+      if (!res.ok) throw new Error("Error cargando proyecto")
+      return res.json() as Promise<{ project: Project; expenses: Expense[] }>
+    },
+  })
 }
 
-// ─── Rename project (updates all matching expenses via API) ───────────────────
-
-export function useRenameProject() {
+export function useCreateProject() {
   const { user } = useAuth()
   const qc = useQueryClient()
-
   return useMutation({
-    mutationFn: async ({
-      expenseIds,
-      newName,
-    }: {
-      expenseIds: string[]
-      newName: string
-    }) => {
-      if (!user) throw new Error("No autenticado")
-      if (!newName.trim()) throw new Error("El nombre no puede estar vacío")
+    mutationFn: async (input: ProjectInput) => {
+      const res = await apiFetch("/api/projects", { method: "POST", body: JSON.stringify(input) })
+      if (!res.ok) { const e = await res.json().catch(()=>({})) as {error?:string}; throw new Error(e.error ?? "Error") }
+      return res.json() as Promise<{ id: string }>
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects", user?.uid] }),
+  })
+}
 
-      // PATCH en paralelo; para lotes grandes limita la concurrencia a 20 por ronda
-      const CONCURRENCY = 20
-      const trimmed = newName.trim()
-      for (let i = 0; i < expenseIds.length; i += CONCURRENCY) {
-        await Promise.all(
-          expenseIds.slice(i, i + CONCURRENCY).map((id) =>
-            apiFetch(`/api/expenses/${id}`, {
-              method: "PATCH",
-              body: JSON.stringify({ project: trimmed }),
-            })
-          )
-        )
-      }
+export function useUpdateProject() {
+  const { user } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...input }: Partial<ProjectInput> & { id: string }) => {
+      const res = await apiFetch(`/api/projects/${id}`, { method: "PATCH", body: JSON.stringify(input) })
+      if (!res.ok) throw new Error("Error")
+      return res.json()
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["expenses", user?.uid] })
-      qc.invalidateQueries({ queryKey: ["expenses-period", user?.uid] })
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["projects", user?.uid] })
+      qc.invalidateQueries({ queryKey: ["projects", user?.uid, "detail", vars.id] })
     },
+  })
+}
+
+export function useDeleteProject() {
+  const { user } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiFetch(`/api/projects/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Error")
+      return res.json()
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects", user?.uid] }),
   })
 }

@@ -73,7 +73,7 @@ export function TodayWidget() {
           <span className="text-base">📋</span>
           <h2 className="text-sm font-semibold">Tu día</h2>
         </div>
-        <span className="text-[11px] text-muted-foreground capitalize">{todayLabel}</span>
+        <span className="text-xs text-muted-foreground capitalize">{todayLabel}</span>
       </div>
 
       <div className="pb-3 space-y-0.5">
@@ -88,7 +88,7 @@ export function TodayWidget() {
           <>
             {dueToShow.length > 0 && (
               <div className="px-4 pb-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 mt-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5 mt-1">
                   Pagos pendientes
                 </p>
                 <div className="space-y-1.5">
@@ -107,7 +107,7 @@ export function TodayWidget() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{item.merchant}</p>
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             {formatCurrency(item.total, item.currency)}
                           </p>
                         </div>
@@ -131,7 +131,7 @@ export function TodayWidget() {
             {/* Goals with upcoming deadline */}
             {upcomingGoals.length > 0 && (
               <div className="px-4 pt-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
                   Metas próximas
                 </p>
                 <div className="space-y-1.5">
@@ -147,7 +147,7 @@ export function TodayWidget() {
                       >
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-sm font-medium truncate">{goal.name}</p>
-                          <span className="text-[11px] text-muted-foreground shrink-0">
+                          <span className="text-xs text-muted-foreground shrink-0">
                             {daysLeft === 0 ? "hoy" : `${daysLeft}d`}
                           </span>
                         </div>
@@ -157,7 +157,7 @@ export function TodayWidget() {
                             style={{ width: `${pct}%` }}
                           />
                         </div>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {formatCurrency(goal.currentAmount, goal.currency)} de {formatCurrency(goal.targetAmount, goal.currency)} · {Math.round(pct)}%
                         </p>
                       </div>

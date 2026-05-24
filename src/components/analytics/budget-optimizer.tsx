@@ -123,7 +123,7 @@ export function BudgetOptimizer({ expenses }: Props) {
   return (
     <div className="rounded-2xl border bg-card p-4 space-y-4">
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Herramienta</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Herramienta</p>
         <p className="text-sm font-bold mt-0.5">Optimizador de presupuesto</p>
         <p className="text-xs text-muted-foreground mt-1">
           Basado en la regla 50/30/20 aplicada a tus patrones de gasto reales.
@@ -170,7 +170,7 @@ export function BudgetOptimizer({ expenses }: Props) {
                     <span className="text-lg">{emoji}</span>
                     <div>
                       <p className="text-sm font-semibold">{label}</p>
-                      <p className="text-[11px] text-muted-foreground">{targetPct}% del ingreso</p>
+                      <p className="text-xs text-muted-foreground">{targetPct}% del ingreso</p>
                     </div>
                   </div>
                   <Button
@@ -186,15 +186,15 @@ export function BudgetOptimizer({ expenses }: Props) {
 
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Recomendado</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recomendado</p>
                     <p className="text-xs font-bold tabular-nums mt-0.5">{formatCurrency(recommended)}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Actual</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actual</p>
                     <p className="text-xs font-bold tabular-nums mt-0.5">{formatCurrency(actual)}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Diferencia</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Diferencia</p>
                     <p className={cn("text-xs font-bold tabular-nums mt-0.5", isOver ? "text-destructive" : "text-emerald-600")}>
                       {isOver ? "+" : "-"}{formatCurrency(Math.abs(delta))}
                     </p>
@@ -211,7 +211,7 @@ export function BudgetOptimizer({ expenses }: Props) {
 
                 {/* Categories in this bucket */}
                 {actualByBucket.catsByBucket[bucket].length > 0 && (
-                  <p className="text-[11px] text-muted-foreground truncate">
+                  <p className="text-xs text-muted-foreground truncate">
                     {actualByBucket.catsByBucket[bucket].map(c => c.name).join(", ")}
                   </p>
                 )}

@@ -158,8 +158,8 @@ export default function QuickAccessPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-            <Zap className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          <div className="h-10 w-10 rounded-xl bg-warning/10 flex items-center justify-center shrink-0">
+            <Zap className="h-5 w-5 text-warning" />
           </div>
           <div className="min-w-0">
             <h1 className="font-bold text-xl">Accesos rápidos</h1>
@@ -188,8 +188,8 @@ export default function QuickAccessPage() {
       {/* Empty state */}
       {!isLoading && quickExpenses.length === 0 && (
         <div className="rounded-2xl border border-dashed border-border/60 bg-muted/20 flex flex-col items-center justify-center py-16 text-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-amber-500/10 flex items-center justify-center">
-            <Zap className="h-7 w-7 text-amber-500/50" />
+          <div className="h-14 w-14 rounded-2xl bg-warning/10 flex items-center justify-center">
+            <Zap className="h-7 w-7 text-warning/50" />
           </div>
           <div className="space-y-1">
             <p className="font-semibold">Sin accesos rápidos</p>
@@ -369,7 +369,7 @@ export default function QuickAccessPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Orden <span className="text-muted-foreground font-normal text-[11px]">(0 = primero en la lista)</span></Label>
+              <Label>Orden <span className="text-muted-foreground font-normal text-xs">(0 = primero en la lista)</span></Label>
               <Input
                 type="number" inputMode="decimal"
                 min="0"

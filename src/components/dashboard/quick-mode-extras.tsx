@@ -111,7 +111,7 @@ export function QuickStatsBlock() {
             Métricas del mes
           </p>
         </div>
-        <Link href="/analytics" className="flex items-center gap-1 text-[11px] font-semibold text-primary">
+        <Link href="/analytics" className="flex items-center gap-1 text-xs font-semibold text-primary">
           Ver análisis <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
@@ -217,7 +217,7 @@ export function QuickRecentBlock() {
             Últimos 7 días
           </p>
         </div>
-        <Link href="/expenses" className="flex items-center gap-1 text-[11px] font-semibold text-primary">
+        <Link href="/expenses" className="flex items-center gap-1 text-xs font-semibold text-primary">
           Ver todos <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
@@ -268,7 +268,7 @@ export function QuickRecentBlock() {
                 Metas activas
               </p>
             </div>
-            <Link href="/goals" className="flex items-center gap-1 text-[11px] font-semibold text-primary">
+            <Link href="/goals" className="flex items-center gap-1 text-xs font-semibold text-primary">
               Ver metas <ArrowRight className="h-3 w-3" />
             </Link>
           </div>

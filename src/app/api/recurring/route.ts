@@ -29,6 +29,7 @@ function rowToRecurring(row: Record<string, unknown>) {
     lastLinkedExpenseId:  row.last_linked_expense_id ?? null,
     lastLinkedAt:         row.last_linked_at ?? null,
     createdAt:            row.created_at,
+    priceHistory:         row.price_history ?? [],
   }
 }
 

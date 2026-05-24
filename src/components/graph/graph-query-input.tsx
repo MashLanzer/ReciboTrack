@@ -119,7 +119,7 @@ export function GraphQueryInput({ expenses, entities, onResults }: Props) {
               key={q}
               type="button"
               onClick={() => { setQuery(q); handleSearch(q) }}
-              className="text-[11px] rounded-full border px-2.5 py-1 text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+              className="text-xs rounded-full border px-2.5 py-1 text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
             >
               {q}
             </button>

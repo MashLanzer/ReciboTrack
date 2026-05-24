@@ -239,7 +239,7 @@ function GeoPermissionDenied() {
         </p>
       </div>
       <div className="rounded-xl border bg-muted/40 px-4 py-3 text-left space-y-1 w-full">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Cómo volver a activarla
         </p>
         <p className="text-xs text-foreground/80 leading-relaxed">{hint}</p>

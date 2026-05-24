@@ -58,6 +58,7 @@ import { PAYMENT_METHODS, CURRENCIES, DEFAULT_CATEGORIES } from "@/lib/constants
 import type { RecurringTemplate, RecurringFrequency, Expense } from "@/types"
 import { Timestamp } from "firebase/firestore"
 import { EmptyState } from "@/components/ui/empty-state"
+import { RecurringCalendar } from "@/components/recurring/recurring-calendar"
 
 const FREQUENCY_LABELS: Record<RecurringFrequency, string> = {
   weekly: "Semanal",
@@ -417,7 +418,12 @@ export default function RecurringPage() {
       {/* Subscription detector */}
       {!isLoading && <SubscriptionDetector />}
 
-      {/* Calendar view */}
+      {/* Calendar view — monthly grid */}
+      {!isLoading && viewMode === "calendar" && templates.length > 0 && (
+        <RecurringCalendar templates={templates.filter((t) => t.isActive)} />
+      )}
+
+      {/* Calendar view — 30-day timeline */}
       {!isLoading && viewMode === "calendar" && templates.length > 0 && (
         <CalendarView
           templates={templates}
@@ -526,7 +532,7 @@ export default function RecurringPage() {
           {soon.length > 0 && (
             <Section
               title="Próximos 7 días"
-              icon={<Clock className="h-4 w-4 text-amber-500" />}
+              icon={<Clock className="h-4 w-4 text-warning" />}
               count={soon.length}
             >
               {soon.map((t) => (
@@ -694,7 +700,7 @@ export default function RecurringPage() {
                   const y = d.getFullYear()
                   const invalid = isNaN(d.getTime()) || y < 2000 || y > 2030
                   return invalid ? (
-                    <p className="text-[11px] text-destructive">Fecha inválida — debe estar entre 2000 y 2030</p>
+                    <p className="text-xs text-destructive">Fecha inválida — debe estar entre 2000 y 2030</p>
                   ) : null
                 })()}
               </div>
@@ -835,12 +841,12 @@ function CalendarView({
         <div className="rounded-xl border bg-card px-4 py-3">
           <p className="text-xs text-muted-foreground">Días con pagos</p>
           <p className="text-xl font-bold tabular-nums">{daysWithPayments}</p>
-          <p className="text-[11px] text-muted-foreground">en los próximos 30 días</p>
+          <p className="text-xs text-muted-foreground">en los próximos 30 días</p>
         </div>
         <div className="rounded-xl border bg-card px-4 py-3">
           <p className="text-xs text-muted-foreground">Total estimado</p>
           <p className="text-xl font-bold tabular-nums">${windowTotal.toFixed(2)}</p>
-          <p className="text-[11px] text-muted-foreground">suma de todos los vencimientos</p>
+          <p className="text-xs text-muted-foreground">suma de todos los vencimientos</p>
         </div>
       </div>
 
@@ -865,10 +871,10 @@ function CalendarView({
                 }`}>
                   {format(day, "d")}
                 </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {format(day, "MMM", { locale: es })}
                 </p>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   {format(day, "EEE", { locale: es })}
                 </p>
               </div>
@@ -885,7 +891,7 @@ function CalendarView({
                   isToday(day)
                     ? "bg-primary border-primary"
                     : isSoon
-                    ? "bg-amber-500 border-amber-500"
+                    ? "bg-warning border-warning"
                     : "bg-muted border-border"
                 }`} />
 
@@ -1121,7 +1127,7 @@ function RecurringItem({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium truncate">{t.merchant}</span>
-            <Badge variant="outline" className="text-[11px] px-1.5 py-0 shrink-0">
+            <Badge variant="outline" className="text-xs px-1.5 py-0 shrink-0">
               {FREQUENCY_LABELS[t.frequency]}
             </Badge>
           </div>
@@ -1130,11 +1136,11 @@ function RecurringItem({
               {t.currency} {t.total.toFixed(2)}
             </span>
             <span className={cn(
-              "inline-flex items-center rounded-full border px-1.5 py-0 text-[11px] font-medium shrink-0 leading-5",
+              "inline-flex items-center rounded-full border px-1.5 py-0 text-xs font-medium shrink-0 leading-5",
               (status.urgency === "overdue" || status.urgency === "critical") &&
                 "bg-destructive/10 text-destructive border-destructive/30 urgency-pulse",
               status.urgency === "warning" &&
-                "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
+                "bg-warning/10 text-warning border-warning/30",
               status.urgency === "safe" &&
                 "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
             )}>
@@ -1233,15 +1239,15 @@ function RecurringItem({
               {/* Summary stats */}
               <div className="grid grid-cols-3 gap-2 text-center pb-2 border-b border-border/50">
                 <div>
-                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Pagos</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Pagos</p>
                   <p className="text-sm font-bold tabular-nums">{history.length}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Total</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Total</p>
                   <p className="text-sm font-bold tabular-nums">{formatCurrency(historyTotal, t.currency)}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">Promedio</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Promedio</p>
                   <p className="text-sm font-bold tabular-nums">{formatCurrency(historyAvg, t.currency)}</p>
                 </div>
               </div>
@@ -1261,7 +1267,7 @@ function RecurringItem({
                       </span>
                       <div className="flex items-center gap-2 ml-auto">
                         {delta !== null && (
-                          <span className={`text-[11px] tabular-nums ${delta > 5 ? "text-destructive" : delta < -5 ? "text-green-600" : "text-muted-foreground"}`}>
+                          <span className={`text-xs tabular-nums ${delta > 5 ? "text-destructive" : delta < -5 ? "text-green-600" : "text-muted-foreground"}`}>
                             {delta > 0 ? "+" : ""}{delta.toFixed(1)}%
                           </span>
                         )}
@@ -1273,7 +1279,7 @@ function RecurringItem({
                           <button
                             type="button"
                             onClick={() => setEditExpense(matchedExpense)}
-                            className="text-[11px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium shrink-0"
+                            className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium shrink-0"
                           >
                             💳 Ver gasto
                           </button>
@@ -1284,6 +1290,37 @@ function RecurringItem({
                 })}
               </div>
             </>
+          )}
+
+          {/* Price history section */}
+          {t.priceHistory && t.priceHistory.length > 0 && (
+            <div className="pt-2 border-t border-border/50 space-y-1.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Historial de precios
+              </p>
+              {[...t.priceHistory].reverse().map((entry, idx) => {
+                const pct = entry.previousTotal > 0
+                  ? ((entry.newTotal - entry.previousTotal) / entry.previousTotal) * 100
+                  : 0
+                const isIncrease = pct > 0
+                return (
+                  <div key={idx} className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-muted-foreground shrink-0">{entry.date}</span>
+                    <div className="flex items-center gap-1.5 ml-auto tabular-nums">
+                      <span className="text-muted-foreground">{formatCurrency(entry.previousTotal, t.currency)}</span>
+                      <span className="text-muted-foreground">→</span>
+                      <span className="font-medium">{formatCurrency(entry.newTotal, t.currency)}</span>
+                      <span className={cn(
+                        "font-semibold",
+                        isIncrease ? "text-destructive" : "text-income"
+                      )}>
+                        {isIncrease ? "+" : ""}{pct.toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           )}
         </div>
         </div>

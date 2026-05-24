@@ -78,7 +78,7 @@ export function WeekCalendar() {
     if (isFutureDay || total === 0) return "bg-border"
     const pct = total / maxTotal
     if (pct >= 0.75) return "bg-destructive"
-    if (pct >= 0.4)  return "bg-amber-400"
+    if (pct >= 0.4)  return "bg-warning"
     return "bg-green-500"
   }
 
@@ -242,13 +242,13 @@ export function NewMerchants() {
         {newMerchants.slice(0, 5).map(m => (
           <span
             key={m}
-            className="inline-flex px-2 py-0.5 rounded-full bg-muted border text-[11px] font-medium truncate max-w-[140px]"
+            className="inline-flex px-2 py-0.5 rounded-full bg-muted border text-xs font-medium truncate max-w-[140px]"
           >
             {m}
           </span>
         ))}
         {newMerchants.length > 5 && (
-          <span className="inline-flex px-2 py-0.5 rounded-full bg-muted text-[11px] text-muted-foreground">
+          <span className="inline-flex px-2 py-0.5 rounded-full bg-muted text-xs text-muted-foreground">
             +{newMerchants.length - 5}
           </span>
         )}

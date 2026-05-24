@@ -125,7 +125,7 @@ function ChecklistCard({
                 {item.text}
               </span>
               {item.done && item.doneByName && (
-                <span className="text-[11px] text-muted-foreground ml-auto shrink-0">
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">
                   {item.doneByName}
                 </span>
               )}

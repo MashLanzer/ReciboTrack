@@ -401,7 +401,7 @@ export function SwipeableFeed() {
             </p>
             {lastWeekTotal > 0 && (
               <div className={cn(
-                "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold",
+                "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold",
                 weekIsUp   ? "bg-destructive/10 text-destructive" :
                 weekIsDown ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
                              "bg-muted text-muted-foreground"
@@ -537,7 +537,7 @@ export function SwipeableFeed() {
                       </span>
                       <span className={cn(
                         "text-xs font-bold tabular-nums",
-                        pct >= 100 ? "text-destructive" : "text-amber-500"
+                        pct >= 100 ? "text-destructive" : "text-warning"
                       )}>
                         {pct}%
                       </span>
@@ -546,7 +546,7 @@ export function SwipeableFeed() {
                       <div
                         className={cn(
                           "h-full rounded-full transition-all",
-                          pct >= 100 ? "bg-destructive" : "bg-amber-500"
+                          pct >= 100 ? "bg-destructive" : "bg-warning"
                         )}
                         style={{ width: `${Math.min(pct, 100)}%` }}
                       />
@@ -626,7 +626,7 @@ export function SwipeableFeed() {
               <span className={cn(
                 "text-[10px] font-bold px-2 py-0.5 rounded-full",
                 isOverdue   ? "bg-destructive/10 text-destructive" :
-                isDueToday  ? "bg-amber-500/10 text-amber-600" :
+                isDueToday  ? "bg-warning/10 text-warning" :
                               "bg-muted text-muted-foreground"
               )}>
                 {isOverdue ? "Vencido" : isDueToday ? "Hoy" : `en ${daysUntil}d`}
@@ -665,13 +665,13 @@ export function SwipeableFeed() {
         render: () => (
           <div className="h-full flex flex-col p-5 gap-3">
             <div className="flex items-center gap-2">
-              <Bookmark className="h-4 w-4 text-amber-500" />
+              <Bookmark className="h-4 w-4 text-warning" />
               <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                 Pendientes
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <p className="text-6xl font-black tabular-nums text-amber-500">{flagged.length}</p>
+              <p className="text-6xl font-black tabular-nums text-warning">{flagged.length}</p>
               <div>
                 <p className="text-sm font-semibold">
                   {flagged.length === 1 ? "gasto marcado" : "gastos marcados"}
@@ -681,8 +681,8 @@ export function SwipeableFeed() {
             </div>
             <div className="flex-1 space-y-1.5 overflow-hidden">
               {flagged.slice(0, 2).map((e) => (
-                <div key={e.id} className="flex items-center gap-2.5 rounded-xl bg-amber-500/8 px-3 py-2">
-                  <Bookmark className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                <div key={e.id} className="flex items-center gap-2.5 rounded-xl bg-warning/8 px-3 py-2">
+                  <Bookmark className="h-3.5 w-3.5 text-warning shrink-0" />
                   <p className="text-xs font-semibold flex-1 truncate">{e.merchant}</p>
                   <p className="text-xs font-bold tabular-nums text-destructive">
                     -{formatCurrency(e.total, e.currency)}
@@ -692,7 +692,7 @@ export function SwipeableFeed() {
             </div>
             <Link
               href="/expenses?flagged=true"
-              className="flex items-center justify-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400"
+              className="flex items-center justify-center gap-1 text-xs font-semibold text-warning"
             >
               Resolver pendientes <ArrowRight className="h-3 w-3" />
             </Link>
@@ -757,7 +757,7 @@ export function SwipeableFeed() {
             <Flame
               className={cn(
                 "h-14 w-14",
-                streak >= 7  ? "text-orange-500" :
+                streak >= 7  ? "text-warning" :
                 streak >= 3  ? "text-primary" :
                                "text-muted-foreground/30"
               )}
@@ -769,7 +769,7 @@ export function SwipeableFeed() {
           </div>
           <div className={cn(
             "rounded-xl px-4 py-2.5 text-center",
-            streak >= 7 ? "bg-orange-500/10" : "bg-muted/50"
+            streak >= 7 ? "bg-warning/10" : "bg-muted/50"
           )}>
             <p className="text-xs text-muted-foreground">
               {streak === 0
@@ -790,7 +790,7 @@ export function SwipeableFeed() {
         render: () => (
           <div className="h-full flex flex-col justify-between p-5">
             <div className="flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-amber-500" />
+              <Trophy className="h-4 w-4 text-warning" />
               <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                 Logro reciente
               </p>
@@ -804,8 +804,8 @@ export function SwipeableFeed() {
                 )}
               </div>
             </div>
-            <div className="rounded-xl bg-amber-500/8 px-4 py-2.5 text-center">
-              <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+            <div className="rounded-xl bg-warning/8 px-4 py-2.5 text-center">
+              <p className="text-xs font-semibold text-warning">
                 {recentHighlight.value}
               </p>
               <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -823,7 +823,7 @@ export function SwipeableFeed() {
       render: () => (
         <div className="h-full flex flex-col justify-between p-5">
           <div className="flex items-center gap-2">
-            <Lightbulb className="h-4 w-4 text-amber-500" />
+            <Lightbulb className="h-4 w-4 text-warning" />
             <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
               Consejo del día
             </p>

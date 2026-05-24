@@ -50,7 +50,7 @@ export function ArchivedExpensesSection() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate">{e.merchant}</p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {format(d, "d MMM yyyy", { locale: es })}
                   </p>
                 </div>
@@ -63,7 +63,7 @@ export function ArchivedExpensesSection() {
                     toast.success("Gasto restaurado")
                   }}
                   className={cn(
-                    "flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline shrink-0 ml-1",
+                    "flex items-center gap-1 text-xs font-semibold text-primary hover:underline shrink-0 ml-1",
                   )}
                   title="Restaurar gasto"
                   disabled={unarchive.isPending}

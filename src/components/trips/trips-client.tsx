@@ -140,7 +140,7 @@ function TripCard({ budget, onDelete }: { budget: TravelBudget; onDelete: () => 
 
   const barColor =
     pct >= 100 ? "bg-destructive" :
-    pct >= 80 ? "bg-amber-500" :
+    pct >= 80 ? "bg-warning" :
     "bg-primary"
 
   function handleDelete() {
@@ -214,13 +214,13 @@ function TripCard({ budget, onDelete }: { budget: TravelBudget; onDelete: () => 
         <div className="flex items-end justify-between">
           <div>
             <p className="text-2xl font-bold tabular-nums">{formatCurrency(spent, budget.currency)}</p>
-            <p className="text-[11px] text-muted-foreground">gastado</p>
+            <p className="text-xs text-muted-foreground">gastado</p>
           </div>
           <div className="text-right">
             <p className={cn("text-base font-bold tabular-nums", remaining < 0 ? "text-destructive" : "text-emerald-600 dark:text-emerald-400")}>
               {remaining < 0 ? "-" : "+"}{formatCurrency(Math.abs(remaining), budget.currency)}
             </p>
-            <p className="text-[11px] text-muted-foreground">{remaining < 0 ? "excedido" : "restante"}</p>
+            <p className="text-xs text-muted-foreground">{remaining < 0 ? "excedido" : "restante"}</p>
           </div>
         </div>
         {/* Gauge bar */}

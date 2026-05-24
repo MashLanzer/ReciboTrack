@@ -31,7 +31,7 @@ function PinnedCard({ item, onUnpin }: { item: PinnedItem; onUnpin: () => void }
         <X className="h-3 w-3 text-muted-foreground" />
       </button>
       <div className="text-xl mb-1">{item.icon}</div>
-      <p className="text-[11px] font-semibold truncate">{item.label}</p>
+      <p className="text-xs font-semibold truncate">{item.label}</p>
       {item.type === "category" && spent > 0 && (
         <p className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
           {formatCurrency(spent)}

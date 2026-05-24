@@ -25,6 +25,12 @@ interface UIStore {
   setCommandOpen: (open: boolean) => void
   setActiveAccount: (account: ActiveAccount) => void
   setRoundupExpense: (expense: Expense | null) => void
+  balanceHidden: boolean
+  toggleBalanceHidden: () => void
+  // Vacation mode (NOT persisted — resets on page refresh)
+  vacationMode: { active: boolean; endsAt: number | null }
+  isVacationActive: boolean
+  setVacationMode: (days: number | null) => void
 }
 
 export const useUIStore = create<UIStore>()(
@@ -48,6 +54,18 @@ export const useUIStore = create<UIStore>()(
       setCommandOpen: (open) => set({ commandOpen: open }),
       setActiveAccount: (account) => set({ activeAccount: account }),
       setRoundupExpense: (expense) => set({ roundupExpense: expense }),
+      balanceHidden: false,
+      toggleBalanceHidden: () => set((s) => ({ balanceHidden: !s.balanceHidden })),
+      // Vacation mode (NOT persisted — resets on page refresh)
+      vacationMode: { active: false, endsAt: null },
+      isVacationActive: false,
+      setVacationMode: (days) => set(() => {
+        if (days === null) {
+          return { vacationMode: { active: false, endsAt: null }, isVacationActive: false }
+        }
+        const endsAt = Date.now() + days * 86400000
+        return { vacationMode: { active: true, endsAt }, isVacationActive: true }
+      }),
     }),
     {
       name: "recibotrack-ui",

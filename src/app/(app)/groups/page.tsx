@@ -72,7 +72,7 @@ function GroupTypeBadge({ type }: { type?: GroupType }) {
   const meta = GROUP_TYPES.find((t) => t.value === type)
   if (!meta) return null
   return (
-    <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+    <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
       {meta.emoji} {meta.label}
     </span>
   )
@@ -91,7 +91,7 @@ function GroupBalanceBadge({ groupId, members, currentUid }: {
   if (Math.abs(balance) < 0.01) return null
   return (
     <span className={cn(
-      "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums shrink-0",
+      "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums shrink-0",
       balance > 0 ? "bg-green-500/15 text-green-700 dark:text-green-400" : "bg-destructive/15 text-destructive"
     )}>
       {balance > 0 ? "+" : ""}{balance > 0 ? `te deben ${formatCurrency(balance)}` : `debes ${formatCurrency(Math.abs(balance))}`}
@@ -365,7 +365,7 @@ function ExpenseForm({
         <div className="grid grid-cols-2 gap-1.5">
           {(["equal", "percentage", "custom", "full"] as const).map((type) => (
             <button key={type} onClick={() => setForm({ ...form, splitType: type })}
-              className={`rounded-lg border p-2 text-[11px] text-center transition-colors leading-tight ${form.splitType === type ? "border-foreground bg-accent font-medium" : "border-border text-muted-foreground hover:border-muted-foreground"}`}>
+              className={`rounded-lg border p-2 text-xs text-center transition-colors leading-tight ${form.splitType === type ? "border-foreground bg-accent font-medium" : "border-border text-muted-foreground hover:border-muted-foreground"}`}>
               {type === "equal" ? "÷ Iguales" : type === "percentage" ? "% Porcentaje" : type === "custom" ? "⚖️ Monto fijo" : "👤 Solo yo"}
             </button>
           ))}
@@ -373,7 +373,7 @@ function ExpenseForm({
 
         {form.splitType !== "full" && (
           <div className="space-y-2">
-            <p className="text-[11px] text-muted-foreground">¿Quiénes participan?</p>
+            <p className="text-xs text-muted-foreground">¿Quiénes participan?</p>
             {group.members.map((m) => {
               const checked = form.splitWith.includes(m.uid)
               const pct = parseFloat(form.percentageShares[m.uid] ?? "0") || 0
@@ -408,9 +408,9 @@ function ExpenseForm({
                           percentageShares: { ...form.percentageShares, [m.uid]: e.target.value },
                         })}
                         className="w-16 h-7 text-xs tabular-nums text-right" placeholder="0" />
-                      <span className="text-[11px] text-muted-foreground">%</span>
+                      <span className="text-xs text-muted-foreground">%</span>
                       {totalAmt > 0 && pct > 0 && (
-                        <span className="text-[11px] text-muted-foreground tabular-nums w-14 text-right">
+                        <span className="text-xs text-muted-foreground tabular-nums w-14 text-right">
                           {formatCurrency(pctAmount, form.currency)}
                         </span>
                       )}
@@ -421,7 +421,7 @@ function ExpenseForm({
             })}
 
             {form.splitType === "equal" && form.splitWith.length > 0 && form.total && (
-              <p className="text-[11px] text-muted-foreground pt-1 border-t">
+              <p className="text-xs text-muted-foreground pt-1 border-t">
                 Por persona: <span className="font-medium tabular-nums">
                   {formatCurrency(parseFloat(form.total) / form.splitWith.length, form.currency)}
                 </span>
@@ -431,10 +431,10 @@ function ExpenseForm({
             {form.splitType === "custom" && (
               <div className="pt-1 border-t flex items-center justify-between">
                 <button onClick={distributeEqually}
-                  className="text-[11px] text-primary hover:underline">
+                  className="text-xs text-primary hover:underline">
                   Distribuir igualmente
                 </button>
-                <span className={`text-[11px] tabular-nums font-medium ${customOk ? "text-green-600" : "text-destructive"}`}>
+                <span className={`text-xs tabular-nums font-medium ${customOk ? "text-green-600" : "text-destructive"}`}>
                   {customOk ? "✓ Correcto"
                     : diff > 0 ? `Faltan ${formatCurrency(diff, form.currency)}`
                     : `Excede ${formatCurrency(Math.abs(diff), form.currency)}`}
@@ -459,11 +459,11 @@ function ExpenseForm({
                       }, {} as Record<string, string>)
                       setForm({ ...form, percentageShares: { ...form.percentageShares, ...shares } })
                     }}
-                    className="text-[11px] text-primary hover:underline"
+                    className="text-xs text-primary hover:underline"
                   >
                     Distribuir igualmente
                   </button>
-                  <span className={`text-[11px] tabular-nums font-medium ${pctOk ? "text-green-600" : "text-destructive"}`}>
+                  <span className={`text-xs tabular-nums font-medium ${pctOk ? "text-green-600" : "text-destructive"}`}>
                     {pctOk ? "✓ 100%" : `${pctSum.toFixed(0)}% / 100%`}
                   </span>
                 </div>
@@ -563,7 +563,7 @@ function StatsTab({
           { label: "Mayor gasto", value: formatCurrency(maxExpense) },
         ].map(({ label, value }) => (
           <div key={label} className="rounded-xl border bg-card px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
             <p className="text-lg font-bold tabular-nums mt-0.5">{value}</p>
           </div>
         ))}
@@ -635,10 +635,10 @@ function StatsTab({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-4 py-2">Categoría</th>
-                  <th className="text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-2 py-2">Txns</th>
-                  <th className="text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-2 py-2">%</th>
-                  <th className="text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-4 py-2">Total</th>
+                  <th className="text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground px-4 py-2">Categoría</th>
+                  <th className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground px-2 py-2">Txns</th>
+                  <th className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground px-2 py-2">%</th>
+                  <th className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground px-4 py-2">Total</th>
                 </tr>
               </thead>
               <tbody>
@@ -786,7 +786,7 @@ function BalanceTab({
           ? "bg-gradient-to-br from-destructive/15 to-red-500/5 border border-destructive/25"
           : "bg-gradient-to-br from-muted/60 to-muted/20 border"
       )}>
-        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-widest mb-2">Tu balance neto</p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">Tu balance neto</p>
         <p className={cn(
           "text-4xl font-black tabular-nums tracking-tight",
           myBalance > 0.01 ? "text-green-600 dark:text-green-400"
@@ -810,7 +810,7 @@ function BalanceTab({
       {/* Per-person debts */}
       {group.members.filter((m) => m.uid !== currentUid).length > 0 && (
         <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-0.5">Por persona</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-0.5">Por persona</p>
           {group.members.filter((m) => m.uid !== currentUid).map((m) => {
             const balance = balances[m.uid] ?? 0
             const iOweM = balance < 0
@@ -843,10 +843,10 @@ function BalanceTab({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate">{m.displayName}</p>
                   {isZero ? (
-                    <p className="text-[11px] text-muted-foreground">en cero ✓</p>
+                    <p className="text-xs text-muted-foreground">en cero ✓</p>
                   ) : (
                     <p className={cn(
-                      "text-[11px] font-medium tabular-nums",
+                      "text-xs font-medium tabular-nums",
                       iOweM ? "text-destructive" : "text-green-600 dark:text-green-400"
                     )}>
                       {iOweM ? `Le debes ${formatCurrency(amount)}` : `Te debe ${formatCurrency(amount)}`}
@@ -954,7 +954,7 @@ function BalanceTab({
                     <p className="text-xs font-medium truncate">
                       {getName(s.fromUid)} → {getName(s.toUid)}
                     </p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {format(s.date.toDate(), "d MMM yyyy", { locale: es })}
                       {s.note ? ` · ${s.note}` : ""}
                     </p>
@@ -999,7 +999,7 @@ function BalanceTab({
               <div className="space-y-4 mt-1">
                 {/* Period summary */}
                 <div className="rounded-lg bg-muted/40 p-3 space-y-1.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Resumen del período</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resumen del período</p>
                   <div className="flex justify-between text-xs">
                     <span>Total gastado</span>
                     <span className="font-semibold tabular-nums">{formatCurrency(totalSpent)}</span>
@@ -1533,7 +1533,7 @@ function GroupDetail({
             </div>
             <span className={cn(
               "text-xs font-semibold tabular-nums",
-              totalSpent > group.budget ? "text-destructive" : totalSpent > group.budget * 0.8 ? "text-amber-600" : "text-green-600"
+              totalSpent > group.budget ? "text-destructive" : totalSpent > group.budget * 0.8 ? "text-warning" : "text-green-600"
             )}>
               {formatCurrency(totalSpent)} / {formatCurrency(group.budget)}
             </span>
@@ -1542,12 +1542,12 @@ function GroupDetail({
             <div
               className={cn(
                 "h-2 rounded-full transition-all",
-                totalSpent > group.budget ? "bg-destructive" : totalSpent > group.budget * 0.8 ? "bg-amber-500" : "bg-green-500"
+                totalSpent > group.budget ? "bg-destructive" : totalSpent > group.budget * 0.8 ? "bg-warning" : "bg-green-500"
               )}
               style={{ width: `${Math.min((totalSpent / group.budget) * 100, 100)}%` }}
             />
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {totalSpent > group.budget
               ? `Superado por ${formatCurrency(totalSpent - group.budget)}`
               : `Quedan ${formatCurrency(group.budget - totalSpent)}`}
@@ -1586,7 +1586,7 @@ function GroupDetail({
             key={key}
             onClick={() => { setTab(key); if (key !== "mas") setExtraTab(null) }}
             className={cn(
-              "flex-1 flex flex-col items-center gap-0.5 rounded-lg py-2 text-[11px] font-medium transition-colors",
+              "flex-1 flex flex-col items-center gap-0.5 rounded-lg py-2 text-xs font-medium transition-colors",
               tab === key ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -1741,14 +1741,14 @@ function GroupDetail({
                       {e.privacy === "private" && <span className="text-[10px]" title="Privado">🔒</span>}
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         {isMyExpense ? "Tú" : e.paidByName}
                       </span>
                       {splitLabel && (
-                        <Badge variant="secondary" className="text-[11px] h-4 px-1.5">{splitLabel}</Badge>
+                        <Badge variant="secondary" className="text-xs h-4 px-1.5">{splitLabel}</Badge>
                       )}
-                      <span className="text-[11px] text-muted-foreground/60">·</span>
-                      <span className="text-[11px] text-muted-foreground capitalize">
+                      <span className="text-xs text-muted-foreground/60">·</span>
+                      <span className="text-xs text-muted-foreground capitalize">
                         {format(toDate(e.date), "d MMM", { locale: es })}
                       </span>
                     </div>
@@ -1759,7 +1759,7 @@ function GroupDetail({
                     <div className="text-right mr-1">
                       <p className="tabular-nums text-sm font-bold">{formatCurrency(e.total, e.currency)}</p>
                       {e.splitType !== "full" && e.splitWith.length > 1 && (
-                        <p className="text-[11px] text-muted-foreground tabular-nums">
+                        <p className="text-xs text-muted-foreground tabular-nums">
                           {isMyExpense
                             ? `+${formatCurrency(e.total - myShare, e.currency)}`
                             : `tu parte ${formatCurrency(myShare, e.currency)}`}
@@ -1861,7 +1861,7 @@ function GroupDetail({
                       <p className="text-sm font-medium truncate">
                         {m.displayName}{m.uid === currentUid && <span className="text-muted-foreground font-normal"> (tú)</span>}
                       </p>
-                      {m.role === "admin" && <Crown className="h-3 w-3 text-amber-500 shrink-0" />}
+                      {m.role === "admin" && <Crown className="h-3 w-3 text-warning shrink-0" />}
                     </div>
                     <p className="text-xs text-muted-foreground truncate">{m.email}</p>
                   </div>
@@ -1871,7 +1871,7 @@ function GroupDetail({
                     }`}>
                       {Math.abs(balance) < 0.01 ? "—" : `${balance > 0 ? "+" : ""}${formatCurrency(balance)}`}
                     </p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {Math.abs(balance) < 0.01 ? "en cero" : balance > 0 ? "le deben" : "debe"}
                     </p>
                   </div>
@@ -1883,7 +1883,7 @@ function GroupDetail({
           {/* Invite code */}
           <Card>
             <CardContent className="pt-4 pb-4 space-y-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Código de invitación</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Código de invitación</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 font-mono text-xl font-bold tracking-widest text-center py-2.5 bg-muted rounded-xl">
                   {inviteCode}
@@ -1900,7 +1900,7 @@ function GroupDetail({
                   </Button>
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground">Comparte este código para que otros se unan al grupo</p>
+              <p className="text-xs text-muted-foreground">Comparte este código para que otros se unan al grupo</p>
               <Button
                 variant="outline"
                 size="sm"
@@ -1977,7 +1977,7 @@ function GroupDetail({
                   <Icon className="h-6 w-6 text-muted-foreground" />
                   <div>
                     <p className="text-sm font-medium">{label}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{desc}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
                   </div>
                 </button>
               ))}
@@ -2141,7 +2141,7 @@ function GroupDetail({
                 />
               </div>
               {editGroupBudget && parseFloat(editGroupBudget) > 0 && (
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Límite: {formatCurrency(parseFloat(editGroupBudget))} · Gastado: {formatCurrency(totalSpent)}
                   {totalSpent > parseFloat(editGroupBudget) && <span className="text-destructive font-medium"> (superado)</span>}
                 </p>
@@ -2286,7 +2286,7 @@ export default function GroupsPage() {
                     <GroupTypeBadge type={group.type} />
                   </div>
                   {group.description && (
-                    <p className="text-[11px] text-muted-foreground truncate italic">{group.description}</p>
+                    <p className="text-xs text-muted-foreground truncate italic">{group.description}</p>
                   )}
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {group.members.length} miembros · {group.members.map((m) => m.displayName.split(" ")[0]).join(", ")}
@@ -2387,7 +2387,7 @@ export default function GroupsPage() {
                       }`}
                     >
                       <span className="text-lg">{t.emoji}</span>
-                      <span className="text-[11px]">{t.label}</span>
+                      <span className="text-xs">{t.label}</span>
                     </button>
                   ))}
                 </div>
@@ -2430,7 +2430,7 @@ export default function GroupsPage() {
                 onKeyDown={(e) => e.key === "Enter" && handleJoin()}
                 autoFocus
               />
-              <p className="text-[11px] text-muted-foreground">Pídele el código al administrador del grupo</p>
+              <p className="text-xs text-muted-foreground">Pídele el código al administrador del grupo</p>
             </div>
             <Button className="w-full" onClick={handleJoin} disabled={joinGroup.isPending || joinCode.length < 5}>
               {joinGroup.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : null}

@@ -13,7 +13,7 @@ import { toDate } from "@/lib/utils"
 
 function pctColor(pct: number) {
   if (pct >= 90) return "bg-rose-500"
-  if (pct >= 70) return "bg-amber-500"
+  if (pct >= 70) return "bg-warning"
   return "bg-emerald-500"
 }
 
@@ -93,7 +93,7 @@ export function TripLinkCard() {
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="font-semibold truncate">{activeTrip.name}</p>
-                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-green-500/15
+                <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-500/15
                   text-green-600 dark:text-green-400 font-medium shrink-0">
                   En curso
                 </span>
@@ -117,12 +117,12 @@ export function TripLinkCard() {
             />
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-[11px] text-muted-foreground tabular-nums">
+            <span className="text-xs text-muted-foreground tabular-nums">
               {formatCurrency(spent, activeTrip.currency)} gastado
             </span>
             <span className={cn(
-              "text-[11px] font-medium tabular-nums",
-              pct >= 90 ? "text-rose-600" : pct >= 70 ? "text-amber-600" : "text-emerald-600",
+              "text-xs font-medium tabular-nums",
+              pct >= 90 ? "text-rose-600" : pct >= 70 ? "text-warning" : "text-emerald-600",
             )}>
               {pct >= 100
                 ? `Excedido por ${formatCurrency(spent - activeTrip.totalLimit, activeTrip.currency)}`
