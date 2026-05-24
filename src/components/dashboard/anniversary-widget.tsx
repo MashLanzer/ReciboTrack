@@ -38,14 +38,14 @@ export function AnniversaryWidget() {
   if (eligible.length === 0) return null
 
   return (
-    <div className="rounded-2xl border bg-amber-500/5 border-amber-500/20 p-4 space-y-3">
+    <div className="rounded-2xl border bg-warning/5 border-warning/20 p-4 space-y-3">
       {/* Header */}
       <button
         onClick={() => setCollapsed((c) => !c)}
         className="w-full flex items-center justify-between"
       >
         <div className="text-left">
-          <p className="text-[10px] font-mono uppercase tracking-widest text-amber-600/70">Aniversarios</p>
+          <p className="text-[10px] font-mono uppercase tracking-widest text-warning/70">Aniversarios</p>
           <p className="text-sm font-bold mt-0.5">🎂 Suscripciones veteranas</p>
         </div>
         {collapsed
@@ -59,7 +59,7 @@ export function AnniversaryWidget() {
             const total = estimatedTotal(item, years)
             return (
               <div key={item.id} className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-amber-500/10 flex items-center justify-center text-base shrink-0">
+                <div className="h-9 w-9 rounded-xl bg-warning/10 flex items-center justify-center text-base shrink-0">
                   🎂
                 </div>
                 <div className="flex-1 min-w-0">
@@ -68,7 +68,7 @@ export function AnniversaryWidget() {
                     Total estimado: {formatCurrency(total, item.currency)}
                   </p>
                 </div>
-                <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400">
+                <span className="shrink-0 rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-bold text-warning">
                   {years} año{years > 1 ? "s" : ""}
                 </span>
               </div>

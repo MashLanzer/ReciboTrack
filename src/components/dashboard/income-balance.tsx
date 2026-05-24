@@ -305,7 +305,7 @@ export function IncomeBalance({ year, month }: IncomeBalanceProps) {
             </div>
             <Progress
               value={spentPct}
-              className={cn("h-2", spentPct > 90 ? "[&>div]:bg-destructive" : spentPct > 70 ? "[&>div]:bg-amber-500" : "[&>div]:bg-green-500")}
+              className={cn("h-2", spentPct > 90 ? "[&>div]:bg-destructive" : spentPct > 70 ? "[&>div]:bg-warning" : "[&>div]:bg-green-500")}
             />
           </div>
         )}

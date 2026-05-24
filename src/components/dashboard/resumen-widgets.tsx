@@ -123,7 +123,7 @@ function SpendStreak({ expenses30, isLoading }: { expenses30: Expense[]; isLoadi
     <div className="rounded-2xl border bg-card px-4 py-3 flex flex-col items-center justify-center text-center h-full gap-1.5">
       <StreakIcon className={cn(
         "h-5 w-5",
-        streak >= 14 ? "text-amber-500" : streak >= 7 ? "text-orange-500" : streak >= 3 ? "text-primary" : "text-muted-foreground/40"
+        streak >= 14 ? "text-warning" : streak >= 7 ? "text-warning" : streak >= 3 ? "text-primary" : "text-muted-foreground/40"
       )} />
       <p className="text-2xl font-bold tabular-nums leading-none">{streak}</p>
       <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
@@ -218,23 +218,23 @@ function NextRecurring() {
     <Link href="/recurring">
       <div className={cn(
         "rounded-2xl border px-4 py-3 flex items-center gap-3 transition-colors hover:bg-accent/40 cursor-pointer",
-        urgent ? "bg-amber-500/8 border-amber-500/20" : "bg-card"
+        urgent ? "bg-warning/8 border-warning/20" : "bg-card"
       )}>
         <div className={cn(
           "h-8 w-8 rounded-xl flex items-center justify-center shrink-0",
-          urgent ? "bg-amber-500/15" : "bg-muted"
+          urgent ? "bg-warning/15" : "bg-muted"
         )}>
-          <CalendarClock className={cn("h-4 w-4", urgent ? "text-amber-600" : "text-muted-foreground")} />
+          <CalendarClock className={cn("h-4 w-4", urgent ? "text-warning" : "text-muted-foreground")} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Próximo recurrente</p>
           <p className="text-sm font-semibold truncate leading-snug">{next.merchant}</p>
         </div>
         <div className="text-right shrink-0">
-          <p className={cn("text-sm font-bold tabular-nums", urgent && "text-amber-600")}>
+          <p className={cn("text-sm font-bold tabular-nums", urgent && "text-warning")}>
             {formatCurrency(next.total, next.currency)}
           </p>
-          <p className={cn("text-[10px] font-medium", urgent ? "text-amber-600" : "text-muted-foreground")}>
+          <p className={cn("text-[10px] font-medium", urgent ? "text-warning" : "text-muted-foreground")}>
             {label}
           </p>
         </div>

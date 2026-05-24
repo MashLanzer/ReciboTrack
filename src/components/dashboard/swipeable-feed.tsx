@@ -757,7 +757,7 @@ export function SwipeableFeed() {
             <Flame
               className={cn(
                 "h-14 w-14",
-                streak >= 7  ? "text-orange-500" :
+                streak >= 7  ? "text-warning" :
                 streak >= 3  ? "text-primary" :
                                "text-muted-foreground/30"
               )}
@@ -769,7 +769,7 @@ export function SwipeableFeed() {
           </div>
           <div className={cn(
             "rounded-xl px-4 py-2.5 text-center",
-            streak >= 7 ? "bg-orange-500/10" : "bg-muted/50"
+            streak >= 7 ? "bg-warning/10" : "bg-muted/50"
           )}>
             <p className="text-xs text-muted-foreground">
               {streak === 0
@@ -790,7 +790,7 @@ export function SwipeableFeed() {
         render: () => (
           <div className="h-full flex flex-col justify-between p-5">
             <div className="flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-amber-500" />
+              <Trophy className="h-4 w-4 text-warning" />
               <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                 Logro reciente
               </p>
@@ -823,7 +823,7 @@ export function SwipeableFeed() {
       render: () => (
         <div className="h-full flex flex-col justify-between p-5">
           <div className="flex items-center gap-2">
-            <Lightbulb className="h-4 w-4 text-amber-500" />
+            <Lightbulb className="h-4 w-4 text-warning" />
             <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
               Consejo del día
             </p>

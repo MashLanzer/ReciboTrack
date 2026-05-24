@@ -18,7 +18,7 @@ import type { Expense } from "@/types"
 const PALETTE = [
   "bg-primary",
   "bg-violet-500",
-  "bg-amber-500",
+  "bg-warning",
   "bg-emerald-500",
   "bg-rose-500",
 ]
@@ -26,7 +26,7 @@ const PALETTE = [
 const PALETTE_LIGHT = [
   "bg-primary/12 text-primary",
   "bg-violet-500/12 text-violet-600 dark:text-violet-400",
-  "bg-amber-500/12 text-amber-600 dark:text-amber-400",
+  "bg-warning/12 text-warning",
   "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400",
   "bg-rose-500/12 text-rose-600 dark:text-rose-400",
 ]
@@ -137,7 +137,7 @@ export function TopCategoriesCard() {
               </span>
               <span className="text-xs font-semibold flex-1 truncate">
                 {cat.label}
-                {isStarred && <span className="ml-1 text-amber-500">⭐</span>}
+                {isStarred && <span className="ml-1 text-warning">⭐</span>}
               </span>
               <span className={cn("transition-opacity", !isStarred && "opacity-0 group-hover:opacity-40")}>
                 <StarButton

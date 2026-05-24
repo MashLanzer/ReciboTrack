@@ -159,7 +159,7 @@ export function MonthlyRecapCard() {
           {savingsRate !== null && (
             <div className="shrink-0 text-right">
               <p className="text-[10px] text-muted-foreground">Tasa ahorro</p>
-              <p className={`text-sm font-bold tabular-nums ${savingsRate >= 20 ? "text-green-600" : savingsRate >= 10 ? "text-amber-600" : "text-destructive"}`}>
+              <p className={`text-sm font-bold tabular-nums ${savingsRate >= 20 ? "text-green-600" : savingsRate >= 10 ? "text-warning" : "text-destructive"}`}>
                 {savingsRate.toFixed(1)}%
               </p>
             </div>
