@@ -6,6 +6,8 @@ import { useCategories } from "@/hooks/use-categories"
 import { useUIStore } from "@/stores/ui-store"
 import { CategorySuggestion } from "@/components/shared/category-suggestion"
 import { DEFAULT_CATEGORIES, CURRENCIES } from "@/lib/constants"
+import { useDuplicateDetection } from "@/hooks/use-duplicate-detection"
+import { DuplicateWarning } from "@/components/expenses/duplicate-warning"
 
 const PAYMENT_OPTIONS = ["Efectivo", "Débito", "Visa", "Mastercard", "American Express", "Transferencia", "PayPal", "Otro"]
 import { formatCurrency, cn } from "@/lib/utils"
@@ -39,6 +41,13 @@ export function QuickAddSheet() {
     tags: "",
   })
   const [geo, setGeo] = useState<GeoPickerValue | null>(null)
+  const [duplicateDismissed, setDuplicateDismissed] = useState(false)
+
+  // ── Duplicate detection ──────────────────────────────────────────────────────
+  const potentialDuplicates = useDuplicateDetection(form.merchant, parseFloat(form.total) || 0)
+
+  // Reset dismissal when merchant or total changes
+  useEffect(() => setDuplicateDismissed(false), [form.merchant, form.total])
 
   // ── Known merchants from last 6 months (for datalist autocomplete) ──────────
   const now = useMemo(() => new Date(), [])
@@ -265,6 +274,16 @@ export function QuickAddSheet() {
               />
             </div>
           </div>
+
+          {/* Duplicate warning */}
+          {!duplicateDismissed && potentialDuplicates.length > 0 && (
+            <div className="px-4 pb-2">
+              <DuplicateWarning
+                duplicates={potentialDuplicates}
+                onDismiss={() => setDuplicateDismissed(true)}
+              />
+            </div>
+          )}
 
           {/* Save */}
           <div className="px-4 pb-4">

@@ -22,11 +22,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
-import { Search, MoreHorizontal, Trash2, Edit, Copy, Image, ChevronLeft, ChevronRight, Filter, Tag, X, Upload, Sheet, Loader2, CalendarRange, Calendar, CheckSquare, Square, CheckCheck, Layers, Receipt, SlidersHorizontal, ChevronDown, ScanLine, PenLine, Plus } from "lucide-react"
+import { Search, MoreHorizontal, Trash2, Edit, Copy, Image, ChevronLeft, ChevronRight, Filter, Tag, X, Upload, Sheet, Loader2, CalendarRange, Calendar, CheckSquare, Square, CheckCheck, Layers, Receipt, SlidersHorizontal, ChevronDown, ScanLine, PenLine, Plus, Scissors } from "lucide-react"
 import { startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subDays, format as fmtDate, parseISO, isValid, isToday, isYesterday } from "date-fns"
 import { es } from "date-fns/locale"
 import { ExpenseEditDialog } from "./expense-edit-dialog"
 import { ExpenseDetailDialog } from "./expense-detail-dialog"
+import { SplitExpenseDialog } from "./split-expense-dialog"
 import { CsvImport } from "./csv-import"
 import { exportToCSV, exportToPDF } from "./export-utils"
 import { ExportDateRangeDialog } from "./export-date-range-dialog"
@@ -67,6 +68,7 @@ export function ExpenseList() {
 
   const [editExpense, setEditExpense] = useState<Expense | null>(null)
   const [detailExpense, setDetailExpense] = useState<Expense | null>(null)
+  const [splitExpense, setSplitExpense] = useState<Expense | null>(null)
   const [csvOpen, setCsvOpen] = useState(false)
   const [sheetsLoading, setSheetsLoading] = useState(false)
   const [datePickerOpen, setDatePickerOpen] = useState(false)
@@ -1091,6 +1093,7 @@ export function ExpenseList() {
                               { label: "Ver detalle", icon: <Receipt className="h-5 w-5" />, onClick: () => setDetailExpense(expense) },
                               { label: "Editar", icon: <Edit className="h-5 w-5" />, onClick: () => setEditExpense(expense) },
                               { label: "Duplicar", icon: <Copy className="h-5 w-5" />, onClick: () => handleDuplicate(expense) },
+                              { label: "Dividir", icon: <Scissors className="h-5 w-5" />, onClick: () => setSplitExpense(expense) },
                               ...(expense.receiptImageUrl ? [{
                                 label: "Ver foto",
                                 icon: <Image className="h-5 w-5" />,
@@ -1158,6 +1161,13 @@ export function ExpenseList() {
         onDelete={() => detailExpense && handleDelete(detailExpense.id)}
       />
       <ExpenseEditDialog expense={editExpense} onClose={() => setEditExpense(null)} />
+      {splitExpense && (
+        <SplitExpenseDialog
+          expense={splitExpense}
+          open={!!splitExpense}
+          onClose={() => setSplitExpense(null)}
+        />
+      )}
       <CsvImport open={csvOpen} onClose={() => setCsvOpen(false)} />
       <ExportDateRangeDialog
         open={exportDialogOpen}
