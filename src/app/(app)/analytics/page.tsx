@@ -32,6 +32,7 @@ import { ErrorBoundary }  from "@/components/ui/error-boundary"
 import { AiMonthlySummary } from "@/components/analytics/ai-monthly-summary"
 import { AiSuggestions } from "@/components/analytics/ai-suggestions"
 import { TimeTravelSelector } from "@/components/analytics/time-travel-selector"
+import { ExpenseForecast } from "@/components/analytics/expense-forecast"
 
 // Lazy-loaded — only mounted when their tab is selected
 const CategoryTrend   = lazy(() => import("@/components/analytics/category-trend").then(m => ({ default: m.CategoryTrend })))
@@ -886,6 +887,8 @@ export default function AnalyticsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ExpenseForecast />
 
       </>)} {/* END TAB: RESUMEN */}
 
