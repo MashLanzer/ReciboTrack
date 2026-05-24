@@ -1603,18 +1603,18 @@ function GroupDetail({
           <GroupNotes groupId={group.id} members={group.members} />
 
           {/* ── Feature 10: Monthly summary strip ── */}
-          <div className="flex gap-3">
-            <div className="flex-1 rounded-xl bg-muted/50 px-3 py-2 text-center">
-              <p className="text-sm font-semibold tabular-nums">{formatCurrency(monthlyStats.totalThisMonth)}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Total este mes</p>
+          <div className="flex gap-2">
+            <div className="flex-1 rounded-xl border bg-card px-3 py-2.5 text-center">
+              <p className="text-xs font-black tabular-nums text-foreground">{formatCurrency(monthlyStats.totalThisMonth)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">Total mes</p>
             </div>
-            <div className="flex-1 rounded-xl bg-muted/50 px-3 py-2 text-center">
-              <p className="text-sm font-semibold tabular-nums">{monthlyStats.countThisMonth}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Gastos este mes</p>
+            <div className="flex-1 rounded-xl border bg-card px-3 py-2.5 text-center">
+              <p className="text-xs font-black tabular-nums">{monthlyStats.countThisMonth}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">Gastos</p>
             </div>
-            <div className="flex-1 rounded-xl bg-muted/50 px-3 py-2 text-center">
-              <p className="text-sm font-semibold tabular-nums">{formatCurrency(monthlyStats.myShareThisMonth)}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Mi parte</p>
+            <div className="flex-1 rounded-xl border bg-primary/5 border-primary/20 px-3 py-2.5 text-center">
+              <p className="text-xs font-black tabular-nums text-primary">{formatCurrency(monthlyStats.myShareThisMonth)}</p>
+              <p className="text-[10px] text-primary/60 mt-0.5 font-medium">Mi parte</p>
             </div>
           </div>
 
@@ -1720,7 +1720,11 @@ function GroupDetail({
             if (e.privacy === "private" && e.paidByUid !== currentUid) return null
 
             return (
-              <div key={e.id} className="rounded-xl border bg-card hover:bg-accent/10 transition-colors group overflow-hidden">
+              <div
+                key={e.id}
+                className="rounded-xl border bg-card hover:bg-accent/10 hover:shadow-sm transition-all duration-150 group overflow-hidden border-l-[3px]"
+                style={{ borderLeftColor: cat?.color ?? "transparent" }}
+              >
                 <div className="flex items-center gap-3 px-3 pt-3 pb-2">
                   {/* Category icon */}
                   <div
@@ -2265,7 +2269,7 @@ export default function GroupsPage() {
           {activeGroups.map((group, idx) => (
             <button key={group.id} onClick={() => setSelectedGroup(group)}
               style={{ "--i": idx } as React.CSSProperties}
-              className="stagger-item group w-full text-left rounded-xl border p-4 hover:bg-accent/30 hover:border-border/80 hover:shadow-sm transition-all duration-200">
+              className="stagger-item group w-full text-left rounded-xl border p-4 hover:bg-accent/30 hover:border-primary/20 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
               <div className="flex items-center gap-3">
                 <span className="text-3xl transition-transform duration-200 group-hover:scale-110">{group.emoji}</span>
                 <div className="flex-1 min-w-0">
