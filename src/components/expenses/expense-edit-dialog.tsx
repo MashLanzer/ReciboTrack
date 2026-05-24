@@ -170,14 +170,14 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
 
           {/* ── Duplicate warning ── */}
           {duplicates.length > 0 && (
-            <div className="flex items-start gap-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-2.5">
-              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2.5 rounded-xl bg-warning/10 border border-warning/30 px-3 py-2.5">
+              <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                <p className="text-xs font-semibold text-warning">
                   Posible duplicado — {duplicates.length} gasto{duplicates.length > 1 ? "s" : ""} similar{duplicates.length > 1 ? "es" : ""}
                 </p>
                 {duplicates.slice(0, 2).map((d) => (
-                  <p key={d.id} className="text-xs text-amber-600/80 mt-0.5">
+                  <p key={d.id} className="text-xs text-warning/80 mt-0.5">
                     {d.merchant} · {formatCurrency(d.total, d.currency)} · {format(d.date.toDate(), "d MMM", { locale: undefined })}
                   </p>
                 ))}
@@ -185,7 +185,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
               <button
                 type="button"
                 onClick={() => setDupDismissed(true)}
-                className="text-amber-500 hover:text-amber-700 transition-colors shrink-0"
+                className="text-warning hover:text-warning/70 transition-colors shrink-0"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -250,7 +250,7 @@ export function ExpenseEditDialog({ expense, onClose }: Props) {
                   const itemsTotal = items.reduce((s, it) => s + it.price * it.quantity, 0)
                   const diff = Math.abs(parseFloat(form.total) - itemsTotal)
                   return diff > 0.01 ? (
-                    <p className="text-[10px] text-amber-600 font-medium">
+                    <p className="text-[10px] text-warning font-medium">
                       Artículos suman {formatCurrency(itemsTotal, form.currency)} — diff {formatCurrency(diff, form.currency)}
                     </p>
                   ) : (

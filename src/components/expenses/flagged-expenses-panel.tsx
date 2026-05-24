@@ -21,7 +21,7 @@ export function FlaggedExpensesPanel() {
 
   return (
     <div className="rounded-2xl border bg-card overflow-hidden">
-      <div className="px-4 py-3 border-b border-border/60 bg-amber-500/5">
+      <div className="px-4 py-3 border-b border-border/60 bg-warning/5">
         <p className="text-sm font-bold">🔖 Pendientes ({flagged.length})</p>
         <p className="text-[10px] text-muted-foreground mt-0.5">Gastos marcados como pendientes de revisión</p>
       </div>
@@ -39,7 +39,7 @@ export function FlaggedExpensesPanel() {
               key={e.id}
               className="flex items-center gap-3 px-4 py-2.5 group hover:bg-accent/30 transition-colors"
             >
-              <div className="h-8 w-8 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0 text-sm">
+              <div className="h-8 w-8 rounded-xl bg-warning/15 flex items-center justify-center shrink-0 text-sm">
                 {emoji}
               </div>
               <div className="flex-1 min-w-0">

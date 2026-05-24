@@ -183,7 +183,7 @@ export function CommandPalette() {
               />
               <ActionItem
                 icon={<Plus className="h-4 w-4" />}
-                iconClassName="bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                iconClassName="bg-warning/10 text-warning"
                 label="Nuevo gasto recurrente"
                 sub="Ir a Recurrentes"
                 value="nuevo recurrente suscripcion"
@@ -302,7 +302,7 @@ export function CommandPalette() {
                   <ActionItem
                     key={r.id}
                     icon={<RefreshCw className="h-4 w-4" />}
-                    iconClassName="bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                    iconClassName="bg-warning/10 text-warning"
                     label={r.merchant}
                     sub={`${formatCurrency(r.total, r.currency)} · ${r.frequency}`}
                     value={`recurrente suscripcion ${r.merchant.toLowerCase()}`}

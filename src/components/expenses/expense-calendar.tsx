@@ -41,8 +41,8 @@ function heatClass(amount: number, max: number): string {
   const ratio = amount / max
   if (ratio < 0.15) return "bg-emerald-100 dark:bg-emerald-950/50"
   if (ratio < 0.3)  return "bg-emerald-200 dark:bg-emerald-900/60"
-  if (ratio < 0.5)  return "bg-amber-100 dark:bg-amber-950/50"
-  if (ratio < 0.75) return "bg-amber-200 dark:bg-amber-900/60"
+  if (ratio < 0.5)  return "bg-warning/10 dark:bg-warning/5"
+  if (ratio < 0.75) return "bg-warning/20 dark:bg-warning/15"
   return "bg-rose-200 dark:bg-rose-900/60"
 }
 
@@ -51,8 +51,8 @@ function heatDotClass(amount: number, max: number): string {
   const ratio = amount / max
   if (ratio < 0.15) return "bg-emerald-400"
   if (ratio < 0.3)  return "bg-emerald-500"
-  if (ratio < 0.5)  return "bg-amber-400"
-  if (ratio < 0.75) return "bg-amber-500"
+  if (ratio < 0.5)  return "bg-warning/60"
+  if (ratio < 0.75) return "bg-warning"
   return "bg-rose-500"
 }
 
@@ -269,7 +269,7 @@ export function ExpenseCalendar() {
       <div className="flex items-center gap-3 justify-end text-[10px] text-muted-foreground">
         <span>Menos</span>
         <div className="flex gap-1">
-          {["bg-emerald-200", "bg-amber-200", "bg-rose-200"].map((c) => (
+          {["bg-emerald-200", "bg-warning/20", "bg-rose-200"].map((c) => (
             <span key={c} className={cn("h-3 w-3 rounded-sm", c)} />
           ))}
         </div>

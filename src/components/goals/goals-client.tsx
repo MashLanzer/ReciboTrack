@@ -136,7 +136,7 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
 
   const barColor =
     isComplete ? "bg-green-500" :
-    deadlinePct > 70 ? "bg-amber-500" :
+    deadlinePct > 70 ? "bg-warning" :
     "bg-primary"
 
   async function handleAportar() {
@@ -185,7 +185,7 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
                 "text-xs px-1.5 py-0.5 rounded-full font-medium",
                 goal.type === "saving"
                   ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
-                  : "bg-orange-500/15 text-orange-600 dark:text-orange-400"
+                  : "bg-warning/15 text-warning"
               )}>
                 {goal.type === "saving" ? "Ahorro" : "Límite diario"}
               </span>
@@ -194,7 +194,7 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
               <p className={cn(
                 "text-xs mt-0.5",
                 days < 0 ? "text-destructive" :
-                days < 7 ? "text-amber-600 dark:text-amber-400" :
+                days < 7 ? "text-warning" :
                 "text-muted-foreground"
               )}>
                 {days < 0
@@ -238,9 +238,9 @@ function GoalCard({ goal }: { goal: GoalWithDaily }) {
 
         {/* Daily contribution badge */}
         {goal.dailyContribution && goal.dailyContribution > 0 && (
-          <div className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5">
+          <div className="flex items-center gap-1.5 rounded-lg bg-warning/10 border border-warning/20 px-2.5 py-1.5">
             <span className="text-sm">⚡</span>
-            <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
+            <span className="text-xs font-medium text-warning">
               Aportando {formatCurrency(goal.dailyContribution, goal.currency)}/día
             </span>
           </div>

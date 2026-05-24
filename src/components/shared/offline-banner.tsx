@@ -49,7 +49,7 @@ export function OfflineBanner() {
         "text-white text-xs font-semibold tracking-wide",
         "transition-all duration-300 ease-out",
         visible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0",
-        state === "offline"     && "bg-amber-500",
+        state === "offline"     && "bg-warning",
         state === "reconnected" && "bg-emerald-500",
       )}
     >

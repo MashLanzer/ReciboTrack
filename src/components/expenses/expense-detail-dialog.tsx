@@ -63,7 +63,7 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
                     </span>
                   )}
                   {expense.flagged && (
-                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">
+                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning font-medium">
                       <Flag className="h-2.5 w-2.5" /> Para revisar
                     </span>
                   )}

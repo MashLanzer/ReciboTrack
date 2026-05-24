@@ -77,7 +77,7 @@ export function CategoryWatchlist() {
         ) : (
           <div className="space-y-3">
             {watchedCategories.map(({ categoryId, cat, spent, pct, isAlert, alertThreshold }) => (
-              <div key={categoryId} className={cn("rounded-xl border p-3 space-y-2", isAlert && "border-amber-400/50 bg-amber-50/30 dark:bg-amber-950/10")}>
+              <div key={categoryId} className={cn("rounded-xl border p-3 space-y-2", isAlert && "border-warning/50 bg-warning/5")}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {cat && (
@@ -97,7 +97,7 @@ export function CategoryWatchlist() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {isAlert && <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}
+                    {isAlert && <AlertTriangle className="h-3.5 w-3.5 text-warning" />}
                     <button
                       onClick={() => { removeFromWatchlist(categoryId); toast.info("Categoría eliminada de vigilancia") }}
                       className="text-muted-foreground hover:text-destructive transition-colors"
@@ -111,7 +111,7 @@ export function CategoryWatchlist() {
                   <div className="space-y-1">
                     <Progress
                       value={Math.min(pct, 100)}
-                      className={cn("h-1.5", pct >= 100 ? "[&>div]:bg-destructive" : pct >= 80 ? "[&>div]:bg-amber-500" : "")}
+                      className={cn("h-1.5", pct >= 100 ? "[&>div]:bg-destructive" : pct >= 80 ? "[&>div]:bg-warning" : "")}
                     />
                     <p className="text-xs text-muted-foreground text-right">{pct.toFixed(0)}% del límite</p>
                   </div>

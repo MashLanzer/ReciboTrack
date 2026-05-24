@@ -50,7 +50,7 @@ const PERMISSIONS: PermItem[] = [
     icon: <Bell className="h-5 w-5" />,
     title: "Notificaciones",
     description: "Recibe alertas cuando te acerques a tu límite de presupuesto.",
-    color: "bg-amber-500/15 text-amber-500",
+    color: "bg-warning/15 text-warning",
   },
 ]
 

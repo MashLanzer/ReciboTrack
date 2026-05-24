@@ -103,7 +103,7 @@ export function PersonalStats() {
         {/* Comercio favorito */}
         <StatTile
           icon={<Store className="h-4 w-4" />}
-          iconClass="bg-amber-500/10 text-amber-600 dark:text-amber-400"
+          iconClass="bg-warning/10 text-warning"
           label="Comercio favorito"
           value={stats.topMerchantName}
           sub={`${stats.topMerchantCount} visitas este año`}

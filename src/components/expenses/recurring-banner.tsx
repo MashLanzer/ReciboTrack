@@ -53,9 +53,9 @@ export function RecurringBanner() {
       {due.map((t) => (
         <div
           key={t.id}
-          className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3"
+          className="flex items-center gap-3 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3"
         >
-          <RefreshCw className="h-4 w-4 shrink-0 text-amber-500" />
+          <RefreshCw className="h-4 w-4 shrink-0 text-warning" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{t.merchant}</p>
             <p className="text-xs text-muted-foreground">{t.currency} {t.total.toFixed(2)} · {t.frequency}</p>

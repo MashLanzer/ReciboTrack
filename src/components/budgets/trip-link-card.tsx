@@ -13,7 +13,7 @@ import { toDate } from "@/lib/utils"
 
 function pctColor(pct: number) {
   if (pct >= 90) return "bg-rose-500"
-  if (pct >= 70) return "bg-amber-500"
+  if (pct >= 70) return "bg-warning"
   return "bg-emerald-500"
 }
 
@@ -122,7 +122,7 @@ export function TripLinkCard() {
             </span>
             <span className={cn(
               "text-xs font-medium tabular-nums",
-              pct >= 90 ? "text-rose-600" : pct >= 70 ? "text-amber-600" : "text-emerald-600",
+              pct >= 90 ? "text-rose-600" : pct >= 70 ? "text-warning" : "text-emerald-600",
             )}>
               {pct >= 100
                 ? `Excedido por ${formatCurrency(spent - activeTrip.totalLimit, activeTrip.currency)}`

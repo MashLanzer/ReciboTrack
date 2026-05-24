@@ -173,8 +173,8 @@ export function SubscriptionDetector() {
           </div>
           {/* Live notification dot */}
           <span className="absolute -top-1 -right-1 flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-60" />
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500" />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-warning opacity-60" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-warning" />
           </span>
         </div>
 
@@ -188,7 +188,7 @@ export function SubscriptionDetector() {
         </div>
 
         {/* Notification count badge */}
-        <span className="shrink-0 min-w-[1.5rem] h-6 px-1.5 rounded-full bg-amber-500 text-white text-xs font-bold
+        <span className="shrink-0 min-w-[1.5rem] h-6 px-1.5 rounded-full bg-warning text-white text-xs font-bold
           tabular-nums flex items-center justify-center animate-[fadeSlideUp_0.25s_ease-out_both]">
           {visible.length}
         </span>

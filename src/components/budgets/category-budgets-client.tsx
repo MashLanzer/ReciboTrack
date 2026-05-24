@@ -17,13 +17,13 @@ import { SnoozeControls } from "@/components/notifications/snooze-controls"
 
 function getProgressColor(pct: number): string {
   if (pct >= 90) return "[&>div]:bg-rose-500"
-  if (pct >= 70) return "[&>div]:bg-amber-500"
+  if (pct >= 70) return "[&>div]:bg-warning"
   return "[&>div]:bg-emerald-500"
 }
 
 function getPctColor(pct: number): string {
   if (pct >= 90) return "text-rose-600"
-  if (pct >= 70) return "text-amber-600"
+  if (pct >= 70) return "text-warning"
   return "text-emerald-600"
 }
 
