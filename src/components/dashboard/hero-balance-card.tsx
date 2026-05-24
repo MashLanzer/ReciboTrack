@@ -6,7 +6,7 @@ import { format, subMonths, addMonths } from "date-fns"
 import { es } from "date-fns/locale"
 import {
   TrendingUp, TrendingDown, Plus, ChevronLeft,
-  ChevronRight, RefreshCw, Trash2,
+  ChevronRight, RefreshCw, Trash2, Eye, EyeOff,
 } from "lucide-react"
 import { useIncome, useAddIncome, useDeleteIncome } from "@/hooks/use-income"
 import { useExpensesForMonth } from "@/hooks/use-expenses"
@@ -55,7 +55,7 @@ export function HeroBalanceCard() {
   const m = targetDate.getMonth() + 1
   const isCurrentMonth = offset === 0
 
-  const { activeAccount, setIncomeAddOpen } = useUIStore()
+  const { activeAccount, setIncomeAddOpen, balanceHidden, toggleBalanceHidden } = useUIStore()
   const { data: incomeList = [], isLoading: incLoading } = useIncome(y, m)
   const { data: expenses = [], isLoading: expLoading } = useExpensesForMonth(y, m)
   const deleteIncome = useDeleteIncome()
@@ -153,7 +153,7 @@ export function HeroBalanceCard() {
       <div className="relative p-5 space-y-4">
 
         {/* ── Top row: month nav + add income ────────────────────────────── */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1">
             <button
               onClick={() => setOffset(o => o - 1)}
@@ -176,6 +176,14 @@ export function HeroBalanceCard() {
             )}
           </div>
 
+          <button
+            onClick={toggleBalanceHidden}
+            className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60 transition-colors"
+            aria-label={balanceHidden ? "Mostrar importes" : "Ocultar importes"}
+          >
+            {balanceHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+          </button>
+
           <Button
             size="sm"
             variant="outline"
@@ -186,6 +194,9 @@ export function HeroBalanceCard() {
             Ingreso
           </Button>
         </div>
+
+        {/* ── Balance hero + Income/Expense split (blurred when hidden) ─── */}
+        <div className={cn("transition-all duration-300", balanceHidden && "blur-md select-none pointer-events-none")}>
 
         {/* ── Balance hero ─────────────────────────────────────────────── */}
         <div key={offset} className="text-center space-y-1 animate-[fadeSlideUp_0.25s_ease-out_both]">
@@ -258,7 +269,7 @@ export function HeroBalanceCard() {
         </div>
 
         {/* ── Income / Expense split ─────────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 mt-4">
           <button
             onClick={() => setShowIncome(s => !s)}
             className="group rounded-2xl border border-income/20 bg-income/8 p-3 text-left hover:bg-income/12 transition-colors"
@@ -293,6 +304,8 @@ export function HeroBalanceCard() {
             )}
           </div>
         </div>
+
+        </div>{/* end blur wrapper */}
 
         {/* ── Progress bar ──────────────────────────────────────────────── */}
         {totalIncome > 0 && <SpendBar pct={spentPct} />}

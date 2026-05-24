@@ -25,6 +25,8 @@ interface UIStore {
   setCommandOpen: (open: boolean) => void
   setActiveAccount: (account: ActiveAccount) => void
   setRoundupExpense: (expense: Expense | null) => void
+  balanceHidden: boolean
+  toggleBalanceHidden: () => void
 }
 
 export const useUIStore = create<UIStore>()(
@@ -48,6 +50,8 @@ export const useUIStore = create<UIStore>()(
       setCommandOpen: (open) => set({ commandOpen: open }),
       setActiveAccount: (account) => set({ activeAccount: account }),
       setRoundupExpense: (expense) => set({ roundupExpense: expense }),
+      balanceHidden: false,
+      toggleBalanceHidden: () => set((s) => ({ balanceHidden: !s.balanceHidden })),
     }),
     {
       name: "recibotrack-ui",
