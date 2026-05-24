@@ -15,14 +15,16 @@ export interface PayData {
   currency: string
 }
 
-const _secret = process.env.PAY_TOKEN_SECRET
-if (!_secret && process.env.NODE_ENV === "production") {
-  throw new Error(
-    "[pay-token] PAY_TOKEN_SECRET env var is required in production. " +
-    "Set it in your Vercel environment variables."
-  )
+const SECRET = process.env.PAY_TOKEN_SECRET ?? "recibotrack-dev-secret-change-in-prod"
+
+function requireSecret() {
+  if (!process.env.PAY_TOKEN_SECRET && process.env.NODE_ENV === "production") {
+    throw new Error(
+      "[pay-token] PAY_TOKEN_SECRET env var is required in production. " +
+      "Set it in your Vercel environment variables."
+    )
+  }
 }
-const SECRET = _secret ?? "recibotrack-dev-secret-change-in-prod"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -51,6 +53,7 @@ async function hmac(payload: string): Promise<string> {
 
 /** Generate a signed token string to use as the URL `[id]` segment. */
 export async function signPayToken(data: PayData): Promise<string> {
+  requireSecret()
   const payload = b64url(JSON.stringify(data))
   const sig = await hmac(payload)
   return `${payload}.${sig}`
