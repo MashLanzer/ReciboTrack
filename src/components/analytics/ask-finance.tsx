@@ -65,15 +65,23 @@ export function AskFinance({ context }: AskFinanceProps) {
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium flex items-center gap-1.5">
-          <Sparkles className="h-4 w-4 text-primary" />
-          Consulta a tu asesor financiero IA
-        </CardTitle>
-        <p className="text-xs text-muted-foreground">Haz cualquier pregunta sobre tus finanzas personales</p>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <Card className="border-primary/20 overflow-hidden">
+      {/* Gradient header strip */}
+      <div className="bg-gradient-to-r from-primary/8 to-primary/4 border-b border-primary/10 px-4 pt-4 pb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Sparkles className="h-4.5 w-4.5 text-primary h-[18px] w-[18px]" />
+          </div>
+          <div>
+            <CardTitle className="text-sm font-bold flex items-center gap-1.5">
+              Asesor Financiero IA
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">Pregunta cualquier cosa sobre tus finanzas</p>
+          </div>
+        </div>
+      </div>
+
+      <CardContent className="space-y-3 pt-3">
         {/* Conversation */}
         {messages.length > 0 && (
           <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
@@ -81,7 +89,7 @@ export function AskFinance({ context }: AskFinanceProps) {
               <div
                 key={i}
                 className={cn(
-                  "rounded-xl px-3 py-2 text-xs leading-relaxed",
+                  "rounded-xl px-3 py-2 text-xs leading-relaxed animate-[fadeSlideUp_0.2s_ease-out_both]",
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground ml-8"
                     : "bg-muted text-foreground mr-8"
@@ -101,13 +109,13 @@ export function AskFinance({ context }: AskFinanceProps) {
 
         {/* Suggestions (only if no messages yet) */}
         {messages.length === 0 && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {SUGGESTED.map((s) => (
               <button
                 key={s}
                 onClick={() => ask(s)}
                 disabled={loading}
-                className="text-[11px] px-2.5 py-1 rounded-full border border-border bg-muted/50 hover:bg-accent hover:border-primary/40 transition-all text-muted-foreground hover:text-foreground"
+                className="text-[11px] px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-all text-foreground font-medium"
               >
                 {s}
               </button>

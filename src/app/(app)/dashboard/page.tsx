@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useSearchParams } from "next/navigation"
-import { ScanLine, Plus, BarChart2, Search, LayoutDashboard, Zap } from "lucide-react"
+import { ScanLine, Plus, BarChart2, Search, LayoutDashboard, Zap, Sparkles, ChevronRight } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -29,6 +29,7 @@ import { useUIStore }         from "@/stores/ui-store"
 import { useAuth }            from "@/hooks/use-auth"
 import { useUIPrefs }         from "@/hooks/use-ui-prefs"
 import { cn }                 from "@/lib/utils"
+import Link                   from "next/link"
 
 // ─── Greeting ─────────────────────────────────────────────────────────────────
 
@@ -198,6 +199,20 @@ export default function DashboardPage() {
           onClick={() => setCommandOpen(true)}
         />
       </div>
+
+      {/* ── Asesor IA — entrada rápida ───────────────────────────────── */}
+      <Link href="/analytics" className="block group">
+        <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/5 to-primary/8 px-4 py-3.5 hover:shadow-md hover:border-primary/35 active:scale-[0.99] transition-all duration-150">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Sparkles className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold">Asesor Financiero IA</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Pregunta cualquier cosa sobre tus finanzas</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 group-hover:translate-x-0.5 transition-transform" />
+        </div>
+      </Link>
 
       {/* ── Pinned items bar (Feature J) ──────────────────────────────── */}
       <PinnedItemsBar />

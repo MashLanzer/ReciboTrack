@@ -547,6 +547,20 @@ export default function AnalyticsPage() {
         </div>
       )}
 
+      {/* ── Asesor IA — chat interactivo ── */}
+      <Suspense fallback={<Skeleton className="h-40 rounded-xl" />}>
+        <ErrorBoundary label="Asesor financiero IA">
+          <AskFinance
+            context={{
+              monthTotal: selectedTotal,
+              prevMonthTotal: comparedTotal,
+              topCategories: categoryComparison.slice(0, 5).map((c) => ({ name: c.name, total: c.current })),
+              savingsRate: undefined,
+            }}
+          />
+        </ErrorBoundary>
+      </Suspense>
+
       {/* ── Resumen IA del mes ── */}
       <AiMonthlySummary
         expenses={selected.map((e) => ({ total: e.total, merchant: e.merchant, category: e.category }))}
@@ -1088,16 +1102,6 @@ export default function AnalyticsPage() {
             </ErrorBoundary>
             <ErrorBoundary label="Grupos por tipo de gasto">
               <ExpenseTypeGroups expenses={all} categories={categories} />
-            </ErrorBoundary>
-            <ErrorBoundary label="Consultas financieras con IA">
-              <AskFinance
-                context={{
-                  monthTotal: selectedTotal,
-                  prevMonthTotal: comparedTotal,
-                  topCategories: categoryComparison.slice(0, 5).map((c) => ({ name: c.name, total: c.current })),
-                  savingsRate: undefined,
-                }}
-              />
             </ErrorBoundary>
           </div>
         </Suspense>
