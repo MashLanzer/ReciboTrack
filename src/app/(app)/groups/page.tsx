@@ -1533,7 +1533,7 @@ function GroupDetail({
             </div>
             <span className={cn(
               "text-xs font-semibold tabular-nums",
-              totalSpent > group.budget ? "text-destructive" : totalSpent > group.budget * 0.8 ? "text-amber-600" : "text-green-600"
+              totalSpent > group.budget ? "text-destructive" : totalSpent > group.budget * 0.8 ? "text-warning" : "text-green-600"
             )}>
               {formatCurrency(totalSpent)} / {formatCurrency(group.budget)}
             </span>
@@ -1542,7 +1542,7 @@ function GroupDetail({
             <div
               className={cn(
                 "h-2 rounded-full transition-all",
-                totalSpent > group.budget ? "bg-destructive" : totalSpent > group.budget * 0.8 ? "bg-amber-500" : "bg-green-500"
+                totalSpent > group.budget ? "bg-destructive" : totalSpent > group.budget * 0.8 ? "bg-warning" : "bg-green-500"
               )}
               style={{ width: `${Math.min((totalSpent / group.budget) * 100, 100)}%` }}
             />
@@ -1861,7 +1861,7 @@ function GroupDetail({
                       <p className="text-sm font-medium truncate">
                         {m.displayName}{m.uid === currentUid && <span className="text-muted-foreground font-normal"> (tú)</span>}
                       </p>
-                      {m.role === "admin" && <Crown className="h-3 w-3 text-amber-500 shrink-0" />}
+                      {m.role === "admin" && <Crown className="h-3 w-3 text-warning shrink-0" />}
                     </div>
                     <p className="text-xs text-muted-foreground truncate">{m.email}</p>
                   </div>

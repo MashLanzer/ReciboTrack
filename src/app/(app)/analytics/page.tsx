@@ -438,7 +438,7 @@ export default function AnalyticsPage() {
         <div className="flex items-center gap-2">
           <h1 className="font-serif text-2xl">Análisis</h1>
           {activeAccount === 'business' && (
-            <span className="text-[9px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">Negocio</span>
+            <span className="text-[9px] font-semibold bg-warning/15 text-warning px-1.5 py-0.5 rounded-full">Negocio</span>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -532,7 +532,7 @@ export default function AnalyticsPage() {
 
       {/* ── Empty state for selected period ── */}
       {selected.length === 0 && all6.length > 0 && (
-        <div className="rounded-2xl border border-dashed border-amber-500/30 bg-amber-500/5 p-6 text-center space-y-2">
+        <div className="rounded-2xl border border-dashed border-warning/30 bg-warning/5 p-6 text-center space-y-2">
           <p className="text-xl">🔍</p>
           <p className="text-sm font-semibold">Sin datos con estos filtros</p>
           <p className="text-xs text-muted-foreground">No hay gastos para el período seleccionado</p>
@@ -854,7 +854,7 @@ export default function AnalyticsPage() {
               <div className="flex items-center gap-1.5">
                 {daysOverLimit === 0
                   ? <Check className="h-3.5 w-3.5 text-green-600" />
-                  : <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}
+                  : <AlertTriangle className="h-3.5 w-3.5 text-warning" />}
                 <span className="text-xs font-medium">
                   {daysOverLimit === 0
                     ? "Sin días sobre el límite este mes"

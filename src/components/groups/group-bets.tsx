@@ -145,7 +145,7 @@ function BetCard({ bet, members, onJoin, onResolve }: {
         <Button
           size="sm"
           variant="outline"
-          className="w-full text-xs h-8 gap-1.5 text-amber-600 border-amber-500/30 hover:bg-amber-500/10"
+          className="w-full text-xs h-8 gap-1.5 text-warning border-warning/30 hover:bg-warning/10"
           onClick={() => { setSelectedWinnerId(""); setResolveOpen(true) }}
         >
           <Trophy className="h-3.5 w-3.5" />
@@ -164,7 +164,7 @@ function BetCard({ bet, members, onJoin, onResolve }: {
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-sm font-semibold flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-amber-500" />
+              <Trophy className="h-4 w-4 text-warning" />
               ¿Quién ganó el reto?
             </p>
             <p className="text-xs text-muted-foreground">
@@ -180,7 +180,7 @@ function BetCard({ bet, members, onJoin, onResolve }: {
                     onClick={() => setSelectedWinnerId(pUid)}
                     className={`w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-colors ${
                       selectedWinnerId === pUid
-                        ? "border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                        ? "border-warning bg-warning/10 text-warning"
                         : "border-border hover:bg-muted/50"
                     }`}
                   >
@@ -204,7 +204,7 @@ function BetCard({ bet, members, onJoin, onResolve }: {
               </Button>
               <Button
                 size="sm"
-                className="flex-1 gap-1.5 bg-amber-500 hover:bg-amber-600 text-white"
+                className="flex-1 gap-1.5 bg-warning hover:bg-warning/90 text-white"
                 disabled={!selectedWinnerId}
                 onClick={() => {
                   const winner = members.find((m) => m.uid === selectedWinnerId)
@@ -369,7 +369,7 @@ export function GroupBets({ groupId, members }: Props) {
       {resolved.length > 0 && (
         <div className="space-y-3">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-            <Trophy className="h-3.5 w-3.5 text-amber-500" />
+            <Trophy className="h-3.5 w-3.5 text-warning" />
             Resueltos
           </p>
           {resolved.map((bet) => (

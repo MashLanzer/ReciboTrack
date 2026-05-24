@@ -108,7 +108,7 @@ export function WeekSparkCard() {
     if (isToday)     return "bg-primary"
     const pct = total / maxTotal
     if (pct >= 0.75) return "bg-destructive/70"
-    if (pct >= 0.4)  return "bg-amber-400/80"
+    if (pct >= 0.4)  return "bg-warning/80"
     return "bg-emerald-500/70"
   }
 

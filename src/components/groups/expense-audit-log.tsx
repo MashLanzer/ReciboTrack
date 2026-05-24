@@ -63,7 +63,7 @@ function AuditLogDialog({
                 : Pencil
               const color = entry.action === "created" ? "text-green-600"
                 : entry.action === "deleted" ? "text-destructive"
-                : "text-amber-600"
+                : "text-warning"
               return (
                 <div key={entry.id} className="flex items-start gap-3 p-3 rounded-lg border bg-muted/20">
                   <div className={`mt-0.5 ${color}`}>

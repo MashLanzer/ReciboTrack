@@ -93,7 +93,7 @@ function HighlightCard({ highlight, onUnpin }: { highlight: Highlight; onUnpin: 
   return (
     <div className={cn(
       "relative shrink-0 w-44 rounded-xl border p-3 space-y-1.5",
-      "bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/20"
+      "bg-gradient-to-br from-warning/10 to-warning/5 border-warning/20"
     )}>
       <button
         onClick={onUnpin}
@@ -103,7 +103,7 @@ function HighlightCard({ highlight, onUnpin }: { highlight: Highlight; onUnpin: 
         <X className="h-3 w-3" />
       </button>
       <span className="text-2xl">{highlight.icon}</span>
-      <p className="text-[10px] font-mono uppercase tracking-wider text-amber-700/70 dark:text-amber-400/70">{highlight.title}</p>
+      <p className="text-[10px] font-mono uppercase tracking-wider text-warning/70">{highlight.title}</p>
       <p className="text-sm font-bold">{highlight.value}</p>
       {highlight.description && (
         <p className="text-[10px] text-muted-foreground leading-tight">{highlight.description}</p>

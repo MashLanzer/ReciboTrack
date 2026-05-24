@@ -59,7 +59,7 @@ export function PortalCard({ portal }: Props) {
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-semibold truncate">{portal.name}</p>
             {isActive   && <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-700 dark:text-green-400">Activo</Badge>}
-            {isRevoked  && <Badge variant="secondary" className="text-xs bg-orange-500/10 text-orange-700 dark:text-orange-400">Revocado</Badge>}
+            {isRevoked  && <Badge variant="secondary" className="text-xs bg-warning/10 text-warning">Revocado</Badge>}
             {isExpired  && <Badge variant="secondary" className="text-xs bg-red-500/10 text-red-700 dark:text-red-400">Expirado</Badge>}
           </div>
           {portal.targetLabel && (
@@ -126,7 +126,7 @@ export function PortalCard({ portal }: Props) {
         <Button
           size="sm"
           variant="ghost"
-          className={`h-8 text-xs gap-1.5 ${isRevoked ? "text-green-600 hover:text-green-700" : "text-orange-600 hover:text-orange-700"}`}
+          className={`h-8 text-xs gap-1.5 ${isRevoked ? "text-green-600 hover:text-green-700" : "text-warning hover:text-warning/80"}`}
           onClick={toggleRevoke}
           disabled={isExpired || revokePortal.isPending}
         >

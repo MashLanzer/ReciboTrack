@@ -526,7 +526,7 @@ export default function RecurringPage() {
           {soon.length > 0 && (
             <Section
               title="Próximos 7 días"
-              icon={<Clock className="h-4 w-4 text-amber-500" />}
+              icon={<Clock className="h-4 w-4 text-warning" />}
               count={soon.length}
             >
               {soon.map((t) => (
@@ -885,7 +885,7 @@ function CalendarView({
                   isToday(day)
                     ? "bg-primary border-primary"
                     : isSoon
-                    ? "bg-amber-500 border-amber-500"
+                    ? "bg-warning border-warning"
                     : "bg-muted border-border"
                 }`} />
 
@@ -1134,7 +1134,7 @@ function RecurringItem({
               (status.urgency === "overdue" || status.urgency === "critical") &&
                 "bg-destructive/10 text-destructive border-destructive/30 urgency-pulse",
               status.urgency === "warning" &&
-                "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
+                "bg-warning/10 text-warning border-warning/30",
               status.urgency === "safe" &&
                 "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
             )}>

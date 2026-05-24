@@ -190,8 +190,8 @@ export function VATReport() {
                 <p className="text-[10px] text-muted-foreground font-mono uppercase">Base</p>
                 <p className="font-bold tabular-nums text-sm mt-0.5">{formatCurrency(totals.subtotal)}</p>
               </div>
-              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-2 py-2.5">
-                <p className="text-[10px] text-amber-600 dark:text-amber-400 font-mono uppercase">IVA/Tax</p>
+              <div className="rounded-lg bg-warning/10 border border-warning/20 px-2 py-2.5">
+                <p className="text-[10px] text-warning font-mono uppercase">IVA/Tax</p>
                 <p className="font-bold tabular-nums text-sm mt-0.5">{formatCurrency(totals.tax)}</p>
               </div>
               <div className="rounded-lg bg-muted/40 px-2 py-2.5">

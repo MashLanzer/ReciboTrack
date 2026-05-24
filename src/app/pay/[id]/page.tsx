@@ -35,9 +35,9 @@ export default async function PayPage({
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-violet-950 via-indigo-900 to-purple-900 p-4">
       {/* Legacy warning banner */}
       {legacy && (
-        <div className="w-full max-w-sm mb-3 flex items-center gap-2 rounded-xl bg-amber-500/20 border border-amber-400/30 px-3 py-2">
-          <ShieldAlert className="h-4 w-4 text-amber-300 shrink-0" />
-          <p className="text-xs text-amber-200">Este enlace es antiguo y no está verificado criptográficamente.</p>
+        <div className="w-full max-w-sm mb-3 flex items-center gap-2 rounded-xl bg-warning/20 border border-warning/30 px-3 py-2">
+          <ShieldAlert className="h-4 w-4 text-warning shrink-0" />
+          <p className="text-xs text-warning/80">Este enlace es antiguo y no está verificado criptográficamente.</p>
         </div>
       )}
 

@@ -96,7 +96,7 @@ function TravelCard({
 
   const barColor =
     pct >= 100 ? "bg-destructive" :
-    pct >= 80  ? "bg-amber-500" :
+    pct >= 80  ? "bg-warning" :
                  "bg-primary"
 
   return (

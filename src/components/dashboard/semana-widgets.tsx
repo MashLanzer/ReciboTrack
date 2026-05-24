@@ -78,7 +78,7 @@ export function WeekCalendar() {
     if (isFutureDay || total === 0) return "bg-border"
     const pct = total / maxTotal
     if (pct >= 0.75) return "bg-destructive"
-    if (pct >= 0.4)  return "bg-amber-400"
+    if (pct >= 0.4)  return "bg-warning"
     return "bg-green-500"
   }
 

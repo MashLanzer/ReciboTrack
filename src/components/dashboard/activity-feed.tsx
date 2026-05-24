@@ -197,8 +197,8 @@ export function ActivityFeed() {
           className={cn(
             "h-7 w-7 rounded-lg flex items-center justify-center transition-all shrink-0",
             e.flagged
-              ? "text-amber-500"
-              : "text-muted-foreground/40 hover:text-amber-500 hover:bg-muted md:opacity-0 md:group-hover:opacity-100"
+              ? "text-warning"
+              : "text-muted-foreground/40 hover:text-warning hover:bg-muted md:opacity-0 md:group-hover:opacity-100"
           )}
           aria-label={e.flagged ? "Quitar pendiente" : "Marcar como pendiente"}
         >
@@ -296,8 +296,8 @@ export function ActivityFeed() {
       {/* Smart mode: flat ranked list */}
       {feedMode === "smart" && (
         <div>
-          <div className="px-4 py-1.5 bg-amber-500/5 border-b border-amber-500/10">
-            <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+          <div className="px-4 py-1.5 bg-warning/5 border-b border-warning/10">
+            <p className="text-xs text-warning font-medium">
               ✨ Modo inteligente — gastos relevantes primero
             </p>
           </div>

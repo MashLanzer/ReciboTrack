@@ -935,7 +935,7 @@ export function ReceiptScanner() {
                         const confidence = isHighConf
                           ? { icon: "🟢", label: "Alta confianza", color: "text-green-700 dark:text-green-400" }
                           : isMedConf
-                          ? { icon: "🟡", label: "Confianza media — revisa los campos", color: "text-amber-600 dark:text-amber-400" }
+                          ? { icon: "🟡", label: "Confianza media — revisa los campos", color: "text-warning" }
                           : { icon: "🔴", label: "Baja confianza — verifica los datos", color: "text-destructive" }
                         return (
                           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -944,8 +944,8 @@ export function ReceiptScanner() {
                               ocrEngine === "gemini"
                                 ? "border-green-500/20 text-green-700 dark:text-green-400"
                                 : ocrEngine === "groq"
-                                ? "border-orange-500/20 text-orange-700 dark:text-orange-400"
-                                : "border-amber-500/20 text-amber-700 dark:text-amber-400"
+                                ? "border-warning/20 text-warning"
+                                : "border-warning/20 text-warning"
                             )}>
                               {ocrEngine === "gemini" ? "✨ Gemini 2.0 Flash" : ocrEngine === "groq" ? "🚀 Groq Llama 3.2" : "🔤 Tesseract OCR"}
                             </span>
