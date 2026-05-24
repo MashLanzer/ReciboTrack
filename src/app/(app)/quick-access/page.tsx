@@ -156,14 +156,23 @@ export default function QuickAccessPage() {
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-serif text-2xl">Accesos rápidos</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Gastos de un toque</p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+            <Zap className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="font-bold text-xl">Accesos rápidos</h1>
+            <p className="text-xs text-muted-foreground">
+              {quickExpenses.length > 0
+                ? `${quickExpenses.length} atajo${quickExpenses.length !== 1 ? "s" : ""} configurado${quickExpenses.length !== 1 ? "s" : ""}`
+                : "Gastos de un toque"}
+            </p>
+          </div>
         </div>
-        <Button onClick={openCreate} className="gap-2">
+        <Button onClick={openCreate} className="gap-2 shrink-0">
           <Plus className="h-4 w-4" />
-          Nuevo acceso rápido
+          Nuevo atajo
         </Button>
       </div>
 
@@ -178,13 +187,13 @@ export default function QuickAccessPage() {
 
       {/* Empty state */}
       {!isLoading && quickExpenses.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-            <Zap className="h-8 w-8 text-muted-foreground" />
+        <div className="rounded-2xl border border-dashed border-border/60 bg-muted/20 flex flex-col items-center justify-center py-16 text-center gap-4">
+          <div className="h-14 w-14 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+            <Zap className="h-7 w-7 text-amber-500/50" />
           </div>
-          <div>
-            <p className="font-medium">Sin accesos rápidos</p>
-            <p className="text-sm text-muted-foreground mt-1">
+          <div className="space-y-1">
+            <p className="font-semibold">Sin accesos rápidos</p>
+            <p className="text-sm text-muted-foreground max-w-56">
               Crea atajos para tus gastos frecuentes y regístralos con un toque.
             </p>
           </div>
@@ -200,41 +209,46 @@ export default function QuickAccessPage() {
         <div className="space-y-3">
           {quickExpenses.map((q) => {
             const cat = allCategories.find((c) => c.id === q.category)
+            const catColor = (cat as { color?: string })?.color
             return (
               <div
                 key={q.id}
-                className="rounded-2xl border bg-card p-4 flex items-center gap-4"
+                className="rounded-2xl border bg-card flex items-center gap-3 pl-4 pr-3 py-3 border-l-[3px] hover:bg-muted/20 hover:shadow-sm transition-all duration-150"
+                style={{ borderLeftColor: catColor ?? "hsl(var(--border))" }}
               >
                 {/* Icon */}
-                <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center text-2xl shrink-0">
+                <div
+                  className="h-10 w-10 rounded-xl flex items-center justify-center text-xl shrink-0"
+                  style={{ backgroundColor: catColor ? `${catColor}18` : "hsl(var(--muted))" }}
+                >
                   {q.icon}
                 </div>
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate">{q.label}</p>
-                  <p className="text-sm text-muted-foreground truncate">{q.merchant}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs font-medium tabular-nums">
-                      {formatCurrency(q.amount, q.currency)}
+                  <p className="font-semibold truncate text-sm">{q.label}</p>
+                  <p className="text-xs text-muted-foreground truncate">{q.merchant}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-xs font-bold tabular-nums text-destructive">
+                      -{formatCurrency(q.amount, q.currency)}
                     </span>
                     {cat && (
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        {cat.icon} {cat.name}
+                      <span className="text-[10px] text-muted-foreground">
+                        · {cat.icon} {cat.name}
                       </span>
                     )}
                   </div>
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-0.5 shrink-0">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-muted-foreground"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
                     onClick={() => openEdit(q)}
                   >
-                    <Pencil className="h-4 w-4" />
+                    <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <Button
                     variant="ghost"
@@ -242,7 +256,7 @@ export default function QuickAccessPage() {
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
                     onClick={() => handleDelete(q)}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>

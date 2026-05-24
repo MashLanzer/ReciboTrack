@@ -2234,10 +2234,18 @@ export default function GroupsPage() {
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-5">
       {/* ── List header ── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-serif text-2xl">Grupos</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">{activeGroups.length} activo{activeGroups.length !== 1 ? "s" : ""}</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Users className="h-5 w-5 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="font-bold text-xl">Grupos</h1>
+            <p className="text-xs text-muted-foreground">
+              {activeGroups.length} activo{activeGroups.length !== 1 ? "s" : ""}
+              {archivedGroups.length > 0 && ` · ${archivedGroups.length} archivado${archivedGroups.length !== 1 ? "s" : ""}`}
+            </p>
+          </div>
         </div>
         <div className="flex gap-1.5">
           <Button variant="outline" size="icon" className="h-8 w-8" title="Unirse a un grupo" onClick={() => setJoinOpen(true)}>

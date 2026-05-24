@@ -112,14 +112,19 @@ export default function ProjectsPage() {
             onRename={() => setRenameTarget(selectedProject!)}
           />
         ) : (
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="font-serif text-2xl">Proyectos</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                {projects.length > 0
-                  ? `${projects.length} proyecto${projects.length !== 1 ? "s" : ""} · últimos 6 meses`
-                  : "Asigna gastos a proyectos para verlos aquí"}
-              </p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Briefcase className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="font-bold text-xl">Proyectos</h1>
+                <p className="text-xs text-muted-foreground">
+                  {projects.length > 0
+                    ? `${projects.length} proyecto${projects.length !== 1 ? "s" : ""} · últimos 6 meses`
+                    : "Asigna gastos a proyectos para verlos aquí"}
+                </p>
+              </div>
             </div>
             <Button onClick={() => { setNewProjectName(""); setNewProjectOpen(true) }} className="gap-2 shrink-0">
               <Plus className="h-4 w-4" />
@@ -293,14 +298,14 @@ function ListView({
 
   if (projects.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-        <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center">
-          <Briefcase className="h-8 w-8 text-muted-foreground opacity-40" />
+      <div className="rounded-2xl border border-dashed border-border/60 bg-muted/20 flex flex-col items-center justify-center py-16 gap-4 text-center">
+        <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
+          <Briefcase className="h-7 w-7 text-muted-foreground/50" />
         </div>
-        <div>
+        <div className="space-y-1">
           <p className="font-semibold">Sin proyectos todavía</p>
-          <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-            Al editar un gasto, escribe el nombre del cliente o proyecto en el campo correspondiente.
+          <p className="text-sm text-muted-foreground max-w-64">
+            Al editar un gasto, escribe el nombre del proyecto en el campo correspondiente.
           </p>
         </div>
       </div>
@@ -630,9 +635,15 @@ function DetailView({
             return (
               <div
                 key={e.id}
-                className="flex items-center gap-3 p-3 rounded-xl border"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-l-[3px] hover:bg-muted/30 transition-colors"
+                style={{ borderLeftColor: (cat as { color?: string })?.color ?? "hsl(var(--border))" }}
               >
-                <span className="text-xl leading-none shrink-0">{cat?.icon ?? "📦"}</span>
+                <div
+                  className="h-8 w-8 rounded-lg flex items-center justify-center text-sm shrink-0"
+                  style={{ backgroundColor: `${(cat as { color?: string })?.color ?? "#6b7280"}20` }}
+                >
+                  {cat?.icon ?? "📦"}
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{e.merchant}</p>
                   <p className="text-xs text-muted-foreground">
@@ -640,8 +651,8 @@ function DetailView({
                     {e.notes ? ` · ${e.notes}` : ""}
                   </p>
                 </div>
-                <p className="text-sm font-semibold tabular-nums shrink-0">
-                  {formatCurrency(e.total, e.currency)}
+                <p className="text-sm font-semibold tabular-nums shrink-0 text-destructive">
+                  -{formatCurrency(e.total, e.currency)}
                 </p>
               </div>
             )

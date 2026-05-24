@@ -363,15 +363,19 @@ export function AutomationsClient() {
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-serif text-2xl flex items-center gap-2">
-            <Zap className="h-6 w-6 text-primary" />
-            Automatizaciones
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Reglas que se ejecutan automáticamente al cumplirse una condición
-          </p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Zap className="h-5 w-5 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="font-bold text-xl">Automatizaciones</h1>
+            <p className="text-xs text-muted-foreground">
+              {rules.length > 0
+                ? `${rules.filter(r => r.enabled).length} activa${rules.filter(r => r.enabled).length !== 1 ? "s" : ""} · ${rules.length} total`
+                : "Reglas que se ejecutan al cumplirse condiciones"}
+            </p>
+          </div>
         </div>
         <Button className="gap-1.5 shrink-0" onClick={openCreate}>
           <Plus className="h-4 w-4" />
