@@ -16,7 +16,7 @@ export function ScanFab() {
         active:scale-[0.88] active:shadow-none active:transition-none
         transition-transform duration-200 ease-out
         md:bottom-6"
-      style={{ bottom: "calc(4rem + env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
+      style={{ bottom: "calc(4rem + env(safe-area-inset-bottom, 0px) + 1rem)" }}
     >
       <ScanLine className="h-6 w-6" />
     </button>
