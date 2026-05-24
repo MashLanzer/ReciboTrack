@@ -47,8 +47,10 @@ import {
   Archive,
   User,
   FileText,
+  FileDown,
 } from "lucide-react"
 import { toast } from "sonner"
+import { useOpenInvoice } from "@/hooks/use-export"
 import type { Project, ProjectInput } from "@/types"
 
 // ─── Preset colors ────────────────────────────────────────────────────────────
@@ -287,6 +289,7 @@ function DetailSection({
   const { data: categories = [] } = useCategories()
   const allCats = categories.length > 0 ? categories : DEFAULT_CATEGORIES
   const [addExpenseOpen, setAddExpenseOpen] = useState(false)
+  const openInvoice = useOpenInvoice()
 
   if (isLoading) {
     return (
@@ -437,15 +440,27 @@ function DetailSection({
         </CardContent>
       </Card>
 
-      {/* Add expense button */}
-      <Button
-        className="w-full gap-2"
-        variant="outline"
-        onClick={() => setAddExpenseOpen(true)}
-      >
-        <Plus className="h-4 w-4" />
-        Añadir gasto al proyecto
-      </Button>
+      {/* Action buttons */}
+      <div className="flex gap-2">
+        <Button
+          className="flex-1 gap-2"
+          variant="outline"
+          onClick={() => setAddExpenseOpen(true)}
+        >
+          <Plus className="h-4 w-4" />
+          Añadir gasto al proyecto
+        </Button>
+        {project.clientId && (
+          <Button
+            variant="outline"
+            className="gap-2 shrink-0"
+            onClick={() => openInvoice(project.id)}
+          >
+            <FileDown className="h-4 w-4" />
+            Generar Factura
+          </Button>
+        )}
+      </div>
 
       {/* Expense list */}
       <div className="space-y-2">

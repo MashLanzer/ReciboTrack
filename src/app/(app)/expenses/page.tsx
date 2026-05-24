@@ -8,10 +8,13 @@ import { ExpenseGridView }       from "@/components/expenses/expense-grid-view"
 import { FlaggedExpensesPanel }  from "@/components/expenses/flagged-expenses-panel"
 import { ArchivedExpensesSection } from "@/components/expenses/archived-expenses-section"
 import { Skeleton }              from "@/components/ui/skeleton"
+import { Button }                from "@/components/ui/button"
 import { ViewToggle, type ViewMode } from "@/components/expenses/view-toggle"
 import { ShareSummary }          from "@/components/expenses/share-summary"
 import { ImportStatementButton } from "@/components/expenses/import-statement-button"
 import { useUIPrefs }            from "@/hooks/use-ui-prefs"
+import { useExportExpensesCSV }  from "@/hooks/use-export"
+import { Download }              from "lucide-react"
 
 function isViewMode(v: unknown): v is ViewMode {
   return v === "list" || v === "cal" || v === "threads" || v === "grid"
@@ -74,9 +77,20 @@ function ViewPanel({ view }: { view: ViewMode }) {
 export default function ExpensesPage() {
   const { prefs, setPref } = useUIPrefs()
   const view: ViewMode = isViewMode(prefs.expensesView) ? prefs.expensesView : "list"
+  const exportCSV = useExportExpensesCSV()
+  const [exporting, setExporting] = useState(false)
 
   function setView(v: ViewMode) {
     setPref("expensesView", v)
+  }
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      await exportCSV()
+    } finally {
+      setExporting(false)
+    }
   }
 
   return (
@@ -91,6 +105,16 @@ export default function ExpensesPage() {
           <div className="hidden md:flex items-center gap-2">
             <ImportStatementButton />
             <ShareSummary />
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={handleExport}
+              disabled={exporting}
+            >
+              <Download className="h-4 w-4" />
+              {exporting ? "Exportando…" : "Exportar CSV"}
+            </Button>
           </div>
           <ViewToggle current={view} onChange={setView} />
         </div>
