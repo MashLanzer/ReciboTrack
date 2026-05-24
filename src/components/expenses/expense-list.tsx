@@ -23,7 +23,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
 import { Search, MoreHorizontal, Trash2, Edit, Copy, Image, ChevronLeft, ChevronRight, Filter, Tag, X, Upload, Sheet, Loader2, CalendarRange, Calendar, CheckSquare, Square, CheckCheck, Layers, Receipt, SlidersHorizontal, ChevronDown, ScanLine, PenLine } from "lucide-react"
-import { startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subDays, format as fmtDate, parseISO, isValid } from "date-fns"
+import { startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subDays, format as fmtDate, parseISO, isValid, isToday, isYesterday } from "date-fns"
+import { es } from "date-fns/locale"
 import { ExpenseEditDialog } from "./expense-edit-dialog"
 import { ExpenseDetailDialog } from "./expense-detail-dialog"
 import { CsvImport } from "./csv-import"
@@ -1040,10 +1041,26 @@ export function ExpenseList() {
                               ))}
                               {expense.recurringId && (
                                 <span
-                                  className="text-[11px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary"
+                                  className="text-[11px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium"
                                   title="Gasto recurrente"
                                 >
-                                  🔄
+                                  ↻ Recurrente
+                                </span>
+                              )}
+                              {expense.flagged && (
+                                <span
+                                  className="text-[11px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium"
+                                  title="Marcado para revisar"
+                                >
+                                  ⚑ Revisar
+                                </span>
+                              )}
+                              {expense.receiptImageUrl && (
+                                <span
+                                  className="text-[11px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground"
+                                  title="Tiene foto de recibo"
+                                >
+                                  📎 Foto
                                 </span>
                               )}
                               {(expense.items?.length ?? 0) > 0 && (
@@ -1055,8 +1072,8 @@ export function ExpenseList() {
                           </div>
                         )}
 
-                        <p className="tabular-nums text-sm font-bold shrink-0">
-                          {formatCurrency(expense.total, expense.currency)}
+                        <p className="tabular-nums text-sm font-bold shrink-0 text-destructive">
+                          -{formatCurrency(expense.total, expense.currency)}
                         </p>
                         {!selectMode && (
                           <MobileActionSheet
@@ -1251,7 +1268,15 @@ export function ExpenseList() {
 function groupByDate(expenses: Expense[]): Record<string, Expense[]> {
   const grouped: Record<string, Expense[]> = {}
   for (const expense of expenses) {
-    const key = formatDate(toDate(expense.date), "EEEE, dd MMM yyyy")
+    const d = toDate(expense.date)
+    let key: string
+    if (isToday(d)) {
+      key = "Hoy"
+    } else if (isYesterday(d)) {
+      key = "Ayer"
+    } else {
+      key = fmtDate(d, "EEEE, dd MMM yyyy", { locale: es })
+    }
     if (!grouped[key]) grouped[key] = []
     grouped[key].push(expense)
   }
@@ -1278,10 +1303,47 @@ function groupByCategory(expenses: Expense[], categories: { id: string; name: st
 
 function ExpenseListSkeleton() {
   return (
-    <div className="space-y-3">
-      {[...Array(5)].map((_, i) => (
-        <Skeleton key={i} className="h-14 w-full rounded-lg" />
-      ))}
+    <div className="space-y-4">
+      {/* Search bar skeleton */}
+      <Skeleton className="h-9 w-full rounded-lg" />
+      {/* Group 1 */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 py-2">
+          <div className="h-px flex-1 bg-border/50" />
+          <Skeleton className="h-3.5 w-16 rounded" />
+          <div className="h-px flex-1 bg-border/50" />
+          <Skeleton className="h-3.5 w-14 rounded" />
+        </div>
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="flex items-center gap-3 py-3 px-3 rounded-lg border-l-[3px] border-l-muted">
+            <Skeleton className="h-9 w-9 rounded-lg shrink-0" />
+            <div className="flex-1 space-y-1.5">
+              <Skeleton className="h-3.5 w-32 rounded" />
+              <Skeleton className="h-3 w-20 rounded" />
+            </div>
+            <Skeleton className="h-4 w-14 rounded" />
+          </div>
+        ))}
+      </div>
+      {/* Group 2 */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 py-2">
+          <div className="h-px flex-1 bg-border/50" />
+          <Skeleton className="h-3.5 w-24 rounded" />
+          <div className="h-px flex-1 bg-border/50" />
+          <Skeleton className="h-3.5 w-14 rounded" />
+        </div>
+        {[...Array(2)].map((_, i) => (
+          <div key={i} className="flex items-center gap-3 py-3 px-3 rounded-lg border-l-[3px] border-l-muted">
+            <Skeleton className="h-9 w-9 rounded-lg shrink-0" />
+            <div className="flex-1 space-y-1.5">
+              <Skeleton className="h-3.5 w-40 rounded" />
+              <Skeleton className="h-3 w-16 rounded" />
+            </div>
+            <Skeleton className="h-4 w-12 rounded" />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

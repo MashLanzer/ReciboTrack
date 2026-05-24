@@ -8,7 +8,7 @@ import type { CategoryDoc } from "@/types"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import {
   Edit, Trash2, ExternalLink, CreditCard, Hash, FileText,
-  Tag, Calendar, ShoppingCart, Receipt,
+  Tag, Calendar, ShoppingCart, Receipt, Flag, RefreshCw,
 } from "lucide-react"
 
 interface Props {
@@ -29,15 +29,21 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
   return (
     <Dialog open={!!expense} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden">
+        {/* Top color stripe */}
+        <div
+          className="absolute top-0 left-0 right-0 h-1 z-10"
+          style={{ backgroundColor: category?.color ?? "#6b7280" }}
+        />
+
         {/* Header with category colour accent */}
         <div
-          className="px-5 pt-5 pb-4"
+          className="px-5 pt-6 pb-4 relative"
           style={{ background: `${category?.color ?? "#6b7280"}12` }}
         >
           <DialogHeader className="mb-0">
             <div className="flex items-start gap-3">
               <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl mt-0.5"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl mt-0.5"
                 style={{ backgroundColor: `${category?.color ?? "#6b7280"}25` }}
               >
                 {category?.icon ?? "📦"}
@@ -49,10 +55,23 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {category?.name ?? expense.category}
                 </p>
+                {/* Status badges */}
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {expense.recurringId && (
+                    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                      <RefreshCw className="h-2.5 w-2.5" /> Recurrente
+                    </span>
+                  )}
+                  {expense.flagged && (
+                    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">
+                      <Flag className="h-2.5 w-2.5" /> Para revisar
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-2xl font-black tabular-nums leading-tight">
-                  {formatCurrency(expense.total, expense.currency)}
+                <p className="text-2xl font-black tabular-nums leading-tight text-destructive">
+                  -{formatCurrency(expense.total, expense.currency)}
                 </p>
                 <p className="text-[11px] text-muted-foreground font-medium">{expense.currency}</p>
               </div>
@@ -168,7 +187,7 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
 
           {/* Receipt image */}
           {expense.receiptImageUrl && (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
                 <Receipt className="h-3 w-3" /> Comprobante
               </p>
@@ -176,22 +195,20 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
                 href={expense.receiptImageUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-xs text-primary hover:underline"
+                className="block group relative rounded-xl overflow-hidden border bg-muted/20"
               >
                 <img
                   src={expense.receiptImageUrl}
                   alt="Comprobante"
-                  className="w-full max-h-40 object-cover rounded-lg border"
+                  className="w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                  style={{ maxHeight: 280 }}
                 />
-              </a>
-              <a
-                href={expense.receiptImageUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-primary hover:underline"
-              >
-                <ExternalLink className="h-3 w-3" />
-                Ver en tamaño completo
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                    <ExternalLink className="h-3 w-3" />
+                    Ver completo
+                  </div>
+                </div>
               </a>
             </div>
           )}
