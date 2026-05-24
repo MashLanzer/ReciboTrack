@@ -211,10 +211,10 @@ export function QuickAddSheet() {
                     key={cat.id}
                     onClick={() => setForm((f) => ({ ...f, category: cat.id }))}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all shrink-0",
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all shrink-0 active:scale-95",
                       form.category === cat.id
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        ? "bg-primary text-primary-foreground ring-2 ring-primary/30 ring-offset-1 ring-offset-background scale-[1.04]"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80 hover:scale-[1.02]"
                     )}
                   >
                     <span>{cat.icon}</span>

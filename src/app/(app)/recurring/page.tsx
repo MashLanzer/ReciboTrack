@@ -1111,7 +1111,7 @@ function RecurringItem({
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
       {/* Main row */}
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/20">
         {/* Category icon */}
         <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center text-base shrink-0">
           {cat?.icon ?? "📦"}
@@ -1213,8 +1213,12 @@ function RecurringItem({
         </div>
       </div>
 
-      {/* History panel */}
-      {historyOpen && (
+      {/* History panel — always rendered, CSS grid-rows for smooth expand */}
+      <div className={cn(
+        "grid transition-[grid-template-rows] duration-300 ease-in-out",
+        historyOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+      )}>
+        <div className="overflow-hidden">
         <div className="border-t bg-muted/20 px-4 py-3 space-y-3">
           {historyLoading ? (
             <div className="space-y-1.5">
@@ -1282,7 +1286,8 @@ function RecurringItem({
             </>
           )}
         </div>
-      )}
+        </div>
+      </div>
     </div>
   )
 }

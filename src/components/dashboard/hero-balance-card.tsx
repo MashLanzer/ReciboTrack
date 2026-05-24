@@ -188,7 +188,7 @@ export function HeroBalanceCard() {
         </div>
 
         {/* ── Balance hero ─────────────────────────────────────────────── */}
-        <div className="text-center space-y-1">
+        <div key={offset} className="text-center space-y-1 animate-[fadeSlideUp_0.25s_ease-out_both]">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Balance {isCurrentMonth ? "del mes" : "mensual"}
           </p>
