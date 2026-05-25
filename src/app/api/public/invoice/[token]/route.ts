@@ -60,6 +60,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
     updatedAt:   row.updated_at,
   }
 
+  const client = project.clientName
+    ? { name: project.clientName, email: project.clientEmail, phone: project.clientPhone }
+    : null
+
   const expenses = (expensesResult.data ?? []).map((e: Record<string, unknown>) => ({
     id:            e.id,
     merchant:      e.merchant,
@@ -68,11 +72,15 @@ export async function GET(_req: NextRequest, { params }: Params) {
     subtotal:      Number(e.subtotal),
     tax:           Number(e.tax),
     total:         Number(e.total),
+    paymentMethod: e.payment_method ?? null,
+    reference:     e.reference ?? null,
     category:      e.category,
     currency:      e.currency,
     notes:         e.notes ?? "",
-    paymentMethod: e.payment_method ?? null,
+    tags:          e.tags ?? [],
+    createdAt:     e.created_at,
+    updatedAt:     e.updated_at,
   }))
 
-  return NextResponse.json({ project, client: project.clientName ? { name: project.clientName, email: project.clientEmail, phone: project.clientPhone } : null, expenses })
+  return NextResponse.json({ project, client, expenses })
 }
