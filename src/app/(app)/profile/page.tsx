@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useState, useRef, useCallback, useMemo, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { useUserSettings, useUpdateUserSettings } from "@/hooks/use-user-settings"
@@ -969,8 +970,22 @@ export default function ProfilePage() {
             </div>
           </SectionCard>
 
-          {/* ── Webhook ── */}
-          <CollapsibleSectionCard title="Webhook personal" description="Automatiza con Zapier, Make o n8n">
+          {/* ── Webhooks (outgoing) ── */}
+          <SectionCard>
+            <Link href="/settings/webhooks" className="flex items-center justify-between px-4 py-3.5 hover:bg-muted/30 rounded-2xl transition-colors">
+              <div className="flex items-center gap-3">
+                <Webhook className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">Webhooks salientes</p>
+                  <p className="text-xs text-muted-foreground">Integra con Zapier, n8n, Make y más</p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Link>
+          </SectionCard>
+
+          {/* ── Webhook (legacy single) ── */}
+          <CollapsibleSectionCard title="Webhook personal (legado)" description="Automatiza con Zapier, Make o n8n">
             <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">

@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
 import { getSupabase } from "@/lib/supabase/server"
+import { fireWebhooks } from "@/lib/fire-webhooks"
 
 const PER_PAGE = 10
 
@@ -229,6 +230,11 @@ export async function POST(req: NextRequest) {
         ])
       }
     } catch { /* vincular es best-effort */ }
+  }
+
+  if (data?.id) {
+    const insertedExpense = { id: data.id, uid, ...body }
+    fireWebhooks(uid, "expense.created", insertedExpense).catch(() => {})
   }
 
   return NextResponse.json({ id: data?.id }, { status: 201 })
