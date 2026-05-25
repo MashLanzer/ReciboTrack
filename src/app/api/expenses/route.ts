@@ -21,6 +21,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
 import { getSupabase } from "@/lib/supabase/server"
 import { checkAndGrantAchievements } from "@/lib/check-achievements"
+import { fireWebhooks } from "@/lib/fire-webhooks"
 
 const PER_PAGE = 10
 
@@ -232,8 +233,10 @@ export async function POST(req: NextRequest) {
     } catch { /* vincular es best-effort */ }
   }
 
-  // Check and grant achievements (best-effort, non-blocking)
   checkAndGrantAchievements(uid).catch(() => {})
+  if (data?.id) {
+    fireWebhooks(uid, "expense.created", { id: data.id, uid, ...body }).catch(() => {})
+  }
 
   return NextResponse.json({ id: data?.id }, { status: 201 })
 }

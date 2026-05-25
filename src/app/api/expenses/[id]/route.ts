@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
 import { getSupabase } from "@/lib/supabase/server"
+import { fireWebhooks } from "@/lib/fire-webhooks"
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -74,6 +75,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .eq("uid", uid)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  fireWebhooks(uid, "expense.updated", { id, ...patch }).catch(() => {})
 
   if (current) {
     const historyRows = TRACKED_FIELDS
