@@ -9,6 +9,8 @@ import { useCategories } from "@/hooks/use-categories"
 import { useRecurring } from "@/hooks/use-recurring"
 import { useGoals } from "@/hooks/use-goals"
 import { useRoundupSettings, useSetRoundupSettings } from "@/hooks/use-roundup-settings"
+import { usePlan } from "@/hooks/use-plan"
+import Link from "next/link"
 import { exportToCSV, exportHoldedCsv, exportContasimpleCsv } from "@/components/expenses/export-utils"
 import { formatCurrency, cn } from "@/lib/utils"
 import { CURRENCIES, PAYMENT_METHODS, DEFAULT_CATEGORIES } from "@/lib/constants"
@@ -31,11 +33,12 @@ import { Progress } from "@/components/ui/progress"
 import {
   User, Camera, Sun, Moon, Monitor, Download, LogOut, Trash2, Bell, Globe,
   Shield, Check, Loader2, AlertTriangle, BarChart3, EyeOff, Wallet,
-  Sheet, Webhook, ExternalLink, Link2Off, Send, RefreshCw, Settings2,
+  Sheet, Webhook, ExternalLink, Link2, Link2Off, Send, RefreshCw, Settings2,
   ChevronRight, Lock, Smartphone, Database, Plug, CreditCard, Share2, Plus, ImageIcon,
 } from "lucide-react"
 import { CollapsibleContent, CollapsibleChevron } from "@/components/ui/collapsible"
 import { AccentColorPicker } from "@/components/shared/accent-color-picker"
+import { apiFetch } from "@/lib/api-client"
 import { TrustedCircleCard } from "@/components/profile/trusted-circle-card"
 import { PersonalStats } from "@/components/profile/personal-stats" // #32 — componente extraído
 import { AchievementsGrid } from "@/components/profile/achievements-grid"
@@ -154,6 +157,7 @@ export default function ProfilePage() {
   const setRoundupSettings = useSetRoundupSettings()
   const activeGoals = goals.filter(g => g.isActive && g.type === "saving")
   const { theme, setTheme } = useTheme()
+  const { data: planData } = usePlan()
 
   // Full year for export
   const now = useMemo(() => new Date(), [])
@@ -289,12 +293,18 @@ export default function ProfilePage() {
     }
   }
 
-  // ── Handle ($usuario) — guardado en Firestore (cross-device) ────────────────
+  // ── Handle ($usuario) — guardado en Firestore + Supabase ────────────────────
   async function handleSaveHandle() {
     const cleaned = handleInput.trim().replace(/[^a-z0-9_]/gi, "").toLowerCase()
     if (!cleaned) { toast.error("Handle inválido"); return }
     try {
       await updateSettings.mutateAsync({ handle: cleaned })
+      // Guardar también en Supabase para lookup en perfil público
+      await apiFetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handle: cleaned }),
+      })
       setHandle(cleaned)
       setEditingHandle(false)
       toast.success(`Handle guardado: $${cleaned}`)
@@ -570,12 +580,37 @@ export default function ProfilePage() {
                   <button onClick={() => setEditingHandle(false)} className="text-xs text-muted-foreground hover:text-foreground">✕</button>
                 </div>
               ) : (
-                <button
-                  onClick={() => { setHandleInput(handle); setEditingHandle(true) }}
-                  className="text-sm font-mono text-primary hover:underline underline-offset-2"
-                >
-                  {handle ? `$${handle}` : <span className="text-muted-foreground text-xs">+ Añadir</span>}
-                </button>
+                <div className="flex items-center gap-2">
+                  {handle && (
+                    <>
+                      <a
+                        href={`/u/${handle}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                        title="Ver perfil público"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/u/${handle}`)
+                          toast.success("Enlace copiado")
+                        }}
+                        className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                        title="Copiar enlace público"
+                      >
+                        <Link2 className="h-3.5 w-3.5" />
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => { setHandleInput(handle); setEditingHandle(true) }}
+                    className="text-sm font-mono text-primary hover:underline underline-offset-2"
+                  >
+                    {handle ? `$${handle}` : <span className="text-muted-foreground text-xs">+ Añadir</span>}
+                  </button>
+                </div>
               )}
             </div>
 
@@ -1141,7 +1176,37 @@ export default function ProfilePage() {
           {/* ── Account summary ── */}
           <SectionCard>
             <SectionHeader title="Resumen de cuenta" />
-            <div className="p-4">
+            <div className="p-4 space-y-3">
+              {/* Plan badge */}
+              <div className="flex items-center justify-between rounded-xl border bg-muted/20 px-4 py-3">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Plan actual</p>
+                  <p className="text-sm font-bold mt-0.5">
+                    {planData?.plan === "pro" ? (
+                      <span className="text-primary">⭐ Pro</span>
+                    ) : (
+                      "Gratuito"
+                    )}
+                  </p>
+                </div>
+                {planData?.plan !== "pro" && (
+                  <Link href="/pricing" className="rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors">
+                    Actualizar
+                  </Link>
+                )}
+                {planData?.plan === "pro" && (
+                  <button
+                    onClick={async () => {
+                      const res = await apiFetch("/api/customer-portal", { method: "POST" })
+                      const d = await res.json() as { url?: string }
+                      if (d.url) window.location.href = d.url
+                    }}
+                    className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                  >
+                    Gestionar
+                  </button>
+                )}
+              </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="text-center rounded-xl border bg-muted/20 p-3">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Miembro desde</p>

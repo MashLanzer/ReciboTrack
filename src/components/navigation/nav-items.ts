@@ -1,4 +1,4 @@
-import { LayoutDashboard, Receipt, BarChart2, Users, RefreshCw, PiggyBank, Tag, TrendingUp, Briefcase, Target, Plane, Zap, UserCheck, Star, Map, Network } from "lucide-react"
+import { LayoutDashboard, Receipt, BarChart2, Users, RefreshCw, PiggyBank, Tag, TrendingUp, Briefcase, Target, Plane, Zap, UserCheck, Star, Map, Network, Sparkles } from "lucide-react"
 
 export type NavItem = { href: string; label: string; icon: React.ElementType }
 
@@ -37,6 +37,12 @@ export const MORE_GROUPS: { label: string; items: NavItem[] }[] = [
       { href: "/map",         label: "Mapa",            icon: Map },
       { href: "/graph",       label: "Grafo",           icon: Network },
       { href: "/automations", label: "Automatizaciones", icon: Zap },
+    ],
+  },
+  {
+    label: "Cuenta",
+    items: [
+      { href: "/pricing", label: "Planes", icon: Sparkles },
     ],
   },
 ]
