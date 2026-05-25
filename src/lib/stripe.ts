@@ -2,7 +2,7 @@ import Stripe from "stripe"
 
 // Singleton — no crear una instancia nueva en cada request
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-05-28.basil",
+  apiVersion: "2026-04-22.dahlia",
 })
 
 export const STRIPE_PRO_PRICE = {
