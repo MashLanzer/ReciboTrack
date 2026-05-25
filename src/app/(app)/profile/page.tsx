@@ -39,6 +39,7 @@ import { AccentColorPicker } from "@/components/shared/accent-color-picker"
 import { TrustedCircleCard } from "@/components/profile/trusted-circle-card"
 import { PersonalStats } from "@/components/profile/personal-stats" // #32 — componente extraído
 import { AchievementsGrid } from "@/components/profile/achievements-grid"
+import { usePlan } from "@/hooks/use-plan"
 import { PwaInstallButton } from "@/components/shared/pwa-install-button"
 import { PasskeySetupCard } from "@/components/auth/passkey-setup-card"
 import { CreatePortalDialog } from "@/components/portals/create-portal-dialog"
@@ -152,6 +153,7 @@ export default function ProfilePage() {
   const { data: goals = [] } = useGoals()
   const { data: roundupSettings } = useRoundupSettings()
   const setRoundupSettings = useSetRoundupSettings()
+  const { data: planData } = usePlan()
   const activeGoals = goals.filter(g => g.isActive && g.type === "saving")
   const { theme, setTheme } = useTheme()
 
@@ -1141,7 +1143,29 @@ export default function ProfilePage() {
           {/* ── Account summary ── */}
           <SectionCard>
             <SectionHeader title="Resumen de cuenta" />
-            <div className="p-4">
+            <div className="p-4 space-y-3">
+              {/* Plan badge */}
+              <div className="flex items-center justify-between rounded-xl border bg-muted/20 px-4 py-3">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Plan actual</p>
+                  <p className="text-sm font-bold mt-0.5">
+                    {planData?.plan === "pro" ? (
+                      <span className="text-primary">⭐ Pro</span>
+                    ) : (
+                      "Gratuito"
+                    )}
+                  </p>
+                </div>
+                {planData?.plan !== "pro" && (
+                  <button className="rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground">
+                    Actualizar
+                  </button>
+                )}
+                {planData?.plan === "pro" && (
+                  <Badge variant="outline" className="text-xs border-primary/30 text-primary">Activo</Badge>
+                )}
+              </div>
+
               <div className="grid grid-cols-3 gap-3">
                 <div className="text-center rounded-xl border bg-muted/20 p-3">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Miembro desde</p>

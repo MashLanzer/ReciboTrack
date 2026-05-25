@@ -8,6 +8,8 @@ import { ScanLine, Plus, BarChart2, Search, LayoutDashboard, Zap, Sparkles, Chev
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
+import { AchievementsWidget } from "@/components/dashboard/achievements-widget"
+import { ExpenseLimitBanner } from "@/components/shared/expense-limit-banner"
 import { HeroBalanceCard }    from "@/components/dashboard/hero-balance-card"
 import { KPIBento }           from "@/components/dashboard/kpi-bento"
 import { WeekSparkCard }      from "@/components/dashboard/week-spark-card"
@@ -26,6 +28,7 @@ import { SwipeableFeed }      from "@/components/dashboard/swipeable-feed"
 import { QuickStatsBlock, QuickRecentBlock } from "@/components/dashboard/quick-mode-extras"
 import { MonthlyRecapCard }   from "@/components/dashboard/monthly-recap-card"
 import { TodayWidget }        from "@/components/dashboard/today-widget"
+import { AnomalyAlertsCard }  from "@/components/dashboard/anomaly-alerts-card"
 import { VacationBanner }     from "@/components/dashboard/vacation-banner"
 import { VacationModeDialog } from "@/components/dashboard/vacation-mode-dialog"
 import { QuickActionsSettingsDialog } from "@/components/dashboard/quick-actions-settings-dialog"
@@ -199,11 +202,15 @@ export default function DashboardPage() {
       {dashMode === "normal" && (
         <div className="space-y-5 section-stagger">
         {/* ── Alerts ────────────────────────────────────────────────────── */}
+        <ExpenseLimitBanner />
         <RecurringBanner />
         <MultiCurrencyBanner />
 
         {/* ── Today widget ──────────────────────────────────────────────── */}
         <TodayWidget />
+
+        {/* ── Anomaly alerts ────────────────────────────────────────────── */}
+        <AnomalyAlertsCard />
 
         {/* ── Hero balance ──────────────────────────────────────────────── */}
         <HeroBalanceCard />
@@ -284,6 +291,9 @@ export default function DashboardPage() {
 
         {/* ── Health score ──────────────────────────────────────────────── */}
         <HealthScoreWidget />
+
+        {/* ── Achievements widget ───────────────────────────────────────── */}
+        <AchievementsWidget />
 
         {/* ── 📅 Recuerdos y logros (collapsible) ─────────────────────────── */}
         <button
