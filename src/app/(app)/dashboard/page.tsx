@@ -197,7 +197,7 @@ export default function DashboardPage() {
       )}
 
       {dashMode === "normal" && (
-        <div className="contents section-stagger">
+        <div className="space-y-5 section-stagger">
         {/* ── Alerts ────────────────────────────────────────────────────── */}
         <RecurringBanner />
         <MultiCurrencyBanner />
