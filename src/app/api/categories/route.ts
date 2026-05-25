@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     .from("categories")
     .select("*")
     .eq("uid", uid)
-    .order("is_default", { ascending: false })
+    .order("sort_order", { ascending: true })
     .order("name")
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
