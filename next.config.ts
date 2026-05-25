@@ -67,14 +67,20 @@ const withPWAConfig = withPWA({
   reloadOnOnline: true,
   // Caché agresivo para assets estáticos (JS, CSS, imágenes)
   workboxOptions: {
+    // Cambia este ID en cada deploy mayor para forzar reemplazo de caché en todos los dispositivos.
+    // Sin cacheId, el SW mantiene los mismos nombres de caché entre versiones y los
+    // dispositivos con la PWA instalada pueden quedar sirviendo JS obsoleto indefinidamente.
+    cacheId: "rbt-v3",
     // Cuando hay nueva versión, se activa inmediatamente sin esperar
     skipWaiting: true,
     clientsClaim: true,
+    cleanupOutdatedCaches: true,
     // Estrategia de caché por tipo de recurso
     runtimeCaching: [
       {
-        // Páginas HTML: Network first (siempre intenta la versión más nueva)
-        urlPattern: /^https:\/\/recibotrack\.vercel\.app\/.*/,
+        // Páginas HTML navegables: Network first con fallback a caché
+        // Excluye rutas de API para que nunca se sirvan datos en caché
+        urlPattern: /^https:\/\/recibotrack\.vercel\.app\/(?!api\/).*/,
         handler: "NetworkFirst",
         options: {
           cacheName: "pages-cache",
