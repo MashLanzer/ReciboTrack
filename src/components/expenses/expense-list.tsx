@@ -368,7 +368,6 @@ export function ExpenseList() {
 
   async function handleBulkCategory(categoryId: string) {
     const ids = [...selectedIds]
-    setBulkCatOpen(false)
     exitSelectMode()
     await Promise.all(ids.map((id) => updateExpense.mutateAsync({ id, input: { category: categoryId } })))
     toast.success(`Categoría actualizada en ${ids.length} gasto${ids.length !== 1 ? "s" : ""}`)
