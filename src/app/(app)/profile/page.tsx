@@ -42,7 +42,6 @@ import { apiFetch } from "@/lib/api-client"
 import { TrustedCircleCard } from "@/components/profile/trusted-circle-card"
 import { PersonalStats } from "@/components/profile/personal-stats" // #32 — componente extraído
 import { AchievementsGrid } from "@/components/profile/achievements-grid"
-import { usePlan } from "@/hooks/use-plan"
 import { PwaInstallButton } from "@/components/shared/pwa-install-button"
 import { PasskeySetupCard } from "@/components/auth/passkey-setup-card"
 import { CreatePortalDialog } from "@/components/portals/create-portal-dialog"
