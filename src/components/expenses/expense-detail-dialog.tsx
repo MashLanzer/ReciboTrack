@@ -12,6 +12,7 @@ import {
   Tag, Calendar, ShoppingCart, Receipt, Flag, RefreshCw, ChevronDown, ChevronUp,
 } from "lucide-react"
 import { ExpenseHistory } from "./expense-history"
+import { ExpenseComments } from "./expense-comments"
 
 interface Props {
   expense: Expense | null
@@ -233,6 +234,13 @@ export function ExpenseDetailDialog({ expense, category, onClose, onEdit, onDele
                   <ExpenseHistory expenseId={expense.id} />
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Comments */}
+          {expense.id && (
+            <div className="pt-1 border-t">
+              <ExpenseComments expenseId={expense.id} />
             </div>
           )}
 

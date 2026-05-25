@@ -33,6 +33,9 @@ interface UIStore {
   vacationMode: { active: boolean; endsAt: number | null }
   isVacationActive: boolean
   setVacationMode: (days: number | null) => void
+  // Active workspace for filtering (optional, NOT persisted — resets on refresh)
+  activeWorkspaceId: string | null
+  setActiveWorkspaceId: (id: string | null) => void
 }
 
 export const useUIStore = create<UIStore>()(
@@ -70,6 +73,9 @@ export const useUIStore = create<UIStore>()(
         const endsAt = Date.now() + days * 86400000
         return { vacationMode: { active: true, endsAt }, isVacationActive: true }
       }),
+      // Active workspace (NOT persisted)
+      activeWorkspaceId: null,
+      setActiveWorkspaceId: (id) => set({ activeWorkspaceId: id }),
     }),
     {
       name: "recibotrack-ui",

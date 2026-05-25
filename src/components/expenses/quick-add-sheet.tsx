@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { GeoPicker, type GeoPickerValue } from "@/components/shared/geo-picker"
+import { BudgetInlineIndicator } from "@/components/expenses/budget-inline-indicator"
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -280,6 +281,9 @@ export function QuickAddSheet() {
                 ))}
               </div>
             </div>
+
+            {/* Budget progress for selected category */}
+            <BudgetInlineIndicator categoryId={form.category} />
 
             {/* Date + Notes row */}
             <div className="flex gap-2">

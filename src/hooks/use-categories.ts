@@ -84,3 +84,20 @@ export function useDeleteCategory() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["categories", user?.uid] }),
   })
 }
+
+export function useReorderCategories() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (order: string[]) => {
+      if (!user) throw new Error("No autenticado")
+      const res = await apiFetch("/api/categories/reorder", {
+        method: "PATCH",
+        body: JSON.stringify({ order }),
+      })
+      if (!res.ok) throw new Error("Error al reordenar categorías")
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["categories", user?.uid] }),
+  })
+}
