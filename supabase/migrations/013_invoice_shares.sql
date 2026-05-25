@@ -6,6 +6,5 @@ CREATE TABLE IF NOT EXISTS invoice_shares (
   expires_at  TIMESTAMPTZ,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
 CREATE INDEX IF NOT EXISTS invoice_shares_token_idx ON invoice_shares(token);
 CREATE INDEX IF NOT EXISTS invoice_shares_project_id_idx ON invoice_shares(project_id);
