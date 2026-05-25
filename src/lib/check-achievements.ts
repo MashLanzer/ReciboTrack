@@ -47,8 +47,6 @@ export async function checkAndGrantAchievements(uid: string) {
   for (const achievement of toGrant) {
     await supabase
       .from("user_achievements")
-      .upsert({ uid, achievement })
-      .onConflict("uid,achievement")
-      .ignoreDuplicates()
+      .upsert({ uid, achievement }, { onConflict: "uid,achievement", ignoreDuplicates: true })
   }
 }
