@@ -6,6 +6,19 @@ import type Stripe from "stripe"
 // Next.js necesita leer el body crudo para verificar la firma de Stripe
 export const runtime = "nodejs"
 
+// En Stripe API 2026-04-22.dahlia las fechas de período están en el primer item
+function getPeriodDates(sub: Stripe.Subscription): { start: string; end: string } {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const s = sub as any
+  const item = sub.items?.data?.[0] as any
+  const end   = item?.current_period_end   ?? s.current_period_end   ?? 0
+  const start = item?.current_period_start ?? s.current_period_start ?? 0
+  return {
+    start: new Date(start * 1000).toISOString(),
+    end:   new Date(end   * 1000).toISOString(),
+  }
+}
+
 export async function POST(req: NextRequest) {
   const body      = await req.text()
   const signature = req.headers.get("stripe-signature") ?? ""
@@ -25,19 +38,18 @@ export async function POST(req: NextRequest) {
 
   switch (event.type) {
     case "checkout.session.completed": {
-      const session = event.data.object as Stripe.Checkout.Session
-      const uid         = session.metadata?.uid
-      const subId       = session.subscription as string
-      const customerId  = session.customer as string
+      const session    = event.data.object as Stripe.Checkout.Session
+      const uid        = session.metadata?.uid
+      const subId      = session.subscription as string
+      const customerId = session.customer as string
       if (!uid) break
 
-      // Activar plan Pro
-      const sub = await stripe.subscriptions.retrieve(subId)
-      const periodEnd = new Date(sub.current_period_end * 1000).toISOString()
+      const sub    = await stripe.subscriptions.retrieve(subId)
+      const period = getPeriodDates(sub)
 
       await sb.from("profiles").update({
         plan:                    "pro",
-        plan_expires_at:         periodEnd,
+        plan_expires_at:         period.end,
         stripe_customer_id:      customerId,
         stripe_subscription_id:  subId,
       }).eq("uid", uid)
@@ -49,24 +61,24 @@ export async function POST(req: NextRequest) {
         stripe_customer_id:      customerId,
         status:                  "active",
         plan:                    "pro",
-        period_start:            new Date(sub.current_period_start * 1000).toISOString(),
-        period_end:              periodEnd,
+        period_start:            period.start,
+        period_end:              period.end,
         updated_at:              new Date().toISOString(),
       }, { onConflict: "stripe_subscription_id" })
       break
     }
 
     case "customer.subscription.updated": {
-      const sub = event.data.object as Stripe.Subscription
-      const uid = sub.metadata?.uid
+      const sub    = event.data.object as Stripe.Subscription
+      const uid    = sub.metadata?.uid
       if (!uid) break
 
-      const isActive   = sub.status === "active" || sub.status === "trialing"
-      const periodEnd  = new Date(sub.current_period_end * 1000).toISOString()
+      const isActive = sub.status === "active" || sub.status === "trialing"
+      const period   = getPeriodDates(sub)
 
       await sb.from("profiles").update({
         plan:                   isActive ? "pro" : "free",
-        plan_expires_at:        isActive ? periodEnd : null,
+        plan_expires_at:        isActive ? period.end : null,
         stripe_subscription_id: sub.id,
       }).eq("uid", uid)
 
@@ -75,8 +87,8 @@ export async function POST(req: NextRequest) {
         stripe_subscription_id: sub.id,
         stripe_customer_id:     sub.customer as string,
         status:                 sub.status,
-        period_start:           new Date(sub.current_period_start * 1000).toISOString(),
-        period_end:             periodEnd,
+        period_start:           period.start,
+        period_end:             period.end,
         updated_at:             new Date().toISOString(),
       }, { onConflict: "stripe_subscription_id" })
       break
@@ -105,7 +117,7 @@ export async function POST(req: NextRequest) {
       const customerId = invoice.customer as string
 
       await sb.from("profiles").update({
-        plan: "free",
+        plan:            "free",
         plan_expires_at: null,
       }).eq("stripe_customer_id", customerId)
       break
