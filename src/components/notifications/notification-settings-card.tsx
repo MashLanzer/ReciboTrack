@@ -8,6 +8,7 @@ import { requestNotificationPermission } from "@/hooks/use-notifications"
 import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import { PushSetupCard } from "@/components/notifications/push-setup-card"
 
 interface ToggleRowProps {
   label: string
@@ -81,6 +82,8 @@ export function NotificationSettingsCard() {
         <Bell className="h-4 w-4 text-muted-foreground" />
         <h2 className="font-semibold text-base">Notificaciones</h2>
       </div>
+
+      <PushSetupCard />
 
       <div className="rounded-2xl border bg-card divide-y">
         {/* Master toggle */}
