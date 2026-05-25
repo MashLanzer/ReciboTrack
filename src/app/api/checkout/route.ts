@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
 import { getSupabase } from "@/lib/supabase/server"
-import { stripe, STRIPE_PRO_PRICE } from "@/lib/stripe"
+import { getStripe, STRIPE_PRO_PRICE } from "@/lib/stripe"
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://recibotrack.vercel.app"
 
@@ -10,9 +10,9 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
   const { uid, email } = auth
 
+  const stripe = getStripe()
   const sb = getSupabase()
 
-  // Recuperar o crear el Stripe Customer para este usuario
   const { data: profile } = await sb
     .from("profiles")
     .select("stripe_customer_id, plan")
@@ -45,9 +45,9 @@ export async function POST(req: NextRequest) {
     line_items: [
       {
         price_data: {
-          currency:   STRIPE_PRO_PRICE.currency,
+          currency:    STRIPE_PRO_PRICE.currency,
           unit_amount: STRIPE_PRO_PRICE.amount,
-          recurring:  { interval: STRIPE_PRO_PRICE.interval },
+          recurring:   { interval: STRIPE_PRO_PRICE.interval },
           product_data: {
             name:        STRIPE_PRO_PRICE.label,
             description: "Gastos ilimitados, exportación CSV/PDF, pronóstico IA y más",
@@ -56,10 +56,10 @@ export async function POST(req: NextRequest) {
         quantity: 1,
       },
     ],
-    success_url: `${BASE_URL}/dashboard?upgraded=1`,
-    cancel_url:  `${BASE_URL}/pricing`,
-    metadata:    { uid },
-    subscription_data: { metadata: { uid } },
+    success_url:           `${BASE_URL}/dashboard?upgraded=1`,
+    cancel_url:            `${BASE_URL}/pricing`,
+    metadata:              { uid },
+    subscription_data:     { metadata: { uid } },
     allow_promotion_codes: true,
   })
 
