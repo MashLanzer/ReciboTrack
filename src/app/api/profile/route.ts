@@ -103,6 +103,7 @@ export async function PATCH(req: NextRequest) {
     uiPrefs:         "ui_prefs",
     webhookUrl:      "webhook_url",
     webhookEvents:   "webhook_events",
+    handle:          "handle",
   }
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
