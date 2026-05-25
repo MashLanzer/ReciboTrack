@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   if (memberError) return NextResponse.json({ error: memberError.message }, { status: 500 })
 
   const memberOf = (memberRows ?? [])
-    .map((r) => r.workspaces)
+    .map((r) => Array.isArray(r.workspaces) ? r.workspaces[0] : r.workspaces)
     .filter(Boolean)
 
   const ownedFormatted = (owned ?? []).map((w) => ({
