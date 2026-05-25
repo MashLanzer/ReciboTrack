@@ -7,11 +7,12 @@ export function RealtimeIndicator() {
   const [connected, setConnected] = useState(false)
 
   useEffect(() => {
+    if (!supabaseClient) return
     const channel = supabaseClient.channel("ping-check")
     channel.subscribe((status) => {
       setConnected(status === "SUBSCRIBED")
     })
-    return () => { supabaseClient.removeChannel(channel) }
+    return () => { supabaseClient?.removeChannel(channel) }
   }, [])
 
   return (

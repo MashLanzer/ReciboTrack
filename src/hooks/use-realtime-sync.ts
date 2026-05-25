@@ -10,7 +10,7 @@ export function useRealtimeSync() {
   const uid = user?.uid
 
   useEffect(() => {
-    if (!uid) return
+    if (!uid || !supabaseClient) return
 
     const channel = supabaseClient
       .channel(`realtime-${uid}`)
@@ -49,7 +49,7 @@ export function useRealtimeSync() {
       .subscribe()
 
     return () => {
-      supabaseClient.removeChannel(channel)
+      supabaseClient?.removeChannel(channel)
     }
   }, [uid, qc])
 }
