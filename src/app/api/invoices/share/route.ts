@@ -7,11 +7,11 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
   const { uid } = auth
 
-  const body = (await req.json()) as { projectId?: string; expiresInDays?: number }
-  const { projectId, expiresInDays = 30 } = body
+  const body = await req.json() as { projectId?: string; expiresInDays?: number }
+  const { projectId, expiresInDays } = body
 
   if (!projectId) {
-    return NextResponse.json({ error: "projectId requerido" }, { status: 400 })
+    return NextResponse.json({ error: "projectId es obligatorio" }, { status: 400 })
   }
 
   const sb = getSupabase()
@@ -27,21 +27,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 })
   }
 
-  const expiresAt = new Date()
-  expiresAt.setDate(expiresAt.getDate() + expiresInDays)
+  const days = typeof expiresInDays === "number" && expiresInDays > 0 ? expiresInDays : 30
+  const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
 
   const { data: share, error: insertError } = await sb
     .from("invoice_shares")
-    .insert({ uid, project_id: projectId, expires_at: expiresAt.toISOString() })
+    .insert({ uid, project_id: projectId, expires_at: expiresAt })
     .select("token, expires_at")
     .single()
 
   if (insertError || !share) {
-    return NextResponse.json({ error: insertError?.message ?? "Error al crear el enlace" }, { status: 500 })
+    return NextResponse.json({ error: "Error al crear el link" }, { status: 500 })
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? `https://${req.headers.get("host")}`
-  const shareUrl = `${baseUrl}/share/invoice/${share.token}`
+  const origin = new URL(req.url).origin
+  const shareUrl = `${origin}/share/invoice/${share.token}`
 
   return NextResponse.json({ token: share.token, shareUrl, expiresAt: share.expires_at })
 }
