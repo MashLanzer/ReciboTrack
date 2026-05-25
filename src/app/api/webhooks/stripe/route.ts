@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { stripe } from "@/lib/stripe"
+import { getStripe } from "@/lib/stripe"
 import { getSupabase } from "@/lib/supabase/server"
 import type Stripe from "stripe"
 
@@ -9,8 +9,9 @@ export const runtime = "nodejs"
 // En Stripe API 2026-04-22.dahlia las fechas de período están en el primer item
 function getPeriodDates(sub: Stripe.Subscription): { start: string; end: string } {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const s = sub as any
   const item = sub.items?.data?.[0] as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const s    = sub as any
   const end   = item?.current_period_end   ?? s.current_period_end   ?? 0
   const start = item?.current_period_start ?? s.current_period_start ?? 0
   return {
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest) {
   const body      = await req.text()
   const signature = req.headers.get("stripe-signature") ?? ""
   const secret    = process.env.STRIPE_WEBHOOK_SECRET!
+  const stripe    = getStripe()
 
   let event: Stripe.Event
   try {
