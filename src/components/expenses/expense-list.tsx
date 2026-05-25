@@ -77,7 +77,7 @@ export function ExpenseList() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
-  const { activeAccount, setScannerOpen, setQuickAddOpen } = useUIStore()
+  const { activeAccount, setScannerOpen, setQuickAddOpen, expenseViewMode, setExpenseViewMode } = useUIStore()
 
   // ── Touch device detection (for filter sheet vs inline panel) ──────────
   const [isTouchDevice, setIsTouchDevice] = useState(false)
@@ -99,16 +99,18 @@ export function ExpenseList() {
   // ── Compact mode — sincronizado con Firestore (compactView en UserSettings) ─
   const { data: settings } = useUserSettings()
   const updateSettings = useUpdateUserSettings()
-  const [compactMode, setCompactMode] = useState(false)
-  // Sync initial value from Firestore settings (cross-device)
+  const [compactMode, setCompactMode] = useState(expenseViewMode === "compact")
+  // Sync initial value from Firestore settings (cross-device), store takes precedence if set
   useEffect(() => {
     if (settings?.compactView !== undefined) {
-      setCompactMode(settings.compactView)
+      const storeCompact = expenseViewMode === "compact"
+      setCompactMode(storeCompact || settings.compactView)
     }
-  }, [settings?.compactView])
+  }, [settings?.compactView, expenseViewMode])
   function toggleCompact() {
     const next = !compactMode
     setCompactMode(next)
+    setExpenseViewMode(next ? "compact" : "card")
     void updateSettings.mutate({ compactView: next })
   }
 
@@ -489,6 +491,17 @@ export function ExpenseList() {
               {activeFilterCount}
             </Badge>
           )}
+        </Button>
+
+        {/* Vista compacta / normal toggle */}
+        <Button
+          variant={compactMode ? "default" : "outline"}
+          size="sm"
+          className="h-9 w-9 p-0 shrink-0"
+          title={compactMode ? "Vista normal" : "Vista compacta"}
+          onClick={() => { haptic.light(); toggleCompact() }}
+        >
+          {compactMode ? <LayoutList className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
         </Button>
 
         {/* Actions + view overflow */}

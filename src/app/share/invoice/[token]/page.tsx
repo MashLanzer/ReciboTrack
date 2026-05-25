@@ -1,15 +1,12 @@
 "use client"
 
-import { use, useEffect, useState } from "react"
-import { useProjectDetail } from "@/hooks/use-projects"
+import { useEffect, useState } from "react"
+import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Printer, ArrowLeft, Share2 } from "lucide-react"
+import { Printer, AlertTriangle, Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { useRouter } from "next/navigation"
-import { apiFetch } from "@/lib/api-client"
-import { toast } from "sonner"
 
 function formatMoney(amount: number, currency: string) {
   try {
@@ -19,35 +16,50 @@ function formatMoney(amount: number, currency: string) {
   }
 }
 
-export default function InvoicePage({ params }: { params: Promise<{ projectId: string }> }) {
-  const { projectId } = use(params)
-  const { data, isLoading } = useProjectDetail(projectId)
-  const router = useRouter()
-  const [sharing, setSharing] = useState(false)
-
-  async function handleShare() {
-    setSharing(true)
-    try {
-      const res = await apiFetch("/api/invoices/share", {
-        method: "POST",
-        body: JSON.stringify({ projectId, expiresInDays: 30 }),
-      })
-      const json = await res.json() as { shareUrl?: string; error?: string }
-      if (!res.ok || !json.shareUrl) throw new Error(json.error ?? "Error")
-      await navigator.clipboard.writeText(json.shareUrl)
-      toast.success("Link copiado · válido por 30 días")
-    } catch {
-      toast.error("Error al generar el link")
-    } finally {
-      setSharing(false)
-    }
+type InvoiceData = {
+  project: {
+    id: string
+    name: string
+    clientName: string | null
+    clientEmail: string | null
+    clientPhone: string | null
+    description: string | null
+    budget: number | null
+    currency: string
+    color: string
   }
+  client: { name: string; email: string | null; phone: string | null } | null
+  expenses: {
+    id: string
+    merchant: string
+    date: string | null
+    total: number
+    currency: string
+    category: string
+    notes: string
+  }[]
+}
+
+export default function PublicInvoicePage() {
+  const { token } = useParams<{ token: string }>()
+  const [data, setData] = useState<InvoiceData | null>(null)
+  const [expired, setExpired] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    document.title = data?.project?.name ? `Factura — ${data.project.name}` : "Factura"
-  }, [data?.project?.name])
+    if (!token) return
+    fetch(`/api/public/invoice/${token}`, { cache: "no-store" })
+      .then(async (res) => {
+        if (res.status === 410) { setExpired(true); return }
+        if (!res.ok) { setExpired(true); return }
+        const json = await res.json()
+        setData(json)
+      })
+      .catch(() => setExpired(true))
+      .finally(() => setLoading(false))
+  }, [token])
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="container max-w-2xl mx-auto px-4 py-8 space-y-4">
         <Skeleton className="h-8 w-48" />
@@ -57,20 +69,24 @@ export default function InvoicePage({ params }: { params: Promise<{ projectId: s
     )
   }
 
-  if (!data) {
+  if (expired || !data) {
     return (
-      <div className="container max-w-2xl mx-auto px-4 py-16 text-center text-muted-foreground">
-        <p className="text-sm">Proyecto no encontrado</p>
-        <Button variant="ghost" className="mt-2" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Volver
-        </Button>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+        <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
+          <AlertTriangle className="h-6 w-6 text-destructive" />
+        </div>
+        <div>
+          <h1 className="text-lg font-semibold">Factura expirada o no encontrada</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Este link ya no es válido o ha expirado.
+          </p>
+        </div>
       </div>
     )
   }
 
   const { project, expenses } = data
-  const total = expenses.reduce((s, e) => s + (e.total as number), 0)
+  const total = expenses.reduce((s, e) => s + e.total, 0)
   const today = format(new Date(), "d 'de' MMMM 'de' yyyy", { locale: es })
 
   return (
@@ -84,15 +100,7 @@ export default function InvoicePage({ params }: { params: Promise<{ projectId: s
       `}</style>
 
       <div className="container max-w-2xl mx-auto px-4 py-6">
-        <div className="no-print flex items-center gap-3 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="font-bold text-xl flex-1">Vista previa de factura</h1>
-          <Button variant="outline" onClick={handleShare} disabled={sharing} className="gap-2">
-            <Share2 className="h-4 w-4" />
-            Compartir link
-          </Button>
+        <div className="no-print flex items-center justify-end mb-6">
           <Button onClick={() => window.print()} className="gap-2">
             <Printer className="h-4 w-4" />
             Imprimir / Guardar PDF
@@ -131,20 +139,20 @@ export default function InvoicePage({ params }: { params: Promise<{ projectId: s
           <hr style={{ borderColor: "#e5e7eb" }} />
 
           <div className="grid grid-cols-2 gap-6">
-            {(project.clientName || (project as { clientEmail?: string | null }).clientEmail || (project as { clientPhone?: string | null }).clientPhone) && (
+            {(project.clientName || project.clientEmail || project.clientPhone) && (
               <div>
                 <p style={{ fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "#6b7280", marginBottom: "0.5rem" }}>
                   Facturar a
                 </p>
                 <p style={{ fontWeight: 700, fontSize: "1rem" }}>{project.clientName ?? "—"}</p>
-                {(project as { clientEmail?: string | null }).clientEmail && (
+                {project.clientEmail && (
                   <p style={{ fontSize: "0.875rem", color: "#555", marginTop: "0.15rem" }}>
-                    {(project as { clientEmail?: string | null }).clientEmail}
+                    {project.clientEmail}
                   </p>
                 )}
-                {(project as { clientPhone?: string | null }).clientPhone && (
+                {project.clientPhone && (
                   <p style={{ fontSize: "0.875rem", color: "#555", marginTop: "0.15rem" }}>
-                    {(project as { clientPhone?: string | null }).clientPhone}
+                    {project.clientPhone}
                   </p>
                 )}
               </div>
@@ -192,27 +200,27 @@ export default function InvoicePage({ params }: { params: Promise<{ projectId: s
               ) : (
                 expenses.map((e, i) => {
                   const dateStr = e.date
-                    ? format(new Date(e.date as unknown as string), "d MMM yyyy", { locale: es })
+                    ? format(new Date(e.date), "d MMM yyyy", { locale: es })
                     : "—"
                   return (
                     <tr
-                      key={e.id as string}
+                      key={e.id}
                       style={{ borderBottom: "1px solid #f3f4f6", backgroundColor: i % 2 === 0 ? "transparent" : "#fafafa" }}
                     >
                       <td style={{ padding: "0.6rem 0.75rem", paddingLeft: 0, color: "#374151", whiteSpace: "nowrap" }}>
                         {dateStr}
                       </td>
                       <td style={{ padding: "0.6rem 0.75rem" }}>
-                        <span style={{ fontWeight: 500 }}>{e.merchant as string}</span>
-                        {(e.notes as string) && (
+                        <span style={{ fontWeight: 500 }}>{e.merchant}</span>
+                        {e.notes && (
                           <span style={{ display: "block", fontSize: "0.8rem", color: "#9ca3af" }}>
-                            {e.notes as string}
+                            {e.notes}
                           </span>
                         )}
                       </td>
-                      <td style={{ padding: "0.6rem 0.75rem", color: "#6b7280" }}>{e.category as string}</td>
+                      <td style={{ padding: "0.6rem 0.75rem", color: "#6b7280" }}>{e.category}</td>
                       <td style={{ padding: "0.6rem 0.75rem", paddingRight: 0, textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 500 }}>
-                        {formatMoney(e.total as number, e.currency as string)}
+                        {formatMoney(e.total, e.currency)}
                       </td>
                     </tr>
                   )
