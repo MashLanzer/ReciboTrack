@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 
   const ownedFormatted = (owned ?? []).map((w) => ({
     ...w,
-    memberCount: (w.workspace_members as { count: number }[])[0]?.count ?? 0,
+    memberCount: (w.workspace_members as unknown as { count: number }[])?.[0]?.count ?? 0,
     role: "owner",
   }))
 

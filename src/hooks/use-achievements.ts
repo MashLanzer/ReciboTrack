@@ -3,7 +3,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { useAuth } from "./use-auth"
 import { apiFetch } from "@/lib/api-client"
-import type { ACHIEVEMENTS } from "@/lib/achievements"
 
 export interface AchievementEntry {
   id: string

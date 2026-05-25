@@ -1,5 +1,6 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { usePlan } from "@/hooks/use-plan"
 
 function UpgradePrompt({ feature }: { feature: string }) {
@@ -15,7 +16,7 @@ function UpgradePrompt({ feature }: { feature: string }) {
   )
 }
 
-export function ProGate({ feature, children }: { feature: string; children: React.ReactNode }) {
+export function ProGate({ feature, children }: { feature: string; children: ReactNode }) {
   const { data } = usePlan()
   if (data?.plan === "pro") return <>{children}</>
   return <UpgradePrompt feature={feature} />

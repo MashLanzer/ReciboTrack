@@ -31,5 +31,5 @@ export function usePlan() {
 export function useIsProFeature(feature: keyof typeof PLAN_LIMITS["free"]) {
   const { data } = usePlan()
   if (!data) return false
-  return !data.limits[feature]
+  return !(data.limits as typeof PLAN_LIMITS["free"])[feature]
 }
