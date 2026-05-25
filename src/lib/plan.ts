@@ -1,6 +1,8 @@
 import { getSupabase } from "@/lib/supabase/server"
+export type { Plan } from "@/lib/plan-config"
+export { PLAN_LIMITS } from "@/lib/plan-config"
 
-export type Plan = "free" | "pro"
+import type { Plan } from "@/lib/plan-config"
 
 export async function getUserPlan(uid: string): Promise<Plan> {
   const supabase = getSupabase()
@@ -16,8 +18,3 @@ export async function getUserPlan(uid: string): Promise<Plan> {
   }
   return "free"
 }
-
-export const PLAN_LIMITS = {
-  free: { maxExpenses: 100, csvExport: false, pdfReport: false, workspaces: 0, forecast: false },
-  pro:  { maxExpenses: Infinity, csvExport: true, pdfReport: true, workspaces: 3, forecast: true },
-} as const

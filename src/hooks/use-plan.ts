@@ -3,8 +3,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { useAuth } from "./use-auth"
 import { apiFetch } from "@/lib/api-client"
-import type { Plan } from "@/lib/plan"
-import { PLAN_LIMITS } from "@/lib/plan"
+import type { Plan } from "@/lib/plan-config"
+import { PLAN_LIMITS } from "@/lib/plan-config"
 
 export interface PlanData {
   plan: Plan
