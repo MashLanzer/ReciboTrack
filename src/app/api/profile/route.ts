@@ -104,6 +104,9 @@ export async function PATCH(req: NextRequest) {
     webhookUrl:      "webhook_url",
     webhookEvents:   "webhook_events",
     handle:          "handle",
+    paypalHandle:    "paypal_handle",
+    venmoHandle:     "venmo_handle",
+    cashappCashtag:  "cashapp_cashtag",
   }
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }

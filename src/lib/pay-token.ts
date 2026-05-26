@@ -13,6 +13,9 @@ export interface PayData {
   amount: number
   concept: string
   currency: string
+  paypal?:  string | null
+  venmo?:   string | null
+  cashapp?: string | null
 }
 
 const SECRET = process.env.PAY_TOKEN_SECRET ?? "recibotrack-dev-secret-change-in-prod"
