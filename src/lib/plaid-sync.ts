@@ -141,18 +141,32 @@ export async function syncTransactions(itemId: string): Promise<SyncResult> {
     if (!has_more) break
   }
 
-  // 3. Persistir el cursor y la marca de tiempo
+  // 3. Persistir el cursor y la marca de tiempo.
+  //
+  // Caveat de Plaid Sandbox / cold-start: si llamamos /transactions/sync
+  // ANTES de que Plaid termine la historical fetch del item, devuelve
+  // added=[], modified=[], removed=[] PERO te da un cursor válido. Si lo
+  // guardamos, los syncs subsecuentes piden "diff desde ese punto" y
+  // Plaid responde "nada nuevo" para siempre, aunque luego haya 24 tx.
+  //
+  // Fix: solo persistimos el cursor si efectivamente importamos algo.
+  // Si todo vino vacío y no había cursor previo, dejamos cursor=NULL —
+  // así el próximo sync (manual o por webhook) arranca desde cero y
+  // Plaid devuelve toda la historia cuando ya esté lista.
+  const importedNothing = totalAdded === 0 && totalModified === 0 && totalRemoved === 0
+  const cursorToSave = (importedNothing && !item.cursor) ? null : cursor
+
   await sb
     .from("plaid_items")
     .update({
-      cursor,
-      last_synced_at: new Date().toISOString(),
-      status:         "active",
-      error_code:     null,
-      error_message:  null,
-      updated_at:     new Date().toISOString(),
+      cursor:          cursorToSave,
+      last_synced_at:  new Date().toISOString(),
+      status:          "active",
+      error_code:      null,
+      error_message:   null,
+      updated_at:      new Date().toISOString(),
     })
     .eq("id", itemId)
 
-  return { added: totalAdded, modified: totalModified, removed: totalRemoved, cursor }
+  return { added: totalAdded, modified: totalModified, removed: totalRemoved, cursor: cursorToSave }
 }

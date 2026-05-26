@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
-import { Loader2, FlaskConical, CheckCircle2, XCircle, ChevronDown } from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query"
+import { Loader2, FlaskConical, CheckCircle2, XCircle, ChevronDown, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -33,9 +34,11 @@ interface DiagnoseResponse {
  * resultados pass/fail.
  */
 export function DiagnoseButton() {
-  const [running, setRunning]   = useState(false)
-  const [result,  setResult]    = useState<DiagnoseResponse | null>(null)
-  const [open,    setOpen]      = useState(false)
+  const [running,    setRunning]    = useState(false)
+  const [resetting,  setResetting]  = useState(false)
+  const [result,     setResult]     = useState<DiagnoseResponse | null>(null)
+  const [open,       setOpen]       = useState(false)
+  const queryClient = useQueryClient()
 
   async function run() {
     setRunning(true)
@@ -58,12 +61,35 @@ export function DiagnoseButton() {
     }
   }
 
+  async function resetCursor() {
+    setResetting(true)
+    try {
+      const res = await apiFetch("/api/dev/plaid-reset-sync", { method: "POST" })
+      const data = await res.json() as { ok?: boolean; results?: Array<{ added: number; institution: string }>; error?: string }
+      if (!res.ok) { toast.error(data.error ?? "Error al resetear"); return }
+      const totalAdded = (data.results ?? []).reduce((a, r) => a + (r.added ?? 0), 0)
+      toast.success(`Cursor reseteado · ${totalAdded} tx importadas`)
+      queryClient.invalidateQueries({ queryKey: ["plaid-items"] })
+      queryClient.invalidateQueries({ queryKey: ["expenses"] })
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setResetting(false)
+    }
+  }
+
   return (
     <>
-      <Button onClick={run} disabled={running} variant="outline" className="w-full gap-2 border-dashed border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10">
-        {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
-        {running ? "Ejecutando tests (puede tardar ~15s)…" : "Ejecutar diagnóstico (DEV)"}
-      </Button>
+      <div className="space-y-2">
+        <Button onClick={run} disabled={running} variant="outline" className="w-full gap-2 border-dashed border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10">
+          {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
+          {running ? "Ejecutando tests (puede tardar ~15s)…" : "Ejecutar diagnóstico (DEV)"}
+        </Button>
+        <Button onClick={resetCursor} disabled={resetting} variant="outline" className="w-full gap-2 border-dashed border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10">
+          {resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+          {resetting ? "Reseteando…" : "Resetear cursor y re-sincronizar (DEV)"}
+        </Button>
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">
