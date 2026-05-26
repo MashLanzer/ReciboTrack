@@ -48,26 +48,59 @@ export async function POST(req: NextRequest) {
   const startDate = "2024-01-01"
   const endDate   = new Date().toISOString().slice(0, 10)
 
-  const results: Array<{ institution: string | null; total_from_plaid: number; imported: number; filtered: number; error?: string }> = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const results: any[] = []
 
   for (const item of items) {
     try {
       // Paginate /transactions/get
       const allTxs: Transaction[] = []
-      const count = 500
+      const count = 100  // antes 500 — bajamos por si Plaid Sandbox tiene cap
       let offset = 0
-      while (true) {
-        const res = await plaid.transactionsGet({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const loopLog: any[] = []
+      let safety = 0
+      while (safety++ < 20) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await (plaid as any).transactionsGet({
           access_token: item.access_token,
           start_date:   startDate,
           end_date:     endDate,
           options:      { offset, count },
         })
-        allTxs.push(...res.data.transactions)
-        if (allTxs.length >= res.data.total_transactions) break
-        offset += res.data.transactions.length
-        if (res.data.transactions.length === 0) break  // safety
+        loopLog.push({
+          iter:               safety,
+          offset,
+          received:           res.data.transactions?.length ?? 0,
+          total_transactions: res.data.total_transactions,
+          item_status:        res.data.item?.status?.transactions ?? null,
+          accounts_count:     res.data.accounts?.length ?? 0,
+        })
+        const got = res.data.transactions ?? []
+        allTxs.push(...got)
+        if (allTxs.length >= (res.data.total_transactions ?? 0)) break
+        if (got.length === 0) break
+        offset += got.length
       }
+
+      // Stats: ¿cuántas filtra cada criterio?
+      const filtersBreakdown = {
+        total:          allTxs.length,
+        pending:        allTxs.filter(t => t.pending).length,
+        zero_or_neg:    allTxs.filter(t => t.amount <= 0).length,
+        passes_filter:  allTxs.filter(t => !t.pending && t.amount > 0).length,
+      }
+
+      // Sample de las 3 primeras tx (útil para entender el shape)
+      const sample = allTxs.slice(0, 3).map(t => ({
+        id:       t.transaction_id,
+        merchant: t.merchant_name || t.name,
+        amount:   t.amount,
+        currency: t.iso_currency_code,
+        date:     t.date,
+        pending:  t.pending,
+        category: t.personal_finance_category?.primary || t.category?.[0],
+      }))
 
       // Convertir a filas de expenses (filtrar pending + income)
       const rows = allTxs
@@ -112,6 +145,11 @@ export async function POST(req: NextRequest) {
         total_from_plaid: allTxs.length,
         imported:         inserted,
         filtered:         allTxs.length - rows.length,
+        debug: {
+          loops: loopLog,
+          filtersBreakdown,
+          sample,
+        },
       })
     } catch (err) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

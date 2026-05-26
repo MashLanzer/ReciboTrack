@@ -83,11 +83,30 @@ export function DiagnoseButton() {
     setPulling(true)
     try {
       const res = await apiFetch("/api/dev/plaid-pull-get", { method: "POST" })
-      const data = await res.json() as { ok?: boolean; results?: Array<{ institution: string; total_from_plaid: number; imported: number; filtered: number; error?: string }>; error?: string }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = await res.json() as any
       if (!res.ok) { toast.error(data.error ?? "Error en pull"); return }
-      const totalImported = (data.results ?? []).reduce((a, r) => a + (r.imported ?? 0), 0)
-      const totalFromPlaid = (data.results ?? []).reduce((a, r) => a + (r.total_from_plaid ?? 0), 0)
-      toast.success(`Pulled vía /transactions/get · ${totalImported} de ${totalFromPlaid} importadas`)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalImported = (data.results ?? []).reduce((a: number, r: any) => a + (r.imported ?? 0), 0)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalFromPlaid = (data.results ?? []).reduce((a: number, r: any) => a + (r.total_from_plaid ?? 0), 0)
+
+      // Mostrar resultados detallados en el dialog para diagnóstico
+      setResult({
+        ok: data.ok,
+        summary: `Pull /transactions/get · ${totalImported}/${totalFromPlaid} importadas`,
+        stats: {},
+        tests: (data.results ?? []).map((r: { institution: string; total_from_plaid: number; imported: number; filtered: number; debug?: unknown; error?: string }, i: number) => ({
+          name:   `Item ${i + 1} · ${r.institution ?? "Bank"}`,
+          status: r.error ? "fail" : (r.imported > 0 ? "pass" : "fail"),
+          detail: r.error
+            ? `Error: ${r.error}`
+            : `Plaid devolvió ${r.total_from_plaid} tx · ${r.imported} importadas · ${r.filtered} filtradas\nDEBUG: ${JSON.stringify(r.debug ?? {}, null, 2)}`,
+        })),
+      })
+      setOpen(true)
+
+      if (totalImported > 0) toast.success(`${totalImported} tx importadas`)
       queryClient.invalidateQueries({ queryKey: ["plaid-items"] })
       queryClient.invalidateQueries({ queryKey: ["expenses"] })
     } catch (err) {
@@ -146,7 +165,7 @@ export function DiagnoseButton() {
                      <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold">{t.name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 break-words">{t.detail}</p>
+                      <pre className="text-[10px] text-muted-foreground mt-0.5 whitespace-pre-wrap break-words font-mono leading-relaxed">{t.detail}</pre>
                     </div>
                     {t.ms != null && (
                       <span className="text-[10px] text-muted-foreground font-mono shrink-0">{t.ms}ms</span>
