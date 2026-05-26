@@ -8,12 +8,15 @@ import { es } from "date-fns/locale"
 import { Banknote, Loader2, RefreshCw, Trash2, AlertCircle, Sparkles, ShieldCheck, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { useAuth } from "@/hooks/use-auth"
 import { usePlaidItems, useSyncItem, useDeleteItem, type PlaidItem, type PlaidAccount } from "@/hooks/use-plaid"
 import { usePlan } from "@/hooks/use-plan"
 import { PlaidLinkButton } from "@/components/banks/plaid-link-button"
 import { ReconnectButton } from "@/components/banks/reconnect-button"
+import { DiagnoseButton } from "@/components/banks/diagnose-button"
 
 export default function BanksPage() {
+  const { user } = useAuth()
   const { data: items, isLoading } = usePlaidItems()
   const { data: planData } = usePlan()
   const syncItem      = useSyncItem()
@@ -21,6 +24,8 @@ export default function BanksPage() {
   const [confirmDelete, setConfirmDelete] = useState<PlaidItem | null>(null)
 
   const isPro = planData?.plan === "pro"
+  const isDevUid = !!process.env.NEXT_PUBLIC_DEV_PRO_GRANT_UID
+    && user?.uid === process.env.NEXT_PUBLIC_DEV_PRO_GRANT_UID
 
   // ─── Free user → upgrade gate ────────────────────────────────────────────
   if (!isPro) {
@@ -80,6 +85,8 @@ export default function BanksPage() {
       </div>
 
       <PlaidLinkButton />
+
+      {isDevUid && items && items.length > 0 && <DiagnoseButton />}
 
       {isLoading ? (
         <div className="space-y-2">
