@@ -38,6 +38,7 @@ import {
 import { CollapsibleContent, CollapsibleChevron } from "@/components/ui/collapsible"
 import { AccentColorPicker } from "@/components/shared/accent-color-picker"
 import { TrustedCircleCard } from "@/components/profile/trusted-circle-card"
+import { PaymentHandlesCard } from "@/components/profile/payment-handles"
 import { PersonalStats } from "@/components/profile/personal-stats" // #32 — componente extraído
 import { AchievementsGrid } from "@/components/profile/achievements-grid"
 import { usePlan } from "@/hooks/use-plan"
@@ -1062,6 +1063,9 @@ export default function ProfilePage() {
       ══════════════════════════════════════════════════════════════════════ */}
       {tab === "compartir" && (
         <div className="space-y-4">
+          {/* ── Payment handles for /pay links ── */}
+          <PaymentHandlesCard />
+
           {/* ── Trusted Circle ── */}
           <TrustedCircleCard />
 
