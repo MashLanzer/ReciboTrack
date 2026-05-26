@@ -46,6 +46,10 @@ export interface Expense {
   geo?: { lat: number; lng: number; accuracy?: number }
   cityName?: string | null
   countryCode?: string | null
+  // Bank sync (Plaid)
+  source?: "manual" | "plaid" | "csv" | "recurring"
+  plaidTransactionId?: string | null
+  plaidAccountId?: string | null
 }
 
 export interface ExpenseInput {

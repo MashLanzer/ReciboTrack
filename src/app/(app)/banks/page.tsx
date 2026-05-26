@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { usePlaidItems, useSyncItem, useDeleteItem, type PlaidItem, type PlaidAccount } from "@/hooks/use-plaid"
 import { usePlan } from "@/hooks/use-plan"
 import { PlaidLinkButton } from "@/components/banks/plaid-link-button"
+import { ReconnectButton } from "@/components/banks/reconnect-button"
 
 export default function BanksPage() {
   const { data: items, isLoading } = usePlaidItems()
@@ -120,11 +121,24 @@ function BankCard({
     : "nunca"
 
   return (
-    <div className="rounded-2xl border bg-card overflow-hidden">
+    <div
+      className="rounded-2xl border bg-card overflow-hidden"
+      style={item.primary_color ? { borderTopWidth: "3px", borderTopColor: item.primary_color } : undefined}
+    >
       <div className="px-4 py-3 border-b flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-semibold text-sm truncate">{item.institution_name ?? "Banco"}</p>
-          <p className="text-xs text-muted-foreground">Última sync: {lastSynced}</p>
+        <div className="flex items-center gap-3 min-w-0">
+          {item.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={item.logo} alt="" className="h-9 w-9 rounded-lg bg-muted object-contain shrink-0" />
+          ) : (
+            <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <Banknote className="h-4 w-4 text-muted-foreground" />
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="font-semibold text-sm truncate">{item.institution_name ?? "Banco"}</p>
+            <p className="text-xs text-muted-foreground">Última sync: {lastSynced}</p>
+          </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <Button size="sm" variant="ghost" onClick={onSync} disabled={syncing} className="h-8">
@@ -137,11 +151,14 @@ function BankCard({
       </div>
 
       {item.status === "error" && (
-        <div className="px-4 py-2 bg-destructive/10 border-b flex gap-2 items-start">
-          <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
-          <p className="text-xs text-destructive">
-            {item.error_message ?? "Error de conexión — reconecta el banco"}
-          </p>
+        <div className="px-4 py-2 bg-destructive/10 border-b flex gap-2 items-center justify-between">
+          <div className="flex gap-2 items-start min-w-0">
+            <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+            <p className="text-xs text-destructive">
+              {item.error_message ?? "Error de conexión — reconecta el banco"}
+            </p>
+          </div>
+          <ReconnectButton itemId={item.id} />
         </div>
       )}
 

@@ -56,6 +56,9 @@ function rowToExpense(row: Record<string, unknown>): Expense {
     geo:         row.geo as { lat: number; lng: number; accuracy?: number } | undefined,
     cityName:    (row.cityName as string | null | undefined) ?? null,
     countryCode: (row.countryCode as string | null | undefined) ?? null,
+    source:             (row.source as Expense["source"]) ?? "manual",
+    plaidTransactionId: (row.plaidTransactionId as string | null | undefined) ?? null,
+    plaidAccountId:     (row.plaidAccountId as string | null | undefined) ?? null,
   }
 }
 
