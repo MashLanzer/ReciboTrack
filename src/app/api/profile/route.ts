@@ -103,6 +103,7 @@ export async function PATCH(req: NextRequest) {
     uiPrefs:         "ui_prefs",
     webhookUrl:      "webhook_url",
     webhookEvents:   "webhook_events",
+    handle:          "handle",
     paypalHandle:    "paypal_handle",
     venmoHandle:     "venmo_handle",
     cashappCashtag:  "cashapp_cashtag",
