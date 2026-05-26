@@ -1050,7 +1050,7 @@ function BalanceTab({
                                     to: getName(t.to),
                                     amount: t.amount,
                                     concept: `Deuda del grupo "${group.name}"`,
-                                    currency: "EUR",
+                                    currency: "USD",
                                   })
                                 const { token } = await res.json()
                                 const url = `${window.location.origin}/pay/${token}`
