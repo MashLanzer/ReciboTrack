@@ -315,7 +315,8 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo", initialAmoun
                           ? equalShare
                           : Math.round((parseFloat(people.find(p => p.name === d.name)?.customAmount ?? "0") || 0) * 100) / 100
                         const key = `${d.name}-${amt}`
-                        urls[key] = await fetchSignedPayUrl(d.name, payer.name, amt, description, "USD")
+                        // from = acreedor (payer, quien cobra); to = deudor (d, quien paga)
+                        urls[key] = await fetchSignedPayUrl(payer.name, d.name, amt, description, "USD")
                       }
                       setPayUrls(urls)
                       setGeneratingUrls(false)
@@ -336,13 +337,13 @@ export function QuickSplit({ open, onClose, defaultUserName = "Yo", initialAmoun
                 const url = payUrls[key]
 
                 const copyPayUrl = async () => {
-                  const u = url ?? await fetchSignedPayUrl(d.name, payer.name, amount, description, "USD")
+                  const u = url ?? await fetchSignedPayUrl(payer.name, d.name, amount, description, "USD")
                   await navigator.clipboard.writeText(u)
                   toast.success(`Enlace de ${d.name} copiado`)
                 }
 
                 const sharePayUrl = async () => {
-                  const u = url ?? await fetchSignedPayUrl(d.name, payer.name, amount, description, "USD")
+                  const u = url ?? await fetchSignedPayUrl(payer.name, d.name, amount, description, "USD")
                   if (navigator.share) {
                     await navigator.share({ title: `Pago de ${description || "gasto"}`, text: `${d.name} te debe ${amount.toFixed(2)}`, url: u })
                   } else {

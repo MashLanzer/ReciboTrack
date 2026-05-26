@@ -1028,44 +1028,52 @@ function BalanceTab({
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {transfers.map((t, i) => (
+                      {transfers.map((t, i) => {
+                        // t.from = deudor (paga). t.to = acreedor (cobra).
+                        // Solo mostrar "compartir link" si el usuario logueado es el acreedor
+                        // — el link embebe SUS handles de PayPal/Venmo/Cash App.
+                        const canShareLink = t.to === currentUid
+                        return (
                         <div key={i} className="flex items-center gap-3 rounded-lg border px-3 py-2.5">
                           <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-xs font-bold shrink-0">
                             {getName(t.from)[0]?.toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium">
-                              {getName(t.from)} → {getName(t.to)}
+                              {getName(t.from)} <span className="text-muted-foreground">paga a</span> {getName(t.to)}
                             </p>
                           </div>
                           <p className="text-sm font-bold tabular-nums text-destructive shrink-0">
                             {formatCurrency(t.amount)}
                           </p>
-                          <button
-                            title="Copiar enlace de pago"
-                            onClick={async () => {
-                              try {
-                                const res = await authFetch("/api/pay-link", {
-                                    from: getName(t.from),
-                                    to: getName(t.to),
-                                    amount: t.amount,
-                                    concept: `Deuda del grupo "${group.name}"`,
-                                    currency: "USD",
-                                  })
-                                const { token } = await res.json()
-                                const url = `${window.location.origin}/pay/${token}`
-                                await navigator.clipboard.writeText(url)
-                                toast.success("Enlace copiado al portapapeles")
-                              } catch {
-                                toast.error("Error al generar el enlace")
-                              }
-                            }}
-                            className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <Share2 className="h-3.5 w-3.5" />
-                          </button>
+                          {canShareLink && (
+                            <button
+                              title="Generar enlace para cobrar"
+                              onClick={async () => {
+                                try {
+                                  const res = await authFetch("/api/pay-link", {
+                                      // from = quien solicita el cobro (acreedor); to = quien paga (deudor).
+                                      from: getName(t.to),
+                                      to: getName(t.from),
+                                      amount: t.amount,
+                                      concept: `Deuda del grupo "${group.name}"`,
+                                      currency: "USD",
+                                    })
+                                  const { token } = await res.json()
+                                  const url = `${window.location.origin}/pay/${token}`
+                                  await navigator.clipboard.writeText(url)
+                                  toast.success("Enlace de cobro copiado")
+                                } catch {
+                                  toast.error("Error al generar el enlace")
+                                }
+                              }}
+                              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              <Share2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                         </div>
-                      ))}
+                      )})}
                     </div>
                   )}
                 </div>

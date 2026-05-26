@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Check, Zap, Sparkles } from "lucide-react"
+import { Check, Zap, Sparkles, ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
 import { usePlan } from "@/hooks/use-plan"
@@ -66,8 +66,25 @@ export default function PricingPage() {
     }
   }
 
+  function handleBack() {
+    // Si hay historial, usa el back del navegador para preservar scroll.
+    // Si no (deeplink directo), va al dashboard como fallback.
+    if (typeof window !== "undefined" && window.history.length > 1) router.back()
+    else router.push(user ? "/dashboard" : "/")
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 py-16">
+      {/* Back button — sticky top-left */}
+      <button
+        onClick={handleBack}
+        className="fixed top-4 left-4 z-10 flex items-center gap-1.5 rounded-full border bg-card/80 backdrop-blur px-3 py-1.5 text-sm font-medium hover:bg-card transition-colors"
+        aria-label="Volver"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Atrás
+      </button>
+
       <div className="w-full max-w-3xl space-y-8">
 
         {/* Header */}
