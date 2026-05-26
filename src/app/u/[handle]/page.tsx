@@ -3,16 +3,65 @@ import { getSupabase } from "@/lib/supabase/server"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
+interface PublicProfile {
+  display_name: string | null
+  photo_url:    string | null
+  handle:       string | null
+  created_at:   string | null
+}
+
+/**
+ * Resuelve un handle a un perfil. Busca primero en `profiles.handle`
+ * (la ubicación canónica desde migration 020). Si no está, fallback a
+ * `user_settings.data.handle` y, si lo encuentra, sincroniza a profiles
+ * para que las próximas búsquedas sean directas.
+ */
+async function findProfileByHandle(handle: string): Promise<PublicProfile | null> {
+  const sb = getSupabase()
+  const normalized = handle.trim().toLowerCase()
+
+  // 1. Lookup canónico en profiles
+  const { data: profile } = await sb
+    .from("profiles")
+    .select("display_name, photo_url, handle, created_at, uid")
+    .ilike("handle", normalized)
+    .maybeSingle()
+
+  if (profile) return profile
+
+  // 2. Fallback: el handle puede estar solo en user_settings.data.handle
+  //    (caso de usuarios que guardaron el handle antes del fix que lo
+  //    propagaba también a profiles). Buscamos y, si lo encontramos,
+  //    completamos el profile.handle como auto-heal.
+  const { data: settings } = await sb
+    .from("user_settings")
+    .select("uid, data")
+    .filter("data->>handle", "ilike", normalized)
+    .maybeSingle()
+
+  if (!settings) return null
+
+  // Auto-heal: copiar el handle a profiles para que el próximo lookup
+  // del paso 1 funcione sin necesitar el fallback.
+  await sb
+    .from("profiles")
+    .update({ handle: normalized })
+    .eq("uid", settings.uid)
+
+  const { data: healed } = await sb
+    .from("profiles")
+    .select("display_name, photo_url, handle, created_at")
+    .eq("uid", settings.uid)
+    .maybeSingle()
+
+  return healed
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params
-  const { data } = await getSupabase()
-    .from("profiles")
-    .select("display_name")
-    .ilike("handle", handle)
-    .single()
-
+  const profile = await findProfileByHandle(handle)
   return {
-    title: data ? `${data.display_name ?? handle} · ReciboTrack` : "Perfil · ReciboTrack",
+    title: profile ? `${profile.display_name ?? handle} · ReciboTrack` : "Perfil · ReciboTrack",
   }
 }
 
@@ -22,12 +71,7 @@ export default async function PublicProfilePage({
   params: Promise<{ handle: string }>
 }) {
   const { handle } = await params
-
-  const { data: profile } = await getSupabase()
-    .from("profiles")
-    .select("display_name, photo_url, handle, created_at")
-    .ilike("handle", handle)
-    .single()
+  const profile = await findProfileByHandle(handle)
 
   if (!profile) notFound()
 
@@ -67,7 +111,7 @@ export default async function PublicProfilePage({
               {profile.display_name ?? handle}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              ${profile.handle}
+              ${profile.handle ?? handle}
             </p>
             {memberSince && (
               <p className="text-xs text-muted-foreground mt-2">
