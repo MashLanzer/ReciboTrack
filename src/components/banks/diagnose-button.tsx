@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
-import { Loader2, FlaskConical, CheckCircle2, XCircle, ChevronDown, RotateCcw } from "lucide-react"
+import { Loader2, FlaskConical, CheckCircle2, XCircle, ChevronDown, RotateCcw, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -36,6 +36,7 @@ interface DiagnoseResponse {
 export function DiagnoseButton() {
   const [running,    setRunning]    = useState(false)
   const [resetting,  setResetting]  = useState(false)
+  const [pulling,    setPulling]    = useState(false)
   const [result,     setResult]     = useState<DiagnoseResponse | null>(null)
   const [open,       setOpen]       = useState(false)
   const queryClient = useQueryClient()
@@ -78,6 +79,24 @@ export function DiagnoseButton() {
     }
   }
 
+  async function pullViaGet() {
+    setPulling(true)
+    try {
+      const res = await apiFetch("/api/dev/plaid-pull-get", { method: "POST" })
+      const data = await res.json() as { ok?: boolean; results?: Array<{ institution: string; total_from_plaid: number; imported: number; filtered: number; error?: string }>; error?: string }
+      if (!res.ok) { toast.error(data.error ?? "Error en pull"); return }
+      const totalImported = (data.results ?? []).reduce((a, r) => a + (r.imported ?? 0), 0)
+      const totalFromPlaid = (data.results ?? []).reduce((a, r) => a + (r.total_from_plaid ?? 0), 0)
+      toast.success(`Pulled vía /transactions/get · ${totalImported} de ${totalFromPlaid} importadas`)
+      queryClient.invalidateQueries({ queryKey: ["plaid-items"] })
+      queryClient.invalidateQueries({ queryKey: ["expenses"] })
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setPulling(false)
+    }
+  }
+
   return (
     <>
       <div className="space-y-2">
@@ -88,6 +107,10 @@ export function DiagnoseButton() {
         <Button onClick={resetCursor} disabled={resetting} variant="outline" className="w-full gap-2 border-dashed border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10">
           {resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
           {resetting ? "Reseteando…" : "Resetear cursor y re-sincronizar (DEV)"}
+        </Button>
+        <Button onClick={pullViaGet} disabled={pulling} variant="outline" className="w-full gap-2 border-dashed border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10">
+          {pulling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {pulling ? "Pulling…" : "Pull vía /transactions/get (DEV)"}
         </Button>
       </div>
 
