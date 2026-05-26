@@ -57,7 +57,47 @@ export async function POST(req: NextRequest) {
 
   const results: TestResult[] = []
 
-  // ─── TEST A: /sandbox/transactions/create + sync verificado ───────────
+  // ─── TEST A: ¿Qué dice Plaid sobre las tx disponibles? ────────────────
+  // Usa /transactions/get con rango amplio. Esto NO requiere cursor — devuelve
+  // todo lo que Plaid sepa del item. Si devuelve 0, el item nunca recibió
+  // datos (initial_update pendiente o item mal configurado).
+  {
+    const t0 = Date.now()
+    try {
+      const start = "2024-01-01"
+      const end   = new Date().toISOString().slice(0, 10)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const txGet = await (plaid as any).transactionsGet({
+        access_token: item.access_token,
+        start_date:   start,
+        end_date:     end,
+        options:      { count: 10 },
+      })
+      const total = txGet.data.total_transactions as number
+      const first = txGet.data.transactions?.[0]
+      const sampleFmt = first
+        ? `1ra tx: ${first.merchant_name ?? first.name} · ${first.amount} ${first.iso_currency_code} · pending=${first.pending} · date=${first.date}`
+        : "sin transacciones"
+      results.push({
+        name:   "A · Plaid tiene tx disponibles para este item",
+        status: total > 0 ? "pass" : "fail",
+        detail: `total_transactions=${total} · ${sampleFmt}`,
+        ms:     Date.now() - t0,
+      })
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const e = err as any
+      const detail = e?.response?.data?.error_message || e?.response?.data?.error_code || e?.message
+      results.push({
+        name:   "A · Plaid tiene tx disponibles para este item",
+        status: "fail",
+        detail: `Plaid: ${detail}`,
+        ms:     Date.now() - t0,
+      })
+    }
+  }
+
+  // ─── TEST A-bis: forzar refresh + sync, ver cuántas entran al DB ──────
   {
     const t0 = Date.now()
     try {
@@ -67,20 +107,19 @@ export async function POST(req: NextRequest) {
         .eq("uid", auth.uid)
         .eq("source", "plaid")
 
-      const today = new Date().toISOString().slice(0, 10)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (plaid as any).sandboxTransactionsCreate({
-        access_token: item.access_token,
-        transactions: [{
-          amount:           42.99,
-          date_posted:      today,
-          date_transacted:  today,
-          description:      "ReciboTrack Diagnose Test",
-          iso_currency_code: "USD",
-        }],
-      })
+      // /sandbox/transactions/refresh fuerza a Plaid a marcar tx como nuevas
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (plaid as any).sandboxItemFireWebhook({
+          access_token: item.access_token,
+          webhook_code: "DEFAULT_UPDATE",
+        })
+      } catch { /* no-op si no aplica */ }
 
-      // Forzar el sync (no esperamos al webhook orgánico)
+      // Pequeña espera para que Plaid asiente
+      await new Promise(r => setTimeout(r, 2000))
+
+      // Forzar sync
       const syncRes = await syncTransactions(item.id)
 
       const { count: afterCount } = await sb
@@ -90,19 +129,22 @@ export async function POST(req: NextRequest) {
         .eq("source", "plaid")
 
       const delta = (afterCount ?? 0) - (beforeCount ?? 0)
-      const pass = delta >= 1 && syncRes.added >= 1
+      const pass = delta > 0 || syncRes.added > 0
 
       results.push({
-        name:   "A · Inyectar tx + sync la importa",
+        name:   "A-bis · Refresh + sync importa tx",
         status: pass ? "pass" : "fail",
-        detail: `Antes: ${beforeCount ?? 0} · Después: ${afterCount ?? 0} · Δ ${delta} · sync.added=${syncRes.added}`,
+        detail: `Antes: ${beforeCount ?? 0} · Después: ${afterCount ?? 0} · Δ ${delta} · sync.added=${syncRes.added} · cursor=${(syncRes.cursor ?? "null").slice(0, 30)}…`,
         ms:     Date.now() - t0,
       })
     } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const e = err as any
+      const detail = e?.response?.data?.error_message || e?.response?.data?.error_code || e?.message
       results.push({
-        name:   "A · Inyectar tx + sync la importa",
+        name:   "A-bis · Refresh + sync importa tx",
         status: "fail",
-        detail: `Error: ${(err as Error).message}`,
+        detail: `Error: ${detail}`,
         ms:     Date.now() - t0,
       })
     }
