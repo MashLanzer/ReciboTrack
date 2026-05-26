@@ -1060,6 +1060,14 @@ export function ExpenseList() {
                                   ↻ Recurrente
                                 </span>
                               )}
+                              {expense.source === "plaid" && (
+                                <span
+                                  className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium"
+                                  title="Importado automáticamente del banco"
+                                >
+                                  🏦 Banco
+                                </span>
+                              )}
                               {expense.flagged && (
                                 <span
                                   className="text-xs px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium"

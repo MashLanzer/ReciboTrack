@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
 import { requirePro } from "@/lib/plan"
-import { getPlaid } from "@/lib/plaid"
+import { getPlaid, PLAID_COUNTRY_CODES } from "@/lib/plaid"
 import { getSupabase } from "@/lib/supabase/server"
 import { syncTransactions } from "@/lib/plaid-sync"
 
@@ -41,7 +41,26 @@ export async function POST(req: NextRequest) {
     const accessToken = exchange.data.access_token
     const plaidItemId = exchange.data.item_id
 
-    // 2. Insertar el item en nuestra DB
+    // 2a. Fetch logo + color de la institución (best-effort — si falla,
+    //     seguimos sin branding, no es crítico para el flow).
+    let logoDataUrl: string | null = null
+    let primaryColor: string | null = null
+    if (body.institution?.id) {
+      try {
+        const inst = await plaid.institutionsGetById({
+          institution_id:  body.institution.id,
+          country_codes:   PLAID_COUNTRY_CODES,
+          options:         { include_optional_metadata: true },
+        })
+        const i = inst.data.institution
+        logoDataUrl = i.logo ? `data:image/png;base64,${i.logo}` : null
+        primaryColor = i.primary_color ?? null
+      } catch (err) {
+        console.warn("[plaid/exchange] institutionsGetById failed", err)
+      }
+    }
+
+    // 2b. Insertar el item en nuestra DB
     const { data: item, error: itemErr } = await sb
       .from("plaid_items")
       .insert({
@@ -50,6 +69,8 @@ export async function POST(req: NextRequest) {
         access_token:      accessToken,
         institution_id:    body.institution?.id   ?? null,
         institution_name:  body.institution?.name ?? null,
+        logo:              logoDataUrl,
+        primary_color:     primaryColor,
       })
       .select()
       .single()

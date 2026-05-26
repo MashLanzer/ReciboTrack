@@ -25,6 +25,8 @@ export interface PlaidItem {
   error_code:        string | null
   error_message:     string | null
   last_synced_at:    string | null
+  logo:              string | null
+  primary_color:     string | null
   created_at:        string
   accounts:          PlaidAccount[]
 }
@@ -100,6 +102,27 @@ export function useSyncItem() {
       qc.invalidateQueries({ queryKey: ["expenses"] })
     },
   })
+}
+
+/** Pide un link_token en "update mode" para reconectar un item con error. */
+export function useReconnectItem() {
+  return useMutation({
+    mutationFn: async (itemId: string): Promise<string> => {
+      const res = await apiFetch(`/api/plaid/items/${itemId}/reconnect`, { method: "POST" })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(data.error ?? "Error al iniciar reconexión")
+      }
+      const { link_token } = (await res.json()) as { link_token: string }
+      return link_token
+    },
+  })
+}
+
+/** Actualizar items tras un re-link exitoso (limpia status=error). */
+export function useMarkItemActive() {
+  const qc = useQueryClient()
+  return () => qc.invalidateQueries({ queryKey: ["plaid-items"] })
 }
 
 /** Desconecta un banco. */

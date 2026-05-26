@@ -60,6 +60,10 @@ function rowToExpense(row: Record<string, unknown>) {
       : undefined,
     cityName:    row.geo_city ?? null,
     countryCode: row.geo_country_code ?? null,
+    // Plaid auto-import
+    source:             row.source ?? "manual",
+    plaidTransactionId: row.plaid_transaction_id ?? null,
+    plaidAccountId:     row.plaid_account_id ?? null,
   }
 }
 
