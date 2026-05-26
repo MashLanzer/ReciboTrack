@@ -41,7 +41,19 @@ export async function POST(req: NextRequest) {
     })
     return NextResponse.json({ link_token: res.data.link_token })
   } catch (err) {
-    console.error("[plaid/link-token]", err)
-    return NextResponse.json({ error: "No se pudo crear el link token de Plaid" }, { status: 500 })
+    // Plaid devuelve el detalle en err.response.data — propagamos para que la UI
+    // pueda mostrar al usuario qué pasó (INVALID_API_KEYS, env mismatch, etc.).
+    const e = err as { response?: { data?: { error_code?: string; error_message?: string; display_message?: string } }; message?: string }
+    const plaidDetail = e.response?.data
+    const detail = plaidDetail?.display_message
+                 || plaidDetail?.error_message
+                 || plaidDetail?.error_code
+                 || e.message
+                 || "Error desconocido"
+    console.error("[plaid/link-token]", plaidDetail || err)
+    return NextResponse.json(
+      { error: `Plaid: ${detail}`, code: plaidDetail?.error_code ?? null },
+      { status: 500 },
+    )
   }
 }
