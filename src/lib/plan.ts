@@ -18,3 +18,13 @@ export async function getUserPlan(uid: string): Promise<Plan> {
   }
   return "free"
 }
+
+/** Throws if the user is not Pro. For Pro-only endpoints. */
+export async function requirePro(uid: string): Promise<void> {
+  const plan = await getUserPlan(uid)
+  if (plan !== "pro") {
+    const err = new Error("Pro plan required")
+    ;(err as Error & { status?: number }).status = 402
+    throw err
+  }
+}
