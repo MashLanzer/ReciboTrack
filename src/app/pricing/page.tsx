@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Check, Zap, Sparkles, ArrowLeft } from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query"
+import { Check, Zap, Sparkles, ArrowLeft, FlaskConical } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
 import { usePlan } from "@/hooks/use-plan"
@@ -33,9 +34,31 @@ export default function PricingPage() {
   const { user } = useAuth()
   const { data: planData } = usePlan()
   const router  = useRouter()
+  const queryClient = useQueryClient()
   const [loading, setLoading] = useState(false)
+  const [devGranting, setDevGranting] = useState(false)
 
   const isPro = planData?.plan === "pro"
+
+  // DEV-only: el botón solo aparece si el UID logueado coincide con la env var.
+  // Si la env var no está set o es de otro UID, el botón no se renderiza.
+  const devAllowedUid = process.env.NEXT_PUBLIC_DEV_PRO_GRANT_UID
+  const canDevGrant   = !!devAllowedUid && !!user && user.uid === devAllowedUid && !isPro
+
+  async function handleDevGrantPro() {
+    setDevGranting(true)
+    try {
+      const res = await apiFetch("/api/dev/grant-pro", { method: "POST" })
+      const data = await res.json() as { ok?: boolean; error?: string }
+      if (!res.ok) { toast.error(data.error ?? "Error"); return }
+      toast.success("Plan Pro activado (modo dev)")
+      queryClient.invalidateQueries({ queryKey: ["plan"] })
+    } catch {
+      toast.error("Error de red.")
+    } finally {
+      setDevGranting(false)
+    }
+  }
 
   async function handleUpgrade() {
     if (!user) { router.push("/login?from=/pricing"); return }
@@ -174,6 +197,28 @@ export default function PricingPage() {
         <p className="text-center text-xs text-muted-foreground">
           Pago seguro con Stripe · Cancela en cualquier momento · Sin cargos ocultos
         </p>
+
+        {/* ── DEV-only: activar Pro sin pagar (gated por env var por UID) ── */}
+        {canDevGrant && (
+          <div className="rounded-2xl border-2 border-dashed border-amber-500/50 bg-amber-500/5 p-4 space-y-2">
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+              <FlaskConical className="h-4 w-4" />
+              <p className="text-xs font-bold uppercase tracking-wider">Modo desarrollo</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Bypass del paywall solo para tu cuenta. Quita la env var
+              <code className="mx-1 px-1 py-0.5 bg-muted rounded text-[10px]">NEXT_PUBLIC_DEV_PRO_GRANT_UID</code>
+              en Vercel para deshabilitar este botón.
+            </p>
+            <button
+              onClick={handleDevGrantPro}
+              disabled={devGranting}
+              className="w-full rounded-xl py-2.5 text-sm font-bold bg-amber-500/10 border border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-colors disabled:opacity-60"
+            >
+              {devGranting ? "Activando…" : "Activar Pro (dev, sin pago)"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

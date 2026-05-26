@@ -545,6 +545,18 @@ export default function ProfilePage() {
                     </button>
                   )}
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">{user.email}</p>
+                  {user.uid && (
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(user.uid)
+                        toast.success("UID copiado")
+                      }}
+                      className="text-[10px] text-muted-foreground/70 font-mono mt-0.5 hover:text-foreground transition-colors truncate block max-w-full"
+                      title="Click para copiar tu UID (útil para debugging y env vars de dev)"
+                    >
+                      UID: {user.uid.slice(0, 16)}…
+                    </button>
+                  )}
                   <div className="flex items-center gap-2 mt-1.5">
                     <Badge variant="outline" className="text-xs">{isGoogleUser ? "Google" : "Email"}</Badge>
                     <p className="text-xs text-muted-foreground">Miembro desde {memberSince}</p>
