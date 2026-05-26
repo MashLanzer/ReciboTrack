@@ -25,6 +25,11 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // URL pública del webhook — Plaid llamará aquí cuando hay tx nuevas, login
+  // expirado, etc. NEXT_PUBLIC_APP_URL debe estar configurada en Vercel.
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://recibotrack.vercel.app"
+  const webhookUrl = `${appUrl}/api/plaid/webhook`
+
   try {
     const res = await getPlaid().linkTokenCreate({
       user: { client_user_id: auth.uid },
@@ -32,7 +37,7 @@ export async function POST(req: NextRequest) {
       products:      PLAID_PRODUCTS,
       country_codes: PLAID_COUNTRY_CODES,
       language:      "es",
-      // webhook se configura en Fase 2; sin él Plaid no manda notificaciones.
+      webhook:       webhookUrl,
     })
     return NextResponse.json({ link_token: res.data.link_token })
   } catch (err) {
