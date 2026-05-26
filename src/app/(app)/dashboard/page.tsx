@@ -8,7 +8,6 @@ import { ScanLine, Plus, BarChart2, Search, LayoutDashboard, Zap, Sparkles, Chev
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
-import { AchievementsWidget } from "@/components/dashboard/achievements-widget"
 import { ExpenseLimitBanner } from "@/components/shared/expense-limit-banner"
 import { HeroBalanceCard }    from "@/components/dashboard/hero-balance-card"
 import { KPIBento }           from "@/components/dashboard/kpi-bento"
@@ -20,9 +19,6 @@ import { MultiCurrencyBanner } from "@/components/dashboard/multicurrency-banner
 import { RecurringBanner }    from "@/components/expenses/recurring-banner"
 import { GoalsWidget }        from "@/components/dashboard/goals-widget"
 import { HealthScoreWidget }  from "@/components/dashboard/health-score-widget"
-import { MemoriesWidget }     from "@/components/dashboard/memories-widget"
-import { AnniversaryWidget }  from "@/components/dashboard/anniversary-widget"
-import { HighlightsWidget }   from "@/components/dashboard/highlights-widget"
 import { PinnedItemsBar }     from "@/components/dashboard/pinned-items-bar"
 import { SwipeableFeed }      from "@/components/dashboard/swipeable-feed"
 import { QuickStatsBlock, QuickRecentBlock } from "@/components/dashboard/quick-mode-extras"
@@ -106,7 +102,6 @@ export default function DashboardPage() {
   const queryClient = useQueryClient()
   const [showAnalytics, setShowAnalytics] = useState(false)
   const [showRecap, setShowRecap] = useState(false)
-  const [showMemories, setShowMemories] = useState(false)
   const [vacationDialogOpen, setVacationDialogOpen] = useState(false)
   const [quickActionsSettingsOpen, setQuickActionsSettingsOpen] = useState(false)
   const { prefs, setPref } = useUIPrefs()
@@ -291,26 +286,6 @@ export default function DashboardPage() {
 
         {/* ── Health score ──────────────────────────────────────────────── */}
         <HealthScoreWidget />
-
-        {/* ── Achievements widget ───────────────────────────────────────── */}
-        <AchievementsWidget />
-
-        {/* ── 📅 Recuerdos y logros (collapsible) ─────────────────────────── */}
-        <button
-          onClick={() => setShowMemories(s => !s)}
-          className="w-full flex items-center justify-between rounded-2xl border border-border/50 bg-muted/30 px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
-        >
-          <span>Recuerdos y logros</span>
-          <CollapsibleChevron open={showMemories} />
-        </button>
-        <CollapsibleContent open={showMemories} className="space-y-3">
-          <MemoriesWidget />
-          <HighlightsWidget />
-          <AnniversaryWidget />
-          <p className="text-xs text-muted-foreground text-center py-2">
-            Los recuerdos aparecen cuando llevas más tiempo usando la app
-          </p>
-        </CollapsibleContent>
 
         {/* ── Activity feed ─────────────────────────────────────────────── */}
         <div className="space-y-2">
