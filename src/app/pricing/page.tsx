@@ -172,8 +172,8 @@ export default function PricingPage() {
             tagline="Para siempre"
             description="Lo esencial para llevar tus gastos"
             current={currentPlan === "free"}
-            ctaLabel="Plan actual"
-            ctaDisabled
+            ctaLabel="Gratis · $0"
+            ctaDisabled  // no se puede "elegir" Free desde checkout — solo cancelar el plan pagado
             highlightFeatures={["Hasta 100 gastos/mes", "OCR de recibos", "Categorías y presupuestos"]}
           />
 
@@ -188,12 +188,11 @@ export default function PricingPage() {
             badge="Más popular"
             badgeIcon={Zap}
             ctaLabel={
-              currentPlan === "pro"      ? "Gestionar suscripción" :
-              currentPlan === "premium"  ? "Tienes Premium" :
-              loading === "pro"          ? "Redirigiendo…" : "Suscribirse · $1.99/mes"
+              loading === "pro" ? "Redirigiendo…" : "Pro · $1.99/mes"
             }
             ctaDisabled={loading !== null || currentPlan === "premium"}
-            ctaOnClick={currentPlan === "pro" ? handleManage : () => handleSubscribe("pro")}
+            ctaOnClick={() => handleSubscribe("pro")}
+            onManage={handleManage}
             highlightFeatures={["Gastos ilimitados", "CSV / PDF / Reporte mensual", "3 workspaces compartidos", "Categorización con IA"]}
           />
 
@@ -209,11 +208,11 @@ export default function PricingPage() {
             badgeIcon={Crown}
             highlight
             ctaLabel={
-              currentPlan === "premium"  ? "Gestionar suscripción" :
-              loading === "premium"      ? "Redirigiendo…" : "Suscribirse · $4.99/mes"
+              loading === "premium" ? "Redirigiendo…" : "Premium · $4.99/mes"
             }
             ctaDisabled={loading !== null}
-            ctaOnClick={currentPlan === "premium" ? handleManage : () => handleSubscribe("premium")}
+            ctaOnClick={() => handleSubscribe("premium")}
+            onManage={handleManage}
             highlightFeatures={["Todo lo de Pro", "🏦 Sincronización bancaria", "Pronóstico IA 3 meses", "Workspaces ilimitados", "Soporte prioritario"]}
           />
         </div>
@@ -305,6 +304,8 @@ interface PlanCardProps {
   ctaDisabled?:        boolean
   ctaOnClick?:         () => void
   highlightFeatures:   string[]
+  /** Si la card es el plan actual Y es pagado, muestra un link "Gestionar" */
+  onManage?:           () => void
 }
 
 function PlanCard(p: PlanCardProps) {
@@ -349,11 +350,26 @@ function PlanCard(p: PlanCardProps) {
       </ul>
 
       {/* mt-auto empuja el botón al fondo del card sin importar cuántas features tenga */}
-      <div className="mt-auto pt-6">
+      <div className="mt-auto pt-6 space-y-2">
         {p.current ? (
-          <div className="w-full rounded-xl py-2.5 text-sm font-semibold text-center border bg-muted text-muted-foreground">
-            Tu plan actual
-          </div>
+          <>
+            <div className={cn(
+              "w-full rounded-xl py-2.5 text-sm font-semibold text-center border",
+              p.highlight
+                ? "border-primary/40 bg-primary/10 text-primary"
+                : "border-border bg-muted text-foreground"
+            )}>
+              ✓ Plan actual
+            </div>
+            {p.onManage && (
+              <button
+                onClick={p.onManage}
+                className="w-full text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+              >
+                Gestionar suscripción
+              </button>
+            )}
+          </>
         ) : (
           <button
             onClick={p.ctaOnClick}
