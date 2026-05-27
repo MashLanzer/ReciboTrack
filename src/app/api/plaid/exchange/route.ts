@@ -9,7 +9,7 @@
  */
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
-import { requirePro } from "@/lib/plan"
+import { requirePremium } from "@/lib/plan"
 import { getPlaid, PLAID_COUNTRY_CODES } from "@/lib/plaid"
 import { getSupabase } from "@/lib/supabase/server"
 import { syncTransactions } from "@/lib/plaid-sync"
@@ -19,9 +19,9 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   try {
-    await requirePro(auth.uid)
+    await requirePremium(auth.uid)
   } catch {
-    return NextResponse.json({ error: "Pro plan requerido" }, { status: 402 })
+    return NextResponse.json({ error: "Premium plan requerido" }, { status: 402 })
   }
 
   let body: { public_token?: string; institution?: { id: string; name: string } }

@@ -22,6 +22,7 @@ import { requireAuth } from "@/lib/api-auth"
 import { getSupabase } from "@/lib/supabase/server"
 import { checkAndGrantAchievements } from "@/lib/check-achievements"
 import { fireWebhooks } from "@/lib/fire-webhooks"
+import { getUserPlan, PLAN_LIMITS } from "@/lib/plan"
 
 const PER_PAGE = 10
 
@@ -173,6 +174,35 @@ export async function POST(req: NextRequest) {
 
   const sb = getSupabase()
   const now = new Date().toISOString()
+
+  // Enforce el límite de gastos mensuales según el plan del usuario.
+  // Excluimos tx auto-importadas (source=plaid) del conteo — esas vienen del
+  // banco y no deberían contar contra la cuota free.
+  const userPlan = await getUserPlan(uid)
+  const limits = PLAN_LIMITS[userPlan]
+  if (Number.isFinite(limits.maxExpensesPerMonth)) {
+    const nowDate = new Date()
+    const monthStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), 1).toISOString().split("T")[0]
+    const monthEnd   = new Date(nowDate.getFullYear(), nowDate.getMonth() + 1, 0).toISOString().split("T")[0]
+    const { count } = await sb
+      .from("expenses")
+      .select("*", { count: "exact", head: true })
+      .eq("uid", uid)
+      .eq("archived", false)
+      .neq("source", "plaid")
+      .gte("date", monthStart)
+      .lte("date", monthEnd)
+    if ((count ?? 0) >= limits.maxExpensesPerMonth) {
+      return NextResponse.json(
+        {
+          error:   `Has alcanzado el límite de ${limits.maxExpensesPerMonth} gastos/mes del plan ${userPlan}. Actualiza a Pro para gastos ilimitados.`,
+          upgrade: "/pricing",
+          limit:   limits.maxExpensesPerMonth,
+        },
+        { status: 402 },
+      )
+    }
+  }
 
   const { data, error } = await sb
     .from("expenses")

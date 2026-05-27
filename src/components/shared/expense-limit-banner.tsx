@@ -16,10 +16,11 @@ export function ExpenseLimitBanner() {
     }
   }, [])
 
-  if (!data || data.plan === "pro" || dismissed) return null
+  if (!data || data.plan !== "free" || dismissed) return null
 
   const { expensesThisMonth, limits } = data
-  const maxExpenses = limits.maxExpenses as number
+  const maxExpenses = limits.maxExpensesPerMonth
+  if (!Number.isFinite(maxExpenses)) return null
   const usagePct = (expensesThisMonth / maxExpenses) * 100
 
   if (usagePct < 80) return null

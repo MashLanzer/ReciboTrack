@@ -16,21 +16,32 @@ export async function GET(req: NextRequest) {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0]
   const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0]
 
-  const { count } = await supabase
+  // Gastos del mes actual (sin contar archivados)
+  const { count: expensesCount } = await supabase
     .from("expenses")
     .select("*", { count: "exact", head: true })
     .eq("uid", uid)
     .eq("archived", false)
     .gte("date", monthStart)
     .lte("date", monthEnd)
+  const expensesThisMonth = expensesCount ?? 0
 
-  const expensesThisMonth = count ?? 0
-  const canAddExpenses = plan === "pro" || expensesThisMonth < limits.maxExpenses
+  // Workspaces creados por el usuario (lo que usa el límite)
+  const { count: wsCount } = await supabase
+    .from("workspaces")
+    .select("*", { count: "exact", head: true })
+    .eq("owner_uid", uid)
+  const workspacesCount = wsCount ?? 0
+
+  const canAddExpenses   = expensesThisMonth < limits.maxExpensesPerMonth
+  const canAddWorkspace  = workspacesCount   < limits.maxWorkspaces
 
   return NextResponse.json({
     plan,
     limits,
     expensesThisMonth,
+    workspacesCount,
     canAddExpenses,
+    canAddWorkspace,
   })
 }
