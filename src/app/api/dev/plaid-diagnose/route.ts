@@ -129,12 +129,16 @@ export async function POST(req: NextRequest) {
         .eq("source", "plaid")
 
       const delta = (afterCount ?? 0) - (beforeCount ?? 0)
-      const pass = delta > 0 || syncRes.added > 0
+      // Pass si:
+      //   - el sync importó cosas nuevas (delta > 0), o
+      //   - ya había tx importadas antes (sync es idempotente — re-llamarlo
+      //     no duplica, así que 0 added cuando ya está todo es correcto)
+      const pass = delta > 0 || syncRes.added > 0 || (beforeCount ?? 0) > 0
 
       results.push({
         name:   "A-bis · Refresh + sync importa tx",
         status: pass ? "pass" : "fail",
-        detail: `Antes: ${beforeCount ?? 0} · Después: ${afterCount ?? 0} · Δ ${delta} · sync.added=${syncRes.added} · cursor=${(syncRes.cursor ?? "null").slice(0, 30)}…`,
+        detail: `Antes: ${beforeCount ?? 0} · Después: ${afterCount ?? 0} · Δ ${delta} · sync.added=${syncRes.added}${(beforeCount ?? 0) > 0 ? " · (idempotent — tx ya estaban)" : ""}`,
         ms:     Date.now() - t0,
       })
     } catch (err) {
@@ -236,6 +240,43 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       results.push({
         name:   "C · Stats coherentes",
+        status: "fail",
+        detail: `Error: ${(err as Error).message}`,
+      })
+    }
+  }
+
+  // ─── TEST D: ¿Por qué no aparecen en /expenses? Inspecciona campos clave ──
+  {
+    try {
+      const { data: plaidRows } = await sb
+        .from("expenses")
+        .select("id, date, merchant, total, account, archived, project_id, source")
+        .eq("uid", auth.uid)
+        .eq("source", "plaid")
+        .order("date", { ascending: false })
+        .limit(3)
+
+      const { data: uiRows } = await sb
+        .from("expenses")
+        .select("id")
+        .eq("uid", auth.uid)
+        .eq("source", "plaid")
+        .eq("archived", false)
+        .is("project_id", null)
+
+      const visibleInUI = uiRows?.length ?? 0
+      const totalPlaid = (stats.plaid_expenses as number) ?? 0
+      const missingFromUI = totalPlaid - visibleInUI
+
+      results.push({
+        name:   "D · Filtros UI sobre las tx Plaid",
+        status: missingFromUI === 0 ? "pass" : "fail",
+        detail: `Visibles con filtros default (archived=false, project_id=null): ${visibleInUI} de ${totalPlaid}\n${missingFromUI > 0 ? `${missingFromUI} ocultas por algún filtro\n` : ""}Sample (3 más recientes):\n${JSON.stringify(plaidRows, null, 2)}`,
+      })
+    } catch (err) {
+      results.push({
+        name:   "D · Filtros UI sobre las tx Plaid",
         status: "fail",
         detail: `Error: ${(err as Error).message}`,
       })
