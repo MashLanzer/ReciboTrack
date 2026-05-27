@@ -125,13 +125,24 @@ export async function POST(req: NextRequest) {
           privacy:              "private",
         }))
 
+      // Insert manualmente filtrando duplicados — el partial unique index
+      // sobre (uid, plaid_transaction_id) WHERE plaid_transaction_id IS NOT NULL
+      // NO funciona con ON CONFLICT en Supabase, así que hacemos el dedup en JS.
       let inserted = 0
       if (rows.length > 0) {
-        const { error } = await sb
+        const txIds = rows.map(r => r.plaid_transaction_id)
+        const { data: existing } = await sb
           .from("expenses")
-          .upsert(rows, { onConflict: "uid,plaid_transaction_id", ignoreDuplicates: true })
-        if (error) throw error
-        inserted = rows.length
+          .select("plaid_transaction_id")
+          .eq("uid", auth.uid)
+          .in("plaid_transaction_id", txIds)
+        const existingSet = new Set((existing ?? []).map(r => r.plaid_transaction_id as string))
+        const newRows = rows.filter(r => !existingSet.has(r.plaid_transaction_id))
+        if (newRows.length > 0) {
+          const { error } = await sb.from("expenses").insert(newRows)
+          if (error) throw error
+          inserted = newRows.length
+        }
       }
 
       // Marcar el item como sincronizado
