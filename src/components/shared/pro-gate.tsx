@@ -4,6 +4,7 @@ import Link from "next/link"
 import type { ReactNode } from "react"
 import { useHasPlan, usePlan } from "@/hooks/use-plan"
 import type { Plan } from "@/lib/plan-config"
+import { Sparkles } from "lucide-react"
 
 interface UpgradePromptProps {
   feature:  string
@@ -18,7 +19,11 @@ function UpgradePrompt({ feature, required }: UpgradePromptProps) {
       <div className="text-3xl">{icon}</div>
       <p className="font-bold text-sm">Función {label}</p>
       <p className="text-xs text-muted-foreground">{feature} está disponible en el plan {label}</p>
-      <Link href="/pricing" className="inline-block rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground">
+      <Link
+        href="/pricing"
+        className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors"
+      >
+        <Sparkles className="h-3.5 w-3.5" />
         Ver planes
       </Link>
     </div>

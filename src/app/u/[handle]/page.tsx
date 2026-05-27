@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 import { getSupabase } from "@/lib/supabase/server"
+import Image from "next/image"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -91,14 +92,12 @@ export default async function PublicProfilePage({
           <div className="flex flex-col items-center -mt-12 px-6 pb-8">
             <div className="h-24 w-24 rounded-full border-4 border-background bg-muted overflow-hidden shadow-md">
               {profile.photo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <Image
                   src={profile.photo_url}
                   alt={profile.display_name ?? handle}
                   width={96}
                   height={96}
                   className="object-cover w-full h-full"
-                  referrerPolicy="no-referrer"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-primary/10 text-3xl font-bold text-primary">
