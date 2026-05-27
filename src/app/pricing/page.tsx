@@ -85,8 +85,20 @@ export default function PricingPage() {
         method: "POST",
         body: JSON.stringify({ plan }),
       })
-      const data = await res.json() as { ok?: boolean; error?: string }
-      if (!res.ok) { toast.error(data.error ?? "Error"); return }
+      const data = await res.json() as { ok?: boolean; error?: string; hint?: string }
+      if (!res.ok) {
+        // Si es el error específico de la migration, mostramos toast largo + ayuda
+        if (data.hint === "migration_025") {
+          toast.error("Falta correr migration 025 en Supabase", {
+            description: "El CHECK constraint todavía no acepta 'premium'. Mira la consola para el SQL.",
+            duration: 12000,
+          })
+          console.warn("[migration 025 missing] " + data.error)
+        } else {
+          toast.error(data.error ?? "Error", { duration: 8000 })
+        }
+        return
+      }
       toast.success(`Plan ${plan} activado (modo dev)`)
       queryClient.invalidateQueries({ queryKey: ["plan"] })
     } catch {

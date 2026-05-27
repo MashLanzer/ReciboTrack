@@ -49,6 +49,17 @@ export async function POST(req: NextRequest) {
     })
     .eq("uid", auth.uid)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // Mensaje específico cuando la migration 025 aún no se aplicó
+    // y el CHECK constraint sigue sin aceptar 'premium'.
+    if (error.code === "23514" || error.message?.toLowerCase().includes("check constraint")) {
+      return NextResponse.json({
+        error: "El CHECK constraint de profiles no acepta este plan. Corre la migration 025 en Supabase: ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_plan_check; ALTER TABLE profiles ADD CONSTRAINT profiles_plan_check CHECK (plan IN ('free','pro','premium'));",
+        code:  error.code,
+        hint:  "migration_025",
+      }, { status: 500 })
+    }
+    return NextResponse.json({ error: error.message, code: error.code }, { status: 500 })
+  }
   return NextResponse.json({ ok: true, plan })
 }
