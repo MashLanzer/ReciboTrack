@@ -9,7 +9,7 @@
  */
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
-import { requirePro } from "@/lib/plan"
+import { requirePremium } from "@/lib/plan"
 import { getPlaid, PLAID_PRODUCTS, PLAID_COUNTRY_CODES } from "@/lib/plaid"
 
 export async function POST(req: NextRequest) {
@@ -17,10 +17,10 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   try {
-    await requirePro(auth.uid)
+    await requirePremium(auth.uid)
   } catch {
     return NextResponse.json(
-      { error: "Bank sync requires Pro plan", upgrade: "/pricing" },
+      { error: "Bank sync requires Premium plan", upgrade: "/pricing" },
       { status: 402 },
     )
   }

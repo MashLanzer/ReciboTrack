@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
 import { getSupabase } from "@/lib/supabase/server"
+import { getUserPlan, PLAN_LIMITS } from "@/lib/plan"
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 
@@ -71,6 +72,29 @@ export async function POST(req: NextRequest) {
   if (!name) return NextResponse.json({ error: "El nombre es requerido" }, { status: 400 })
 
   const sb = getSupabase()
+
+  // Enforce el límite de workspaces según el plan
+  const userPlan = await getUserPlan(uid)
+  const maxWorkspaces = PLAN_LIMITS[userPlan].maxWorkspaces
+  if (Number.isFinite(maxWorkspaces)) {
+    const { count } = await sb
+      .from("workspaces")
+      .select("*", { count: "exact", head: true })
+      .eq("owner_uid", uid)
+    if ((count ?? 0) >= maxWorkspaces) {
+      const upsell = userPlan === "free"
+        ? "Actualiza a Pro para crear hasta 3 workspaces o Premium para ilimitados."
+        : "Actualiza a Premium para workspaces ilimitados."
+      return NextResponse.json(
+        {
+          error:   `Has alcanzado el límite de ${maxWorkspaces} workspaces del plan ${userPlan}. ${upsell}`,
+          upgrade: "/pricing",
+          limit:   maxWorkspaces,
+        },
+        { status: 402 },
+      )
+    }
+  }
 
   // Crear el espacio
   const { data: workspace, error: wsError } = await sb
