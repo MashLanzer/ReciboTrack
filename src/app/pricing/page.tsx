@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { Check, Sparkles, ArrowLeft, FlaskConical, Crown, Zap, Banknote } from "lucide-react"
@@ -48,6 +48,29 @@ export default function PricingPage() {
 
   const devAllowedUid = process.env.NEXT_PUBLIC_DEV_PRO_GRANT_UID
   const canDevGrant   = !!devAllowedUid && !!user && user.uid === devAllowedUid
+
+  // ── Easter egg para mostrar/ocultar el panel DEV ──
+  // 5 toques rápidos en el título "Planes" activan el panel. Sin persistencia:
+  // al salir de la página se oculta. Para reactivar, otros 5 toques.
+  const [devPanelVisible, setDevPanelVisible] = useState(false)
+  const tapCountRef    = React.useRef(0)
+  const tapTimerRef    = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function handleTitleTap() {
+    if (!canDevGrant) return  // sin env var no tiene sentido ni el easter egg
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current)
+    tapCountRef.current += 1
+    if (tapCountRef.current >= 5) {
+      setDevPanelVisible((v) => {
+        const next = !v
+        toast.success(next ? "Modo desarrollo activado" : "Modo desarrollo oculto")
+        return next
+      })
+      tapCountRef.current = 0
+    } else {
+      tapTimerRef.current = setTimeout(() => { tapCountRef.current = 0 }, 2000)
+    }
+  }
 
   async function handleSubscribe(plan: Plan) {
     if (!user) { router.push("/login?from=/pricing"); return }
@@ -128,7 +151,13 @@ export default function PricingPage() {
 
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-black tracking-tight">Planes</h1>
+          <h1
+            className="text-3xl font-black tracking-tight select-none cursor-default"
+            onClick={handleTitleTap}
+            title=""
+          >
+            Planes
+          </h1>
           <p className="text-muted-foreground">Elige el plan que mejor se adapte a ti</p>
         </div>
 
@@ -219,8 +248,8 @@ export default function PricingPage() {
           Pago seguro con Stripe · Cancela en cualquier momento · Sin cargos ocultos
         </p>
 
-        {/* DEV grant — visible solo al UID dev */}
-        {canDevGrant && (
+        {/* DEV grant — visible solo al UID dev Y tras activar easter egg */}
+        {canDevGrant && devPanelVisible && (
           <div className="rounded-2xl border-2 border-dashed border-amber-500/50 bg-amber-500/5 p-4 space-y-3">
             <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
               <FlaskConical className="h-4 w-4" />
