@@ -1,9 +1,17 @@
 /**
  * plaid-sync.ts — Core transaction sync logic.
  *
- * Usa /transactions/sync (modern endpoint, cursor-based). Llamado tanto desde
- * /api/plaid/exchange (sync inicial) como del webhook (Fase 2) y un eventual
- * "Sync now" manual.
+ * Originalmente usaba /transactions/sync (cursor-based, modern API). Sin
+ * embargo en Plaid Sandbox /transactions/sync devuelve added=[] aunque
+ * /transactions/get vea las tx — bug confirmado de Plaid. Refactorizamos
+ * a /transactions/get (legacy pero rock-solid). Trade-off: perdemos diff
+ * incremental nativo de Plaid (modified/removed), lo recuperamos con
+ * dedup manual + UPSERT por plaid_transaction_id en cada sync.
+ *
+ * Llamado desde:
+ *   - /api/plaid/exchange (sync inicial post-link)
+ *   - /api/plaid/items/[id]/sync (sync manual desde el botón ⟳)
+ *   - /api/plaid/webhook (auto-sync por evento SYNC_UPDATES_AVAILABLE etc.)
  */
 import type { Transaction } from "plaid"
 import { getPlaid } from "@/lib/plaid"
@@ -11,32 +19,27 @@ import { getSupabase } from "@/lib/supabase/server"
 
 export interface SyncResult {
   added:    number
-  modified: number
-  removed:  number
-  cursor:   string | null
+  modified: number  // siempre 0 con /transactions/get
+  removed:  number  // siempre 0 con /transactions/get
+  cursor:   string | null  // unused, mantenido por compat de retorno
 }
 
 /**
  * Mapea una transacción Plaid a una fila de `expenses`.
- * Solo importa transacciones SALIENTES (amount > 0 en Plaid = dinero saliendo).
- * Retorna `null` si la tx debe skipear (pendiente, income, etc.).
+ * Skip pending y skip income (amount <= 0).
  */
 function plaidTxToExpense(
   tx: Transaction,
   uid: string,
 ): Record<string, unknown> | null {
-  // Plaid `amount`: positivo = expense, negativo = income/refund.
-  // En Sandbox los amounts son siempre positivos para egresos.
   if (tx.pending) return null
-  if (tx.amount <= 0) return null  // Phase 1: solo gastos
+  if (tx.amount <= 0) return null
 
   const merchant =
     tx.merchant_name?.trim() ||
     tx.name?.trim() ||
     "Sin descripción"
 
-  // Categoría: priorizar personal_finance_category (la nueva taxonomía),
-  // fallback al array `category` deprecated, fallback a "otros".
   const category =
     tx.personal_finance_category?.primary?.toLowerCase().replace(/_/g, " ") ||
     tx.category?.[0]?.toLowerCase() ||
@@ -62,17 +65,27 @@ function plaidTxToExpense(
 }
 
 /**
- * Sync transacciones para un item de Plaid.
- * Loopea hasta que has_more=false, actualizando el cursor en DB.
+ * Sync transacciones para un item de Plaid usando /transactions/get.
+ *
+ * Estrategia de rango de fechas:
+ *  - Primer sync (last_synced_at == null): pull de los últimos 2 años
+ *    (Plaid generalmente expone ese histórico para Production; en Sandbox
+ *    son los ~24 tx ficticias).
+ *  - Sync subsecuente: pull de los últimos 30 días — suficiente para
+ *    capturar tx nuevas + tx pending que pasaron a settled. El resto se
+ *    asume estable (ya importado y los IDs son inmutables en Plaid).
+ *
+ * Idempotente: se puede llamar N veces seguidas sin generar duplicados
+ * porque dedupeamos manualmente por (uid, plaid_transaction_id) antes
+ * del INSERT.
  */
 export async function syncTransactions(itemId: string): Promise<SyncResult> {
   const sb    = getSupabase()
   const plaid = getPlaid()
 
-  // 1. Cargar item con su access_token y cursor actual
   const { data: item, error: itemErr } = await sb
     .from("plaid_items")
-    .select("uid, access_token, cursor")
+    .select("uid, access_token, last_synced_at")
     .eq("id", itemId)
     .single()
 
@@ -80,97 +93,66 @@ export async function syncTransactions(itemId: string): Promise<SyncResult> {
     throw new Error(`[plaid-sync] item ${itemId} no encontrado: ${itemErr?.message}`)
   }
 
-  let cursor: string | null = item.cursor
-  let totalAdded    = 0
-  let totalModified = 0
-  let totalRemoved  = 0
+  // Calcular rango de fechas
+  const today = new Date()
+  const endDate = today.toISOString().slice(0, 10)
+  const startDate = (() => {
+    const d = new Date(today)
+    if (item.last_synced_at) {
+      d.setDate(d.getDate() - 30)  // sync incremental: últimos 30 días
+    } else {
+      d.setFullYear(d.getFullYear() - 2)  // sync inicial: 2 años
+    }
+    return d.toISOString().slice(0, 10)
+  })()
 
-  // 2. Loop /transactions/sync hasta agotar
-  while (true) {
-    const res = await plaid.transactionsSync({
+  // Paginated pull
+  const allTxs: Transaction[] = []
+  const count = 100
+  let offset = 0
+  let safety = 0
+  while (safety++ < 100) {  // hasta 10k tx
+    const res = await plaid.transactionsGet({
       access_token: item.access_token,
-      cursor:       cursor ?? undefined,
-      count:        500,
+      start_date:   startDate,
+      end_date:     endDate,
+      options:      { offset, count },
     })
-
-    const { added, modified, removed, next_cursor, has_more } = res.data
-
-    // ─── Added: insertar nuevos, descartando duplicados ─────────────────
-    // Nota: el partial unique index (uid, plaid_transaction_id) WHERE
-    // plaid_transaction_id IS NOT NULL no es compatible con ON CONFLICT
-    // de Supabase. Hacemos el dedup manualmente.
-    if (added.length > 0) {
-      const rows = added
-        .map((tx) => plaidTxToExpense(tx, item.uid))
-        .filter((r): r is Record<string, unknown> => r !== null)
-
-      if (rows.length > 0) {
-        const txIds = rows.map(r => r.plaid_transaction_id as string)
-        const { data: existing } = await sb
-          .from("expenses")
-          .select("plaid_transaction_id")
-          .eq("uid", item.uid)
-          .in("plaid_transaction_id", txIds)
-        const existingSet = new Set((existing ?? []).map(r => r.plaid_transaction_id as string))
-        const newRows = rows.filter(r => !existingSet.has(r.plaid_transaction_id as string))
-        if (newRows.length > 0) {
-          const { error } = await sb.from("expenses").insert(newRows)
-          if (error) console.error("[plaid-sync] insert added failed", error)
-          else totalAdded += newRows.length
-        }
-      }
-    }
-
-    // ─── Modified: update por plaid_transaction_id ───
-    for (const tx of modified) {
-      const row = plaidTxToExpense(tx, item.uid)
-      if (!row) continue
-      const { error } = await sb
-        .from("expenses")
-        .update(row)
-        .eq("uid", item.uid)
-        .eq("plaid_transaction_id", tx.transaction_id)
-      if (error) console.error("[plaid-sync] update modified failed", error)
-      else totalModified++
-    }
-
-    // ─── Removed: borrar el expense correspondiente ───
-    if (removed.length > 0) {
-      const ids = removed.map((r) => r.transaction_id).filter(Boolean) as string[]
-      if (ids.length > 0) {
-        const { error } = await sb
-          .from("expenses")
-          .delete()
-          .eq("uid", item.uid)
-          .in("plaid_transaction_id", ids)
-        if (error) console.error("[plaid-sync] delete removed failed", error)
-        else totalRemoved += ids.length
-      }
-    }
-
-    cursor = next_cursor
-    if (!has_more) break
+    const got = res.data.transactions ?? []
+    allTxs.push(...got)
+    if (allTxs.length >= (res.data.total_transactions ?? 0)) break
+    if (got.length === 0) break
+    offset += got.length
   }
 
-  // 3. Persistir el cursor y la marca de tiempo.
-  //
-  // Caveat de Plaid Sandbox / cold-start: si llamamos /transactions/sync
-  // ANTES de que Plaid termine la historical fetch del item, devuelve
-  // added=[], modified=[], removed=[] PERO te da un cursor válido. Si lo
-  // guardamos, los syncs subsecuentes piden "diff desde ese punto" y
-  // Plaid responde "nada nuevo" para siempre, aunque luego haya 24 tx.
-  //
-  // Fix: solo persistimos el cursor si efectivamente importamos algo.
-  // Si todo vino vacío y no había cursor previo, dejamos cursor=NULL —
-  // así el próximo sync (manual o por webhook) arranca desde cero y
-  // Plaid devuelve toda la historia cuando ya esté lista.
-  const importedNothing = totalAdded === 0 && totalModified === 0 && totalRemoved === 0
-  const cursorToSave = (importedNothing && !item.cursor) ? null : cursor
+  // Convertir a filas de expenses
+  const rows = allTxs
+    .map(tx => plaidTxToExpense(tx, item.uid))
+    .filter((r): r is Record<string, unknown> => r !== null)
 
+  // Dedup manual (el partial unique index no funciona con ON CONFLICT en
+  // Supabase, hacemos el filtrado en JS)
+  let totalAdded = 0
+  if (rows.length > 0) {
+    const txIds = rows.map(r => r.plaid_transaction_id as string)
+    const { data: existing } = await sb
+      .from("expenses")
+      .select("plaid_transaction_id")
+      .eq("uid", item.uid)
+      .in("plaid_transaction_id", txIds)
+    const existingSet = new Set((existing ?? []).map(r => r.plaid_transaction_id as string))
+    const newRows = rows.filter(r => !existingSet.has(r.plaid_transaction_id as string))
+    if (newRows.length > 0) {
+      const { error } = await sb.from("expenses").insert(newRows)
+      if (error) console.error("[plaid-sync] insert failed", error)
+      else totalAdded = newRows.length
+    }
+  }
+
+  // Marcar el item como sincronizado
   await sb
     .from("plaid_items")
     .update({
-      cursor:          cursorToSave,
       last_synced_at:  new Date().toISOString(),
       status:          "active",
       error_code:      null,
@@ -179,5 +161,5 @@ export async function syncTransactions(itemId: string): Promise<SyncResult> {
     })
     .eq("id", itemId)
 
-  return { added: totalAdded, modified: totalModified, removed: totalRemoved, cursor: cursorToSave }
+  return { added: totalAdded, modified: 0, removed: 0, cursor: null }
 }
