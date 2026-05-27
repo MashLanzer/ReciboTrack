@@ -8,10 +8,15 @@ import { ExpenseGridView }       from "@/components/expenses/expense-grid-view"
 import { FlaggedExpensesPanel }  from "@/components/expenses/flagged-expenses-panel"
 import { ArchivedExpensesSection } from "@/components/expenses/archived-expenses-section"
 import { Skeleton }              from "@/components/ui/skeleton"
+import { Button }                from "@/components/ui/button"
 import { ViewToggle, type ViewMode } from "@/components/expenses/view-toggle"
 import { ShareSummary }          from "@/components/expenses/share-summary"
 import { ImportStatementButton } from "@/components/expenses/import-statement-button"
+import { BankImportDialog }      from "@/components/expenses/bank-import-dialog"
+import { BankConnectCard }       from "@/components/expenses/bank-connect-card"
 import { useUIPrefs }            from "@/hooks/use-ui-prefs"
+import { useExportExpensesCSV }  from "@/hooks/use-export"
+import { Download, Building2 }   from "lucide-react"
 
 function isViewMode(v: unknown): v is ViewMode {
   return v === "list" || v === "cal" || v === "threads" || v === "grid"
@@ -74,9 +79,21 @@ function ViewPanel({ view }: { view: ViewMode }) {
 export default function ExpensesPage() {
   const { prefs, setPref } = useUIPrefs()
   const view: ViewMode = isViewMode(prefs.expensesView) ? prefs.expensesView : "list"
+  const exportCSV = useExportExpensesCSV()
+  const [exporting, setExporting] = useState(false)
+  const [bankImportOpen, setBankImportOpen] = useState(false)
 
   function setView(v: ViewMode) {
     setPref("expensesView", v)
+  }
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      await exportCSV()
+    } finally {
+      setExporting(false)
+    }
   }
 
   return (
@@ -90,7 +107,27 @@ export default function ExpensesPage() {
           {/* Acciones secundarias — sólo en desktop (son features avanzadas) */}
           <div className="hidden md:flex items-center gap-2">
             <ImportStatementButton />
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 shrink-0"
+              onClick={() => setBankImportOpen(true)}
+              title="Importar banco"
+              aria-label="Importar extracto bancario"
+            >
+              <Building2 className="h-4 w-4" />
+            </Button>
             <ShareSummary />
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={handleExport}
+              disabled={exporting}
+            >
+              <Download className="h-4 w-4" />
+              {exporting ? "Exportando…" : "Exportar CSV"}
+            </Button>
           </div>
           <ViewToggle current={view} onChange={setView} />
         </div>
@@ -103,10 +140,17 @@ export default function ExpensesPage() {
 
       <ViewPanel view={view} />
 
+      {/* Bank connections */}
+      <div className="mt-6">
+        <BankConnectCard />
+      </div>
+
       {/* Archived expenses */}
       <div className="mt-6">
         <ArchivedExpensesSection />
       </div>
+
+      <BankImportDialog open={bankImportOpen} onClose={() => setBankImportOpen(false)} />
     </div>
   )
 }

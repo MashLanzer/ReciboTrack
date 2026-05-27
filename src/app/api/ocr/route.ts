@@ -118,42 +118,62 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "GROQ_API_KEY no configurada" }, { status: 500 })
       }
 
-      // Usar el modelo de visión de Groq (Llama 3.2 11B Vision)
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${groqKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "llama-3.2-11b-vision-preview",
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: PROMPT },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:${safeType};base64,${base64}`,
-                  },
-                },
-              ],
-            },
-          ],
-          temperature: 0.1,
-          max_tokens: 2048,
-          response_format: { type: "json_object" },
-        }),
-      })
+      // Intentar con meta-llama/llama-4-scout primero, luego llama-3.2-11b-vision como fallback
+      const GROQ_MODELS = [
+        "meta-llama/llama-4-scout-17b-16e-instruct",
+        "llama-3.2-11b-vision-preview",
+        "llama-3.2-90b-vision-preview",
+      ]
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(`Groq API error: ${res.status} ${JSON.stringify(errData)}`)
+      let groqSuccess = false
+      for (const groqModel of GROQ_MODELS) {
+        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${groqKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: groqModel,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: PROMPT },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: `data:${safeType};base64,${base64}`,
+                    },
+                  },
+                ],
+              },
+            ],
+            temperature: 0.1,
+            max_tokens: 2048,
+            response_format: { type: "json_object" },
+          }),
+        })
+
+        if (groqRes.ok) {
+          const data = await groqRes.json()
+          cleanText = data.choices?.[0]?.message?.content || ""
+          groqSuccess = true
+          break
+        }
+
+        const errData = await groqRes.json().catch(() => ({})) as Record<string, unknown>
+        console.warn(`[OCR] Groq model ${groqModel} failed: ${groqRes.status}`, errData)
+
+        // If rate limited, don't try next model
+        if (groqRes.status === 429) {
+          throw new Error(`Groq API error: 429 ${JSON.stringify(errData)}`)
+        }
       }
 
-      const data = await res.json()
-      cleanText = data.choices[0]?.message?.content || ""
+      if (!groqSuccess && !cleanText) {
+        throw new Error("Groq API: todos los modelos fallaron")
+      }
     } else {
       // Gemini (default)
       const geminiKey = process.env.GEMINI_API_KEY

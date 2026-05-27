@@ -3,13 +3,13 @@
 import { useState } from "react"
 import { useCategories, useAddCategory, useUpdateCategory, useDeleteCategory } from "@/hooks/use-categories"
 import type { CategoryDoc } from "@/types"
-import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { CategorySortList } from "@/components/settings/category-sort-list"
 import { toast } from "sonner"
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react"
 
@@ -99,70 +99,33 @@ export function CategoriesManager() {
         onConfirm={confirmDelete}
       />
 
-      <div>
-        <div className="flex items-center gap-3 mb-3">
-          <div className="h-px flex-1 bg-border/50" />
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground shrink-0">Predeterminadas</p>
-          <div className="h-px flex-1 bg-border/50" />
-        </div>
-        <div className="grid gap-1.5">
-          {defaults.map((cat) => (
-            <div
-              key={cat.id}
-              className="group flex items-center gap-3 py-2.5 px-3 rounded-xl border bg-card border-l-[3px] transition-all duration-150 hover:bg-muted/40 hover:shadow-sm"
-              style={{ borderLeftColor: cat.color }}
-            >
-              <div
-                className="h-8 w-8 rounded-lg flex items-center justify-center text-base shrink-0"
-                style={{ backgroundColor: `${cat.color}20` }}
-              >
-                {cat.icon}
-              </div>
-              <p className="text-sm font-medium flex-1 truncate">{cat.name}</p>
-              <div className="h-2 w-2 rounded-full shrink-0 opacity-50" style={{ backgroundColor: cat.color }} />
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Predeterminadas — draggable to reorder */}
+      <CategorySortList
+        categories={defaults}
+        label="Predeterminadas"
+      />
 
+      {/* Personalizadas — draggable with edit/delete actions */}
       {custom.length > 0 && (
-        <div>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="h-px flex-1 bg-border/50" />
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground shrink-0">Personalizadas</p>
-            <div className="h-px flex-1 bg-border/50" />
-          </div>
-          <div className="grid gap-1.5">
-            {custom.map((cat) => (
-              <div
-                key={cat.id}
-                className="group flex items-center gap-3 py-2.5 px-3 rounded-xl border bg-card border-l-[3px] transition-all duration-150 hover:bg-muted/40 hover:shadow-sm"
-                style={{ borderLeftColor: cat.color }}
+        <CategorySortList
+          categories={custom}
+          label="Personalizadas"
+          renderActions={(cat) => (
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(cat)}>
+                <Edit className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                onClick={() => handleDelete(cat)}
               >
-                <div
-                  className="h-8 w-8 rounded-lg flex items-center justify-center text-base shrink-0"
-                  style={{ backgroundColor: `${cat.color}20` }}
-                >
-                  {cat.icon}
-                </div>
-                <p className="text-sm font-semibold flex-1 truncate">{cat.name}</p>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(cat)}>
-                    <Edit className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                    onClick={() => handleDelete(cat)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+        />
       )}
 
       <Button className="w-full gap-2" variant="outline" onClick={openCreate}>

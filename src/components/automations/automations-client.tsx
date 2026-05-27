@@ -11,11 +11,13 @@ import {
   type AutomationAction,
 } from "@/hooks/use-automations"
 import { toast } from "sonner"
-import { Plus, Trash2, Zap, ToggleLeft, ToggleRight, Pencil } from "lucide-react"
+import { Plus, Trash2, Zap, ToggleLeft, ToggleRight, Pencil, FlaskConical } from "lucide-react"
+import { formatDistanceToNow } from "date-fns"
+import { es } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   Select,
@@ -48,6 +50,42 @@ function triggerDescription(rule: AutomationRule): string {
     case "budget_pct":    return `presupuesto > ${rule.triggerValue}%`
     case "category_over": return `${rule.triggerCategory ?? "categoría"} > ${rule.triggerValue}`
     case "recurring_due": return `vence en ${rule.triggerValue} días`
+  }
+}
+
+function rulePreview(rule: AutomationRule): string {
+  const trigger = (() => {
+    switch (rule.trigger) {
+      case "expense_over":  return `un gasto supera $${rule.triggerValue}`
+      case "budget_pct":    return `el presupuesto supera el ${rule.triggerValue}%`
+      case "category_over": return `"${rule.triggerCategory}" supera $${rule.triggerValue}`
+      case "recurring_due": return `un recurrente vence en ${rule.triggerValue} días`
+    }
+  })()
+  const action = (() => {
+    switch (rule.action) {
+      case "webhook":      return `enviar webhook`
+      case "notification": return `notificar: "${rule.actionValue}"`
+      case "tag":          return `etiquetar como "${rule.actionValue}"`
+    }
+  })()
+  return `Cuando ${trigger}, ${action}`
+}
+
+function triggerValueMeta(trigger: AutomationTrigger): { label: string; placeholder: string } {
+  switch (trigger) {
+    case "expense_over":  return { label: "Monto límite ($)", placeholder: "100" }
+    case "budget_pct":    return { label: "Porcentaje (%)", placeholder: "80" }
+    case "category_over": return { label: "Monto límite en categoría ($)", placeholder: "500" }
+    case "recurring_due": return { label: "Días de anticipación", placeholder: "3" }
+  }
+}
+
+function actionValueMeta(action: AutomationAction): { label: string; placeholder: string } {
+  switch (action) {
+    case "webhook":      return { label: "URL del webhook", placeholder: "https://hooks.zapier.com/..." }
+    case "notification": return { label: "Mensaje de la notificación", placeholder: "¡Atención! Presupuesto al límite" }
+    case "tag":          return { label: "Etiqueta a aplicar", placeholder: "Por-revisar" }
   }
 }
 
@@ -122,6 +160,7 @@ function RuleCard({
               {rule.actionValue}
             </p>
           )}
+          <p className="text-xs text-muted-foreground mt-1 italic">{rulePreview(rule)}</p>
         </div>
 
         <div className="flex items-center gap-0.5 shrink-0">
@@ -155,8 +194,8 @@ function RuleCard({
         <div className="flex items-center gap-1.5 pl-12">
           <div className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
           <p className="text-xs text-muted-foreground">
-            Ejecutada{" "}
-            {rule.lastFiredAt.toDate().toLocaleDateString("es", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+            Último disparo:{" "}
+            {formatDistanceToNow(rule.lastFiredAt.toDate(), { locale: es, addSuffix: true })}
           </p>
         </div>
       )}
@@ -215,16 +254,14 @@ function RuleDialog({
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className={`grid gap-2 ${form.trigger === "category_over" ? "grid-cols-2" : "grid-cols-1"}`}>
             <div>
-              <Label className="text-xs mb-1 block">
-                {form.trigger === "budget_pct" ? "Porcentaje (%)" :
-                  form.trigger === "recurring_due" ? "Días antes" : "Importe"}
-              </Label>
+              <Label className="text-xs mb-1 block">{triggerValueMeta(form.trigger).label}</Label>
               <Input
                 type="number" inputMode="decimal"
                 value={form.triggerValue}
                 onChange={(e) => set("triggerValue", e.target.value)}
+                placeholder={triggerValueMeta(form.trigger).placeholder}
                 className="h-8 text-sm tabular-nums"
                 min={0}
               />
@@ -254,28 +291,39 @@ function RuleDialog({
             </Select>
           </div>
 
-          {(form.action === "webhook" || form.action === "tag") && (
-            <div>
-              <Label className="text-xs mb-1 block">
-                {form.action === "webhook" ? "URL del webhook" : "Etiqueta"}
-              </Label>
-              <Input
-                value={form.actionValue}
-                onChange={(e) => set("actionValue", e.target.value)}
-                placeholder={form.action === "webhook" ? "https://..." : "gran-gasto"}
-                className="h-8 text-sm"
-              />
-            </div>
-          )}
-
-          <Button
-            className="w-full"
-            onClick={() => onSave(form)}
-            disabled={saving || !form.name.trim()}
-          >
-            {initial.name ? "Guardar cambios" : "Crear automatización"}
-          </Button>
+          <div>
+            <Label className="text-xs mb-1 block">{actionValueMeta(form.action).label}</Label>
+            <Input
+              value={form.actionValue}
+              onChange={(e) => set("actionValue", e.target.value)}
+              placeholder={actionValueMeta(form.action).placeholder}
+              className="h-8 text-sm"
+            />
+          </div>
         </div>
+
+        <DialogFooter className="flex justify-between gap-2 mt-4">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => toast.info("Función de prueba disponible próximamente")}
+          >
+            <FlaskConical className="h-3.5 w-3.5" />
+            Probar regla
+          </Button>
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
+            <Button
+              onClick={() => onSave(form)}
+              disabled={saving || !form.name.trim()}
+              size="sm"
+            >
+              {initial.name ? "Guardar cambios" : "Crear automatización"}
+            </Button>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

@@ -19,12 +19,13 @@ import {
   LayoutDashboard, Receipt, BarChart2, Users, RefreshCw,
   PiggyBank, Tag, ScanLine, Plus, Settings, X,
   ArrowRight, Search, Sun, Moon, TrendingUp, Briefcase,
-  Target, Plane, Zap,
+  Target, Plane, Zap, Loader2, FolderKanban, User,
 } from "lucide-react"
 import { useMyGroups } from "@/hooks/use-groups"
 import { useGoals } from "@/hooks/use-goals"
 import { useRecurring } from "@/hooks/use-recurring"
 import { useCategoryBudgets } from "@/hooks/use-category-budgets"
+import { useGlobalSearch } from "@/hooks/use-global-search"
 
 // ─── Quick-search hook (last 150 expenses, cached 5 min) ─────────────────────
 
@@ -85,9 +86,16 @@ export function CommandPalette() {
 
   const allCats = categories.length > 0 ? categories : DEFAULT_CATEGORIES
 
+  const { data: globalSearch, isFetching: isSearching } = useGlobalSearch(searchValue)
+
   // Filter helper
   const q = searchValue.toLowerCase()
   const matchStr = (s: string) => !q || s.toLowerCase().includes(q)
+
+  const hasGlobalResults =
+    searchValue.length >= 2 &&
+    globalSearch &&
+    globalSearch.total > 0
 
   // Keyboard shortcut: Cmd+K / Ctrl+K
   useEffect(() => {
@@ -159,9 +167,106 @@ export function CommandPalette() {
             <Command.Empty>
               <div className="flex flex-col items-center py-8 text-muted-foreground gap-2">
                 <Search className="h-8 w-8 opacity-30" />
-                <p className="text-sm">Sin resultados</p>
+                <p className="text-sm">
+                  {searchValue.length >= 2
+                    ? `Sin resultados para "${searchValue}"`
+                    : "Sin resultados"}
+                </p>
               </div>
             </Command.Empty>
+
+            {/* ── Global search spinner ── */}
+            {searchValue.length >= 2 && isSearching && (
+              <div className="flex items-center justify-center py-4 text-muted-foreground gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-xs">Buscando...</span>
+              </div>
+            )}
+
+            {/* ── Global search results ── */}
+            {hasGlobalResults && (
+              <>
+                {globalSearch.results.expenses.length > 0 && (
+                  <ActionGroup heading="Gastos">
+                    {globalSearch.results.expenses.map((e) => {
+                      const cat = allCats.find((c) => c.id === e.category)
+                      return (
+                        <ActionItem
+                          key={e.id}
+                          icon={<Receipt className="h-4 w-4" />}
+                          iconClassName="bg-primary/10 text-primary"
+                          label={e.merchant}
+                          sub={`${formatCurrency(e.total, e.currency)} · ${format(new Date(e.date), "d MMM yyyy", { locale: es })}`}
+                          value={`gasto ${e.merchant.toLowerCase()} ${cat?.name ?? ""}`}
+                          onSelect={() => go(`/expenses?q=${encodeURIComponent(e.merchant)}`)}
+                          badge={<ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                        />
+                      )
+                    })}
+                  </ActionGroup>
+                )}
+
+                {globalSearch.results.clients.length > 0 && (
+                  <ActionGroup heading="Clientes">
+                    {globalSearch.results.clients.map((c) => (
+                      <ActionItem
+                        key={c.id}
+                        icon={<User className="h-4 w-4" />}
+                        iconClassName="bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                        label={c.name}
+                        sub={c.email ?? undefined}
+                        value={`cliente ${c.name.toLowerCase()} ${c.email ?? ""}`}
+                        onSelect={() => go("/clients")}
+                        badge={<ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                      />
+                    ))}
+                  </ActionGroup>
+                )}
+
+                {globalSearch.results.projects.length > 0 && (
+                  <ActionGroup heading="Proyectos">
+                    {globalSearch.results.projects.map((p) => (
+                      <ActionItem
+                        key={p.id}
+                        icon={<FolderKanban className="h-4 w-4" />}
+                        iconClassName="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                        label={p.name}
+                        sub={p.status}
+                        value={`proyecto ${p.name.toLowerCase()} ${p.status}`}
+                        onSelect={() => go(`/projects?project=${p.id}`)}
+                        badge={
+                          p.color ? (
+                            <span
+                              className="h-2.5 w-2.5 rounded-full shrink-0"
+                              style={{ backgroundColor: p.color }}
+                            />
+                          ) : (
+                            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                          )
+                        }
+                      />
+                    ))}
+                  </ActionGroup>
+                )}
+
+                {globalSearch.results.recurring.length > 0 && (
+                  <ActionGroup heading="Recurrentes">
+                    {globalSearch.results.recurring.map((r) => (
+                      <ActionItem
+                        key={r.id}
+                        icon={<RefreshCw className="h-4 w-4" />}
+                        iconClassName="bg-warning/10 text-warning"
+                        label={r.merchant}
+                        sub={formatCurrency(r.total, r.currency)}
+                        value={`recurrente ${r.merchant.toLowerCase()}`}
+                        onSelect={() => go("/recurring")}
+                        badge={<ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                      />
+                    ))}
+                  </ActionGroup>
+                )}
+              </>
+            )}
 
             {/* ── Quick actions ── */}
             <ActionGroup heading="Acciones rápidas">

@@ -27,10 +27,15 @@ interface UIStore {
   setRoundupExpense: (expense: Expense | null) => void
   balanceHidden: boolean
   toggleBalanceHidden: () => void
+  expenseViewMode: "card" | "compact"
+  setExpenseViewMode: (mode: "card" | "compact") => void
   // Vacation mode (NOT persisted — resets on page refresh)
   vacationMode: { active: boolean; endsAt: number | null }
   isVacationActive: boolean
   setVacationMode: (days: number | null) => void
+  // Active workspace for filtering (optional, NOT persisted — resets on refresh)
+  activeWorkspaceId: string | null
+  setActiveWorkspaceId: (id: string | null) => void
 }
 
 export const useUIStore = create<UIStore>()(
@@ -56,6 +61,8 @@ export const useUIStore = create<UIStore>()(
       setRoundupExpense: (expense) => set({ roundupExpense: expense }),
       balanceHidden: false,
       toggleBalanceHidden: () => set((s) => ({ balanceHidden: !s.balanceHidden })),
+      expenseViewMode: "card",
+      setExpenseViewMode: (mode) => set({ expenseViewMode: mode }),
       // Vacation mode (NOT persisted — resets on page refresh)
       vacationMode: { active: false, endsAt: null },
       isVacationActive: false,
@@ -66,11 +73,14 @@ export const useUIStore = create<UIStore>()(
         const endsAt = Date.now() + days * 86400000
         return { vacationMode: { active: true, endsAt }, isVacationActive: true }
       }),
+      // Active workspace (NOT persisted)
+      activeWorkspaceId: null,
+      setActiveWorkspaceId: (id) => set({ activeWorkspaceId: id }),
     }),
     {
       name: "recibotrack-ui",
-      // Only persist the account preference, not transient UI state
-      partialize: (state) => ({ activeAccount: state.activeAccount }),
+      // Only persist the account preference and view mode preference, not transient UI state
+      partialize: (state) => ({ activeAccount: state.activeAccount, expenseViewMode: state.expenseViewMode }),
     }
   )
 )

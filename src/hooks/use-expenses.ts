@@ -487,6 +487,54 @@ export function useFlagExpense() {
   })
 }
 
+export function useBulkDeleteExpenses() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!user) throw new Error("No autenticado")
+      const res = await apiFetch("/api/expenses/bulk", {
+        method: "DELETE",
+        body: JSON.stringify({ ids }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(err.error ?? "Error al eliminar gastos")
+      }
+    },
+    onSuccess: () => {
+      haptic.medium()
+      queryClient.invalidateQueries({ queryKey: ["expenses"] })
+      queryClient.invalidateQueries({ queryKey: ["expenses-month", user?.uid] })
+    },
+  })
+}
+
+export function useBulkUpdateExpenses() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ ids, updates }: { ids: string[]; updates: { category?: string; tags?: string[]; archived?: boolean } }) => {
+      if (!user) throw new Error("No autenticado")
+      const res = await apiFetch("/api/expenses/bulk", {
+        method: "PATCH",
+        body: JSON.stringify({ ids, updates }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(err.error ?? "Error al actualizar gastos")
+      }
+    },
+    onSuccess: () => {
+      haptic.light()
+      queryClient.invalidateQueries({ queryKey: ["expenses"] })
+      queryClient.invalidateQueries({ queryKey: ["expenses-month", user?.uid] })
+    },
+  })
+}
+
 export function useFlaggedExpenses() {
   const { user } = useAuth()
 

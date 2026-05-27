@@ -3,6 +3,7 @@
   "short_name": "ReciboTrack",
   "description": "Escanea recibos y controla tus gastos con IA",
   "start_url": "/dashboard/",
+  "id": "/dashboard/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],

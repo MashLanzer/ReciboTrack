@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
 import { getSupabase } from "@/lib/supabase/server"
+import { checkAndGrantAchievements } from "@/lib/check-achievements"
 
 const PER_PAGE = 10
 
@@ -230,6 +231,9 @@ export async function POST(req: NextRequest) {
       }
     } catch { /* vincular es best-effort */ }
   }
+
+  // Check and grant achievements (best-effort, non-blocking)
+  checkAndGrantAchievements(uid).catch(() => {})
 
   return NextResponse.json({ id: data?.id }, { status: 201 })
 }

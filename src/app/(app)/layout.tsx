@@ -22,6 +22,8 @@ import { GeolocationWatcher } from "@/components/notifications/geolocation-watch
 import { PullToRefresh } from "@/components/shared/pull-to-refresh"
 import { ScrollToTop } from "@/components/shared/scroll-to-top"
 import { PageTransition } from "@/components/shared/page-transition"
+import { RealtimeSyncProvider } from "@/components/shared/realtime-sync-provider"
+import { KeyboardShortcutsProvider } from "@/components/shared/keyboard-shortcuts-provider"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -44,6 +46,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <RoundUpWatcher />
       <AutomationWatcher />
       <GeolocationWatcher />
+      <RealtimeSyncProvider />
+      <KeyboardShortcutsProvider>
       <div className="flex flex-col min-h-screen">
         <TopNav />
         <UpdateBanner />
@@ -54,6 +58,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <ScrollToTop />
         <BottomNav />
       </div>
+      </KeyboardShortcutsProvider>
       </AppLock>
     </AuthGuard>
   )

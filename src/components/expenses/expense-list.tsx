@@ -22,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
-import { Search, MoreHorizontal, Trash2, Edit, Copy, Image, ChevronLeft, ChevronRight, Filter, Tag, X, Upload, Sheet, Loader2, CalendarRange, Calendar, CheckSquare, Square, CheckCheck, Layers, Receipt, SlidersHorizontal, ChevronDown, ScanLine, PenLine, Plus, Scissors } from "lucide-react"
+import { Search, MoreHorizontal, Trash2, Edit, Copy, Image, ChevronLeft, ChevronRight, Filter, Tag, X, Upload, Sheet, Loader2, CalendarRange, Calendar, CheckSquare, Square, CheckCheck, Layers, Receipt, SlidersHorizontal, ChevronDown, ScanLine, PenLine, Plus, Scissors, LayoutList, LayoutGrid } from "lucide-react"
 import { startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subDays, format as fmtDate, parseISO, isValid, isToday, isYesterday } from "date-fns"
 import { es } from "date-fns/locale"
 import { ExpenseEditDialog } from "./expense-edit-dialog"
@@ -38,6 +38,7 @@ import { useUIStore } from "@/stores/ui-store"
 import { AccountBadge } from "@/components/shared/account-switcher"
 import { useUserSettings, useUpdateUserSettings } from "@/hooks/use-user-settings"
 import { useUIPrefs } from "@/hooks/use-ui-prefs"
+import { BulkActionsBar } from "./bulk-actions-bar"
 
 export function ExpenseList() {
   const router = useRouter()
@@ -74,11 +75,9 @@ export function ExpenseList() {
   const [datePickerOpen, setDatePickerOpen] = useState(false)
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [bulkCatOpen, setBulkCatOpen] = useState(false)
-  const [bulkCatValue, setBulkCatValue] = useState("")
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
-  const { activeAccount, setScannerOpen, setQuickAddOpen } = useUIStore()
+  const { activeAccount, setScannerOpen, setQuickAddOpen, expenseViewMode, setExpenseViewMode } = useUIStore()
 
   // ── Touch device detection (for filter sheet vs inline panel) ──────────
   const [isTouchDevice, setIsTouchDevice] = useState(false)
@@ -100,16 +99,18 @@ export function ExpenseList() {
   // ── Compact mode — sincronizado con Firestore (compactView en UserSettings) ─
   const { data: settings } = useUserSettings()
   const updateSettings = useUpdateUserSettings()
-  const [compactMode, setCompactMode] = useState(false)
-  // Sync initial value from Firestore settings (cross-device)
+  const [compactMode, setCompactMode] = useState(expenseViewMode === "compact")
+  // Sync initial value from Firestore settings (cross-device), store takes precedence if set
   useEffect(() => {
     if (settings?.compactView !== undefined) {
-      setCompactMode(settings.compactView)
+      const storeCompact = expenseViewMode === "compact"
+      setCompactMode(storeCompact || settings.compactView)
     }
-  }, [settings?.compactView])
+  }, [settings?.compactView, expenseViewMode])
   function toggleCompact() {
     const next = !compactMode
     setCompactMode(next)
+    setExpenseViewMode(next ? "compact" : "card")
     void updateSettings.mutate({ compactView: next })
   }
 
@@ -367,7 +368,6 @@ export function ExpenseList() {
 
   async function handleBulkCategory(categoryId: string) {
     const ids = [...selectedIds]
-    setBulkCatOpen(false)
     exitSelectMode()
     await Promise.all(ids.map((id) => updateExpense.mutateAsync({ id, input: { category: categoryId } })))
     toast.success(`Categoría actualizada en ${ids.length} gasto${ids.length !== 1 ? "s" : ""}`)
@@ -490,6 +490,17 @@ export function ExpenseList() {
               {activeFilterCount}
             </Badge>
           )}
+        </Button>
+
+        {/* Vista compacta / normal toggle */}
+        <Button
+          variant={compactMode ? "default" : "outline"}
+          size="sm"
+          className="h-9 w-9 p-0 shrink-0"
+          title={compactMode ? "Vista normal" : "Vista compacta"}
+          onClick={() => { haptic.light(); toggleCompact() }}
+        >
+          {compactMode ? <LayoutList className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
         </Button>
 
         {/* Actions + view overflow */}
@@ -1176,100 +1187,15 @@ export function ExpenseList() {
         categories={categories}
       />
 
-      {/* ── Sticky bulk action bar ── */}
-      {selectMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-16 md:bottom-4 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
-          <div className="slide-up-fade pointer-events-auto flex items-center gap-2 bg-foreground text-background rounded-2xl px-3 py-2.5 shadow-2xl border border-foreground/10 max-w-[calc(100vw-2rem)] overflow-x-auto">
-            <span className="text-sm font-medium tabular-nums shrink-0">
-              {selectedIds.size} sel.
-            </span>
-            <span className="text-foreground/30 select-none shrink-0">·</span>
-            <span className="text-sm font-semibold tabular-nums shrink-0">
-              {formatCurrency(selectedExpenses.reduce((s, e) => s + e.total, 0))}
-            </span>
-            <div className="flex gap-1.5 ml-1 shrink-0">
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-8 text-xs gap-1 bg-background/15 hover:bg-background/25 text-background border-0 shrink-0"
-                onClick={() => setBulkCatOpen(true)}
-              >
-                <Tag className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Categoría</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-8 text-xs gap-1 bg-background/15 hover:bg-background/25 text-background border-0 shrink-0"
-                onClick={async () => {
-                  const tid = toast.loading("Generando CSV...")
-                  await new Promise(r => setTimeout(r, 30))
-                  exportToCSV(selectedExpenses, { start: startDate, end: endDate })
-                  toast.dismiss(tid)
-                  toast.success("CSV descargado")
-                }}
-              >
-                CSV
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-8 text-xs gap-1 bg-background/15 hover:bg-background/25 text-background border-0 shrink-0"
-                onClick={async () => {
-                  const tid = toast.loading("Generando PDF...")
-                  await exportToPDF(selectedExpenses, categories, { start: startDate, end: endDate }, () => { void updateSettings.mutate({ hasExportedPDF: true }) })
-                  toast.dismiss(tid)
-                  toast.success("PDF descargado")
-                }}
-              >
-                PDF
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-8 text-xs gap-1 bg-destructive/80 hover:bg-destructive text-white border-0 shrink-0"
-                onClick={handleBulkDelete}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Eliminar</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Bulk category dialog ── */}
-      {bulkCatOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setBulkCatOpen(false)} />
-          <div className="relative bg-background rounded-2xl border shadow-2xl p-5 w-full max-w-xs space-y-3">
-            <p className="text-sm font-semibold">
-              Cambiar categoría — {selectedIds.size} gasto{selectedIds.size !== 1 ? "s" : ""}
-            </p>
-            <Select value={bulkCatValue} onValueChange={setBulkCatValue}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona categoría..." />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setBulkCatOpen(false)}>
-                Cancelar
-              </Button>
-              <Button
-                className="flex-1"
-                disabled={!bulkCatValue}
-                onClick={() => bulkCatValue && handleBulkCategory(bulkCatValue)}
-              >
-                Aplicar
-              </Button>
-            </div>
-          </div>
-        </div>
+      {/* ── Bulk action bar ── */}
+      {selectMode && (
+        <BulkActionsBar
+          selectedIds={[...selectedIds]}
+          onClear={exitSelectMode}
+          onDeleted={() => {
+            exitSelectMode()
+          }}
+        />
       )}
     </div>
   )

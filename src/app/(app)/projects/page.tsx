@@ -47,8 +47,12 @@ import {
   Archive,
   User,
   FileText,
+  FileDown,
+  Share2,
 } from "lucide-react"
 import { toast } from "sonner"
+import { apiFetch } from "@/lib/api-client"
+import { useOpenInvoice } from "@/hooks/use-export"
 import type { Project, ProjectInput } from "@/types"
 
 // ─── Preset colors ────────────────────────────────────────────────────────────
@@ -287,6 +291,26 @@ function DetailSection({
   const { data: categories = [] } = useCategories()
   const allCats = categories.length > 0 ? categories : DEFAULT_CATEGORIES
   const [addExpenseOpen, setAddExpenseOpen] = useState(false)
+  const [sharing, setSharing] = useState(false)
+  const openInvoice = useOpenInvoice()
+
+  async function handleShare(projectId: string) {
+    setSharing(true)
+    try {
+      const res = await apiFetch("/api/invoices/share", {
+        method: "POST",
+        body: JSON.stringify({ projectId, expiresInDays: 30 }),
+      })
+      const json = await res.json() as { shareUrl?: string; error?: string }
+      if (!res.ok || !json.shareUrl) throw new Error(json.error ?? "Error")
+      await navigator.clipboard.writeText(json.shareUrl)
+      toast.success("Link copiado · válido por 30 días")
+    } catch {
+      toast.error("Error al generar el link")
+    } finally {
+      setSharing(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -437,15 +461,38 @@ function DetailSection({
         </CardContent>
       </Card>
 
-      {/* Add expense button */}
-      <Button
-        className="w-full gap-2"
-        variant="outline"
-        onClick={() => setAddExpenseOpen(true)}
-      >
-        <Plus className="h-4 w-4" />
-        Añadir gasto al proyecto
-      </Button>
+      {/* Action buttons */}
+      <div className="flex gap-2">
+        <Button
+          className="flex-1 gap-2"
+          variant="outline"
+          onClick={() => setAddExpenseOpen(true)}
+        >
+          <Plus className="h-4 w-4" />
+          Añadir gasto al proyecto
+        </Button>
+        {project.clientId && (
+          <Button
+            variant="outline"
+            className="gap-2 shrink-0"
+            onClick={() => openInvoice(project.id)}
+          >
+            <FileDown className="h-4 w-4" />
+            Generar Factura
+          </Button>
+        )}
+        {project.clientId && (
+          <Button
+            variant="outline"
+            className="gap-2 shrink-0"
+            onClick={() => handleShare(project.id)}
+            disabled={sharing}
+          >
+            <Share2 className="h-4 w-4" />
+            Compartir factura
+          </Button>
+        )}
+      </div>
 
       {/* Expense list */}
       <div className="space-y-2">
