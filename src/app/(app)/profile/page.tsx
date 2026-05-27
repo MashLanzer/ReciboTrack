@@ -1212,29 +1212,37 @@ export default function ProfilePage() {
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Plan actual</p>
                   <p className="text-sm font-bold mt-0.5">
-                    {planData?.plan === "pro" ? (
-                      <span className="text-primary">⭐ Pro</span>
+                    {planData?.plan === "premium" ? (
+                      <span className="text-primary">👑 Premium</span>
+                    ) : planData?.plan === "pro" ? (
+                      <span className="text-primary">⚡ Pro</span>
                     ) : (
                       "Gratuito"
                     )}
                   </p>
                 </div>
-                {planData?.plan !== "pro" && (
+                {planData?.plan === "free" ? (
                   <Link href="/pricing" className="rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors">
                     Actualizar
                   </Link>
-                )}
-                {planData?.plan === "pro" && (
-                  <button
-                    onClick={async () => {
-                      const res = await apiFetch("/api/customer-portal", { method: "POST" })
-                      const d = await res.json() as { url?: string }
-                      if (d.url) window.location.href = d.url
-                    }}
-                    className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-                  >
-                    Gestionar
-                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    {planData?.plan === "pro" && (
+                      <Link href="/pricing" className="text-xs text-primary hover:underline underline-offset-2">
+                        Subir a Premium
+                      </Link>
+                    )}
+                    <button
+                      onClick={async () => {
+                        const res = await apiFetch("/api/customer-portal", { method: "POST" })
+                        const d = await res.json() as { url?: string }
+                        if (d.url) window.location.href = d.url
+                      }}
+                      className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                    >
+                      Gestionar
+                    </button>
+                  </div>
                 )}
               </div>
               <div className="grid grid-cols-3 gap-3">
