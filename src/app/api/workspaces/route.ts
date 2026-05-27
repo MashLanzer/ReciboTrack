@@ -35,8 +35,8 @@ export async function GET(req: NextRequest) {
   if (memberError) return NextResponse.json({ error: memberError.message }, { status: 500 })
 
   const memberOf = (memberRows ?? [])
-    .map((r) => r.workspaces)
-    .filter(Boolean)
+    .map((r) => Array.isArray(r.workspaces) ? r.workspaces[0] : r.workspaces)
+    .filter(Boolean) as Record<string, unknown>[]
 
   const ownedFormatted = (owned ?? []).map((w) => ({
     ...w,
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
     role: "owner",
   }))
 
-  const memberFormatted = (memberOf as Record<string, unknown>[]).map((w) => ({
+  const memberFormatted = memberOf.map((w) => ({
     ...w,
     memberCount: 0,
     role: "member",

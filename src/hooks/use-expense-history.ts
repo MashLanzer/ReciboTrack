@@ -15,7 +15,7 @@ export function useExpenseHistory(expenseId: string | null) {
   const { user } = useAuth()
   return useQuery({
     queryKey: ["expense-history", expenseId],
-    queryFn: () => apiFetch(`/api/expenses/${expenseId}/history`).then(r => r.history as ExpenseHistoryEntry[]),
+    queryFn: () => apiFetch(`/api/expenses/${expenseId}/history`).then(r => r.json()).then((d: { history?: ExpenseHistoryEntry[] }) => d.history ?? []),
     enabled: !!user && !!expenseId,
   })
 }

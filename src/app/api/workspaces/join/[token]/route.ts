@@ -102,7 +102,8 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Esta invitación ha expirado", valid: false })
   }
 
-  const workspace = invite.workspaces as { name: string } | null
+  const wsRaw   = invite.workspaces
+  const workspace = Array.isArray(wsRaw) ? (wsRaw[0] as { name: string } | undefined) : (wsRaw as { name: string } | null)
 
   return NextResponse.json({
     valid: true,
