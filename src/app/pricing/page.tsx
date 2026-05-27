@@ -217,22 +217,32 @@ export default function PricingPage() {
             <p className="text-xs text-muted-foreground">
               Bypass del paywall solo para tu cuenta.
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => handleDevGrant("free")}
+                disabled={devGranting !== null || currentPlan === "free"}
+                className="rounded-xl py-2.5 text-xs font-bold bg-amber-500/10 border border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-colors disabled:opacity-40"
+              >
+                {devGranting === "free" ? "…" : "Free"}
+              </button>
               <button
                 onClick={() => handleDevGrant("pro")}
-                disabled={devGranting !== null}
-                className="rounded-xl py-2.5 text-sm font-bold bg-amber-500/10 border border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-colors disabled:opacity-60"
+                disabled={devGranting !== null || currentPlan === "pro"}
+                className="rounded-xl py-2.5 text-xs font-bold bg-amber-500/10 border border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-colors disabled:opacity-40"
               >
-                {devGranting === "pro" ? "Activando…" : "Activar Pro (dev)"}
+                {devGranting === "pro" ? "…" : "Pro"}
               </button>
               <button
                 onClick={() => handleDevGrant("premium")}
-                disabled={devGranting !== null}
-                className="rounded-xl py-2.5 text-sm font-bold bg-amber-500/10 border border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-colors disabled:opacity-60"
+                disabled={devGranting !== null || currentPlan === "premium"}
+                className="rounded-xl py-2.5 text-xs font-bold bg-amber-500/10 border border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-colors disabled:opacity-40"
               >
-                {devGranting === "premium" ? "Activando…" : "Activar Premium (dev)"}
+                {devGranting === "premium" ? "…" : "Premium"}
               </button>
             </div>
+            <p className="text-[10px] text-muted-foreground text-center">
+              Plan actual: <strong>{currentPlan}</strong> · Cambia entre los 3 para probar gates
+            </p>
           </div>
         )}
       </div>
