@@ -95,18 +95,29 @@ export async function syncTransactions(itemId: string): Promise<SyncResult> {
 
     const { added, modified, removed, next_cursor, has_more } = res.data
 
-    // ─── Added: insertar (upsert por seguridad con la unique index) ───
+    // ─── Added: insertar nuevos, descartando duplicados ─────────────────
+    // Nota: el partial unique index (uid, plaid_transaction_id) WHERE
+    // plaid_transaction_id IS NOT NULL no es compatible con ON CONFLICT
+    // de Supabase. Hacemos el dedup manualmente.
     if (added.length > 0) {
       const rows = added
         .map((tx) => plaidTxToExpense(tx, item.uid))
         .filter((r): r is Record<string, unknown> => r !== null)
 
       if (rows.length > 0) {
-        const { error } = await sb
+        const txIds = rows.map(r => r.plaid_transaction_id as string)
+        const { data: existing } = await sb
           .from("expenses")
-          .upsert(rows, { onConflict: "uid,plaid_transaction_id", ignoreDuplicates: true })
-        if (error) console.error("[plaid-sync] insert added failed", error)
-        else totalAdded += rows.length
+          .select("plaid_transaction_id")
+          .eq("uid", item.uid)
+          .in("plaid_transaction_id", txIds)
+        const existingSet = new Set((existing ?? []).map(r => r.plaid_transaction_id as string))
+        const newRows = rows.filter(r => !existingSet.has(r.plaid_transaction_id as string))
+        if (newRows.length > 0) {
+          const { error } = await sb.from("expenses").insert(newRows)
+          if (error) console.error("[plaid-sync] insert added failed", error)
+          else totalAdded += newRows.length
+        }
       }
     }
 
