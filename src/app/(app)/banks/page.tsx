@@ -23,12 +23,13 @@ export default function BanksPage() {
   const deleteItem    = useDeleteItem()
   const [confirmDelete, setConfirmDelete] = useState<PlaidItem | null>(null)
 
-  const isPro = planData?.plan === "pro"
+  const isPremium = planData?.plan === "premium"
   const isDevUid = !!process.env.NEXT_PUBLIC_DEV_PRO_GRANT_UID
     && user?.uid === process.env.NEXT_PUBLIC_DEV_PRO_GRANT_UID
 
-  // ─── Free user → upgrade gate ────────────────────────────────────────────
-  if (!isPro) {
+  // ─── Non-premium user → upgrade gate ─────────────────────────────────────
+  if (!isPremium) {
+    const isPro = planData?.plan === "pro"
     return (
       <div className="space-y-4 p-4 max-w-md mx-auto">
         <div className="rounded-3xl border bg-card overflow-hidden">
@@ -42,6 +43,11 @@ export default function BanksPage() {
                 Conecta tu banco y deja que ReciboTrack importe todas tus transacciones
                 automáticamente. Sin pegar recibos uno por uno.
               </p>
+              {isPro && (
+                <p className="text-xs text-muted-foreground mt-2 italic">
+                  Disponible en el plan Premium · upgrade desde Pro por solo $3/mes adicionales
+                </p>
+              )}
             </div>
 
             <ul className="space-y-2 text-sm">
@@ -51,7 +57,7 @@ export default function BanksPage() {
             </ul>
 
             <Link href="/pricing" className="block">
-              <Button className="w-full">Actualizar a Pro · $4.99/mes</Button>
+              <Button className="w-full">Actualizar a Premium · $4.99/mes</Button>
             </Link>
           </div>
         </div>
@@ -59,7 +65,7 @@ export default function BanksPage() {
     )
   }
 
-  // ─── Pro user ────────────────────────────────────────────────────────────
+  // ─── Premium user ────────────────────────────────────────────────────────
   return (
     <div className="space-y-4 p-4 max-w-2xl mx-auto">
       <ConfirmDialog
