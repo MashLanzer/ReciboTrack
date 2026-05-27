@@ -310,7 +310,7 @@ interface PlanCardProps {
 function PlanCard(p: PlanCardProps) {
   return (
     <div className={cn(
-      "rounded-2xl border bg-card p-6 space-y-4 relative overflow-hidden",
+      "rounded-2xl border bg-card p-6 relative overflow-hidden flex flex-col h-full",
       p.highlight && "border-2 border-primary"
     )}>
       {p.badge && (
@@ -339,7 +339,7 @@ function PlanCard(p: PlanCardProps) {
         <p className="text-sm text-muted-foreground mt-1">{p.description}</p>
       </div>
 
-      <ul className="space-y-2">
+      <ul className="space-y-2 mt-4">
         {p.highlightFeatures.map((f) => (
           <li key={f} className="flex items-start gap-2 text-sm">
             <Check className={cn("h-4 w-4 mt-0.5 shrink-0", p.highlight ? "text-primary" : "text-muted-foreground")} />
@@ -348,7 +348,8 @@ function PlanCard(p: PlanCardProps) {
         ))}
       </ul>
 
-      <div className="pt-2">
+      {/* mt-auto empuja el botón al fondo del card sin importar cuántas features tenga */}
+      <div className="mt-auto pt-6">
         {p.current ? (
           <div className="w-full rounded-xl py-2.5 text-sm font-semibold text-center border bg-muted text-muted-foreground">
             Tu plan actual
