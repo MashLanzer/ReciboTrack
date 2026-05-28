@@ -3,6 +3,6 @@
   "target": {
     "namespace": "android_app",
     "package_name": "com.recibotrack.app",
-    "sha256_cert_fingerprints": ["PLACEHOLDER_SHA256_REPLACE_WITH_YOUR_KEYSTORE_HASH"]
+    "sha256_cert_fingerprints": ["21:47:04:E2:0A:94:8D:49:84:92:19:CA:C9:01:BE:C3:D6:8A:38:1E:7B:E0:2B:D4:A7:54:F5:50:7C:27:7B:37"]
   }
 }]
