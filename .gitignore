@@ -42,3 +42,8 @@ next-env.d.ts
 
 .vercel
 .claude/worktrees/
+
+# Android signing — never commit keystores
+android/app/*.keystore
+android/app/*.jks
+keystore.properties
