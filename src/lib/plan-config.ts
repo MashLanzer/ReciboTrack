@@ -35,6 +35,7 @@ export interface PlanLimits {
   // Límites cuantitativos
   maxExpensesPerMonth: number  // free: 100, pro+: Infinity
   maxWorkspaces:       number  // free: 0, pro: 3, premium: Infinity
+  ocrScansPerMonth:    number  // free: 15, pro+: Infinity
 
   // Permisos simples (true/false) — el tier mínimo lo determina la propia config
   csvExport:          boolean
@@ -52,6 +53,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   free: {
     maxExpensesPerMonth: 100,
     maxWorkspaces:       0,
+    ocrScansPerMonth:    15,
     csvExport:           false,
     pdfReport:           false,
     anomalyAlerts:       false,
@@ -65,6 +67,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   pro: {
     maxExpensesPerMonth: Infinity,
     maxWorkspaces:       3,
+    ocrScansPerMonth:    Infinity,
     csvExport:           true,
     pdfReport:           true,
     anomalyAlerts:       true,
@@ -78,6 +81,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   premium: {
     maxExpensesPerMonth: Infinity,
     maxWorkspaces:       Infinity,
+    ocrScansPerMonth:    Infinity,
     csvExport:           true,
     pdfReport:           true,
     anomalyAlerts:       true,

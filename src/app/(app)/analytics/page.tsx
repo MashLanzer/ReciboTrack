@@ -28,6 +28,7 @@ import { useUpdateUserSettings } from "@/hooks/use-user-settings"
 import { ShareSummary } from "@/components/expenses/share-summary"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FinancialHealth } from "@/components/analytics/financial-health"
+import { ProGate } from "@/components/shared/pro-gate"
 import { CreditOverview } from "@/components/analytics/credit-overview"
 import { ErrorBoundary }  from "@/components/ui/error-boundary"
 import { AiMonthlySummary } from "@/components/analytics/ai-monthly-summary"
@@ -985,6 +986,7 @@ export default function AnalyticsPage() {
       {/* ════════════════════ TAB: INFORMES ════════════════════ */}
       {/* Components are lazy-loaded — only bundled/fetched when this tab is opened */}
       {activeTab === "informes" && (<>
+      <ProGate feature="Informes avanzados">
 
       {/* ── #6 Patrón por día de la semana ── */}
       <Card>
@@ -1080,10 +1082,12 @@ export default function AnalyticsPage() {
             </ErrorBoundary>
           </div>
         </Suspense>
+      </ProGate>
       </>)}
 
       {/* ════════════════════ TAB: FINANZAS ════════════════════ */}
       {activeTab === "finanzas" && (
+        <ProGate feature="Análisis financiero avanzado">
         <Suspense fallback={
           <div className="space-y-4">
             {[1,2,3,4,5,6].map(i => <Skeleton key={i} className="h-48 rounded-2xl" />)}
@@ -1113,6 +1117,7 @@ export default function AnalyticsPage() {
             </ErrorBoundary>
           </div>
         </Suspense>
+        </ProGate>
       )}
 
       {/* ════════════════════ TAB: CRÉDITO ════════════════════ */}

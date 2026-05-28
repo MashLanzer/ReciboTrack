@@ -2,6 +2,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
 import { OcrSchema } from "@/lib/api-schemas"
+import { getUserPlan, PLAN_LIMITS } from "@/lib/plan"
+import { getSupabase } from "@/lib/supabase/server"
 
 const MODEL = "gemini-2.0-flash"
 
@@ -87,9 +89,46 @@ otros: todo lo que no encaje arriba
 
 Si no puedes determinar un campo con certeza razonable → null (nunca inventes).`
 
+/** Mes actual en formato 'YYYY-MM' */
+function currentMonth(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+}
+
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req, "ocr")
   if (auth instanceof NextResponse) return auth
+  const { uid } = auth
+
+  // ── Plan check + cuota mensual de OCR ───────────────────────────────────
+  const plan   = await getUserPlan(uid)
+  const limits = PLAN_LIMITS[plan]
+  const month  = currentMonth()
+  const sb     = getSupabase()
+
+  if (Number.isFinite(limits.ocrScansPerMonth)) {
+    const { data: usage } = await sb
+      .from("ocr_usage")
+      .select("scan_count")
+      .eq("uid", uid)
+      .eq("month", month)
+      .single()
+
+    const used = (usage?.scan_count ?? 0)
+    if (used >= limits.ocrScansPerMonth) {
+      return NextResponse.json(
+        {
+          error:     `Has usado ${used} de ${limits.ocrScansPerMonth} escaneos OCR gratuitos este mes.`,
+          upgrade:   "/pricing",
+          used,
+          limit:     limits.ocrScansPerMonth,
+          ocrQuota:  true,
+        },
+        { status: 402 },
+      )
+    }
+  }
+  // ────────────────────────────────────────────────────────────────────────
 
   try {
     const rawBody = await req.json()
@@ -224,7 +263,18 @@ export async function POST(req: NextRequest) {
     }
 
     const sanitized = sanitizeOcrResult(parsed)
-    return NextResponse.json(sanitized)
+
+    // Incrementar contador OCR atómicamente (INSERT … ON CONFLICT DO UPDATE)
+    let usedAfter: number | undefined
+    const { data: rpcData } = await sb.rpc("increment_ocr_usage", { p_uid: uid, p_month: month })
+    usedAfter = typeof rpcData === "number" ? rpcData : undefined
+
+    return NextResponse.json({
+      ...sanitized,
+      _ocrMeta: Number.isFinite(limits.ocrScansPerMonth)
+        ? { plan, used: usedAfter, limit: limits.ocrScansPerMonth }
+        : { plan },
+    })
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Error interno"

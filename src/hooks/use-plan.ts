@@ -7,12 +7,14 @@ import type { Plan } from "@/lib/plan-config"
 import { PLAN_LIMITS, planHasAccess } from "@/lib/plan-config"
 
 export interface PlanData {
-  plan:              Plan
-  limits:            typeof PLAN_LIMITS[Plan]
-  expensesThisMonth: number
-  workspacesCount:   number
-  canAddExpenses:    boolean
-  canAddWorkspace:   boolean
+  plan:               Plan
+  limits:             typeof PLAN_LIMITS[Plan]
+  expensesThisMonth:  number
+  workspacesCount:    number
+  ocrScansThisMonth:  number
+  canAddExpenses:     boolean
+  canAddWorkspace:    boolean
+  canOcr:             boolean
 }
 
 export function usePlan() {

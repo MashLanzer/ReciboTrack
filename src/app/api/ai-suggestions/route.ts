@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
 import { AiSuggestionsSchema } from "@/lib/api-schemas"
+import { requirePro } from "@/lib/plan"
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 const MODEL    = "llama-3.3-70b-versatile"
@@ -15,6 +16,14 @@ interface RawExpense {
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req, "ai")
   if (auth instanceof NextResponse) return auth
+
+  try { await requirePro(auth.uid) }
+  catch {
+    return NextResponse.json(
+      { error: "Las sugerencias IA requieren el plan Pro.", upgrade: "/pricing" },
+      { status: 402 },
+    )
+  }
 
   try {
     const body = await req.json()

@@ -33,6 +33,7 @@ import { useDuplicateDetector } from "@/hooks/use-duplicate-detector"
 import { CategorySuggestion } from "@/components/shared/category-suggestion"
 import { useCategoryRules, applyRules } from "@/hooks/use-category-rules"
 import { useUIStore } from "@/stores/ui-store"
+import { usePlan } from "@/hooks/use-plan"
 
 type Step = "upload" | "camera" | "processing" | "confirm"
 
@@ -75,6 +76,12 @@ export function ReceiptScanner() {
   const addTemplate = useAddTemplate()
   const deleteTemplate = useDeleteTemplate()
   const incrementTemplateUse = useIncrementTemplateUse()
+
+  const { data: planData } = usePlan()
+  const canOcr = planData?.canOcr ?? true            // optimista mientras carga
+  const ocrUsed  = planData?.ocrScansThisMonth ?? 0
+  const ocrLimit = planData?.limits?.ocrScansPerMonth ?? Infinity
+  const isPlanFree = planData?.plan === "free"
 
   const [step, setStep] = useState<Step>("upload")
   // Sub-step within the "confirm" wizard (1 = what, 2 = how much, 3 = review)
@@ -257,6 +264,12 @@ export function ReceiptScanner() {
   }
 
   async function processFile(rawFile: File, isAdditional = false) {
+    // Bloquear si el plan free agotó sus escaneos OCR
+    if (!canOcr) {
+      toast.error(`Límite de ${ocrLimit} escaneos OCR del mes alcanzado. Actualiza a Pro para escaneos ilimitados.`)
+      return
+    }
+
     // Detectar HEIC por extensión también (algunos navegadores reportan type vacío)
     const isHeic =
       rawFile.type === "image/heic" ||
@@ -708,14 +721,40 @@ export function ReceiptScanner() {
               </div>
             )}
 
+            {/* OCR quota badge — solo visible en plan free */}
+            {isPlanFree && (
+              <div className={cn(
+                "flex items-center justify-between rounded-lg px-3 py-2 text-xs",
+                canOcr
+                  ? "bg-muted text-muted-foreground"
+                  : "bg-destructive/10 text-destructive border border-destructive/30"
+              )}>
+                <span>
+                  {canOcr
+                    ? `Escaneos OCR: ${ocrUsed} / ${ocrLimit} este mes`
+                    : `Límite de ${ocrLimit} escaneos alcanzado`}
+                </span>
+                {!canOcr && (
+                  <a
+                    href="/pricing"
+                    className="font-semibold underline underline-offset-2 ml-2 hover:opacity-80"
+                    onClick={() => setScannerOpen(false)}
+                  >
+                    Actualizar plan
+                  </a>
+                )}
+              </div>
+            )}
+
             {/* Drop zone — desktop */}
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => canOcr ? fileInputRef.current?.click() : undefined}
               className={cn(
-                "border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors",
+                "border-2 border-dashed rounded-xl p-8 text-center transition-colors",
+                canOcr ? "cursor-pointer" : "cursor-not-allowed opacity-50",
                 dragOver ? "border-foreground bg-accent" : "border-border hover:border-foreground/40 hover:bg-accent/50"
               )}
             >
@@ -733,7 +772,8 @@ export function ReceiptScanner() {
               <Button
                 variant="outline"
                 className="gap-2 h-11"
-                onClick={() => galleryInputRef.current?.click()}
+                disabled={!canOcr}
+                onClick={() => canOcr && galleryInputRef.current?.click()}
               >
                 <ImageIcon className="h-4 w-4" />
                 Galería
@@ -741,7 +781,8 @@ export function ReceiptScanner() {
               <Button
                 variant="outline"
                 className="gap-2 h-11"
-                onClick={() => setStep("camera")}
+                disabled={!canOcr}
+                onClick={() => canOcr && setStep("camera")}
               >
                 <ScanLine className="h-4 w-4" />
                 Cámara en vivo

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
 import { getSupabase } from "@/lib/supabase/server"
+import { requirePro } from "@/lib/plan"
 
 function escapeCsv(value: unknown): string {
   if (value === null || value === undefined) return ""
@@ -30,6 +31,15 @@ export async function GET(req: NextRequest) {
   const auth = await requireAuth(req, "pay")
   if (auth instanceof NextResponse) return auth
   const { uid } = auth
+
+  // Solo Pro y Premium pueden exportar
+  try { await requirePro(uid) }
+  catch {
+    return NextResponse.json(
+      { error: "La exportación CSV requiere el plan Pro. Actualiza en /pricing.", upgrade: "/pricing" },
+      { status: 402 },
+    )
+  }
 
   const sp = req.nextUrl.searchParams
   const category  = sp.get("category")

@@ -33,15 +33,28 @@ export async function GET(req: NextRequest) {
     .eq("owner_uid", uid)
   const workspacesCount = wsCount ?? 0
 
+  // Escaneos OCR del mes actual
+  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+  const { data: ocrRow } = await supabase
+    .from("ocr_usage")
+    .select("scan_count")
+    .eq("uid", uid)
+    .eq("month", month)
+    .single()
+  const ocrScansThisMonth = ocrRow?.scan_count ?? 0
+
   const canAddExpenses   = expensesThisMonth < limits.maxExpensesPerMonth
   const canAddWorkspace  = workspacesCount   < limits.maxWorkspaces
+  const canOcr           = !Number.isFinite(limits.ocrScansPerMonth) || ocrScansThisMonth < limits.ocrScansPerMonth
 
   return NextResponse.json({
     plan,
     limits,
     expensesThisMonth,
     workspacesCount,
+    ocrScansThisMonth,
     canAddExpenses,
     canAddWorkspace,
+    canOcr,
   })
 }
