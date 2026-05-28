@@ -73,3 +73,15 @@ ALTER TABLE profiles ADD CONSTRAINT profiles_plan_check
 
 -- Migrar usuarios 'pro' existentes a 'premium' (pagaban $4.99, mantienen acceso)
 UPDATE profiles SET plan = 'premium' WHERE plan = 'pro';
+
+-- ─── 026: Datos de crédito en plaid_accounts ─────────────────────────────────
+-- Columnas extra para almacenar datos del producto Liabilities de Plaid.
+-- Se rellenan al llamar /api/plaid/liabilities.
+
+ALTER TABLE plaid_accounts
+  ADD COLUMN IF NOT EXISTS credit_limit        NUMERIC(14,2),
+  ADD COLUMN IF NOT EXISTS last_payment_date   DATE,
+  ADD COLUMN IF NOT EXISTS last_payment_amount NUMERIC(14,2),
+  ADD COLUMN IF NOT EXISTS minimum_payment     NUMERIC(14,2),
+  ADD COLUMN IF NOT EXISTS next_payment_due    DATE,
+  ADD COLUMN IF NOT EXISTS interest_rate       NUMERIC(6,4);

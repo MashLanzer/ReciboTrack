@@ -11,6 +11,8 @@ import type { Expense } from "@/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { HeartPulse } from "lucide-react"
+import { usePlaidLiabilities } from "@/hooks/use-plaid-liabilities"
+import { useHasPlan } from "@/hooks/use-plan"
 
 // ─── Data hook — 3 months of expenses ────────────────────────────────────────
 
@@ -90,6 +92,8 @@ function ScoreArc({ score, color }: { score: number; color: string }) {
 export function FinancialHealth() {
   const { data: rawExpenses = [], isLoading } = use3MonthExpenses()
   const { activeAccount } = useUIStore()
+  const isPremium = useHasPlan("premium")
+  const { data: liabilities } = usePlaidLiabilities()
 
   const allExpenses = useMemo(() => {
     if (activeAccount === "business") return rawExpenses.filter(e => e.account === "business")
@@ -140,9 +144,27 @@ export function FinancialHealth() {
     const recurringRatio = currentTotal > 0 ? recurringTotal / currentTotal : 0
     const recurringPts = recurringRatio <= 0.5 ? 15 : Math.round((1 - recurringRatio) * 15)
 
-    const total = Math.max(0, Math.min(100,
-      consistencyPts + budgetPts + anomalyPts + diversityPts + recurringPts
-    ))
+    const baseTotal = consistencyPts + budgetPts + anomalyPts + diversityPts + recurringPts
+
+    // Crédito (solo si hay datos de Plaid Liabilities disponibles)
+    const util = liabilities?.total_utilization ?? null
+    const hasOverdue = liabilities?.credit_cards.some(c => c.overdue) ?? false
+    const hasCreditCards = (liabilities?.credit_cards.length ?? 0) > 0
+
+    let utilizationPts = 0
+    let paymentPts = 0
+    const creditCriteria: Array<{ label: string; pts: number; max: number; ok: boolean }> = []
+
+    if (isPremium && hasCreditCards) {
+      utilizationPts = util == null ? 0 : util <= 30 ? 15 : util <= 70 ? 7 : 0
+      paymentPts = hasOverdue ? 0 : 10
+      creditCriteria.push({ label: "Utilización de crédito", pts: utilizationPts, max: 15, ok: utilizationPts >= 12 })
+      creditCriteria.push({ label: "Pagos al día", pts: paymentPts, max: 10, ok: paymentPts === 10 })
+    }
+
+    const maxPts = 100 + (isPremium && hasCreditCards ? 25 : 0)
+    const rawTotal = baseTotal + utilizationPts + paymentPts
+    const total = Math.max(0, Math.min(100, Math.round((rawTotal / maxPts) * 100)))
 
     return {
       score: total,
@@ -152,9 +174,10 @@ export function FinancialHealth() {
         { label: "Sin anomalías", pts: anomalyPts, max: 20, ok: anomalyPts === 20 },
         { label: "Categorías diversas", pts: diversityPts, max: 15, ok: diversityPts >= 12 },
         { label: "Fijos controlados", pts: recurringPts, max: 15, ok: recurringPts >= 10 },
+        ...creditCriteria,
       ],
     }
-  }, [allExpenses])
+  }, [allExpenses, liabilities, isPremium])
 
   const color = score <= 40 ? "#ef4444" : score <= 70 ? "#f59e0b" : "#22c55e"
   const emoji = score <= 40 ? "😰" : score <= 70 ? "😐" : "😊"

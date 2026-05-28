@@ -21,13 +21,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
-import { TrendingUp, TrendingDown, Minus, Plus, Trash2, Target, AlertTriangle, Check, FileDown, Loader2, BarChart2, Landmark, FileText } from "lucide-react"
+import { TrendingUp, TrendingDown, Minus, Plus, Trash2, Target, AlertTriangle, Check, FileDown, Loader2, BarChart2, Landmark, FileText, CreditCard } from "lucide-react"
 import { haptic } from "@/lib/haptic"
 import { exportMonthlyPDF } from "@/components/expenses/export-utils"
 import { useUpdateUserSettings } from "@/hooks/use-user-settings"
 import { ShareSummary } from "@/components/expenses/share-summary"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FinancialHealth } from "@/components/analytics/financial-health"
+import { CreditOverview } from "@/components/analytics/credit-overview"
 import { ErrorBoundary }  from "@/components/ui/error-boundary"
 import { AiMonthlySummary } from "@/components/analytics/ai-monthly-summary"
 import { AiSuggestions } from "@/components/analytics/ai-suggestions"
@@ -132,12 +133,12 @@ export default function AnalyticsPage() {
     return { year: n.getFullYear(), month: n.getMonth() }
   })
 
-  const [activeTab, setActiveTab] = useState<"resumen" | "metas" | "finanzas" | "informes">("resumen")
+  const [activeTab, setActiveTab] = useState<"resumen" | "metas" | "finanzas" | "informes" | "credito">("resumen")
   const [animatingTab, setAnimatingTab] = useState<string | null>(null)
   const prevTabRef = useRef(activeTab)
 
   // ── Swipe between tabs on touch devices ───────────────────────────────────
-  const TABS_ORDER = ["resumen", "metas", "finanzas", "informes"] as const
+  const TABS_ORDER = ["resumen", "metas", "finanzas", "informes", "credito"] as const
   const tabSwipeStartX = useRef<number | null>(null)
 
   function onTabAreaTouchStart(e: React.TouchEvent) {
@@ -416,10 +417,11 @@ export default function AnalyticsPage() {
 
   // ── Tab definitions ─────────────────────────────────────────────────────────
   const TABS = [
-    { id: "resumen",  label: "Resumen",  Icon: BarChart2  },
-    { id: "metas",    label: "Metas",    Icon: Target     },
-    { id: "finanzas", label: "Finanzas", Icon: Landmark   },
-    { id: "informes", label: "Informes", Icon: FileText   },
+    { id: "resumen",  label: "Resumen",  Icon: BarChart2    },
+    { id: "metas",    label: "Metas",    Icon: Target       },
+    { id: "finanzas", label: "Finanzas", Icon: Landmark     },
+    { id: "informes", label: "Informes", Icon: FileText     },
+    { id: "credito",  label: "Crédito",  Icon: CreditCard  },
   ] as const
 
   return (
@@ -1110,6 +1112,19 @@ export default function AnalyticsPage() {
               <ExpenseTypeGroups expenses={all} categories={categories} />
             </ErrorBoundary>
           </div>
+        </Suspense>
+      )}
+
+      {/* ════════════════════ TAB: CRÉDITO ════════════════════ */}
+      {activeTab === "credito" && (
+        <Suspense fallback={
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-40 rounded-2xl" />)}
+          </div>
+        }>
+          <ErrorBoundary label="Crédito">
+            <CreditOverview />
+          </ErrorBoundary>
         </Suspense>
       )}
 

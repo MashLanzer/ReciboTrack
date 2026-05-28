@@ -37,7 +37,7 @@ export function getPlaid(): PlaidApi {
 // Productos que la app pide al crear el Link token.
 // `transactions` cubre auto-import. Si en el futuro queremos balance en tiempo real,
 // añadir `auth` o `balance` requiere re-link del usuario.
-export const PLAID_PRODUCTS: Products[] = [Products.Transactions]
+export const PLAID_PRODUCTS: Products[] = [Products.Transactions, Products.Liabilities]
 
 // Cobertura: Plaid soporta US/CA + Europa (no LATAM directamente).
 // Para usuarios en México/Colombia: futuro Belvo o Salt Edge en Fase 4.
