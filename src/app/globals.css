@@ -444,3 +444,11 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Safe area — fill behind the status bar with background color ─────────── */
+/* Applies when running as installed PWA (standalone) on Android/iOS           */
+@supports (padding-top: env(safe-area-inset-top)) {
+  body {
+    background-color: var(--background);
+  }
+}

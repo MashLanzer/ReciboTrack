@@ -48,7 +48,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <GeolocationWatcher />
       <RealtimeSyncProvider />
       <KeyboardShortcutsProvider>
-      <div className="flex flex-col min-h-screen">
+      <div
+        className="flex flex-col min-h-screen"
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      >
         <TopNav />
         <UpdateBanner />
         <PullToRefresh />
