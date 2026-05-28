@@ -13,6 +13,7 @@ import { requireAuth } from "@/lib/api-auth"
 import { requirePremium } from "@/lib/plan"
 import { getPlaid, PLAID_COUNTRY_CODES } from "@/lib/plaid"
 import { getSupabase } from "@/lib/supabase/server"
+import { maybeDecrypt } from "@/lib/encryption"
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       client_name:     "ReciboTrack",
       country_codes:   PLAID_COUNTRY_CODES,
       language:        "es",
-      access_token:    item.access_token,   // ← esto activa "update mode"
+      access_token:    maybeDecrypt(item.access_token),   // ← esto activa "update mode"
       webhook:         `${appUrl}/api/plaid/webhook`,
     })
     return NextResponse.json({ link_token: res.data.link_token })

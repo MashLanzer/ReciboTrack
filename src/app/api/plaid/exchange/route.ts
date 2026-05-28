@@ -13,6 +13,7 @@ import { requirePremium } from "@/lib/plan"
 import { getPlaid, PLAID_COUNTRY_CODES } from "@/lib/plaid"
 import { getSupabase } from "@/lib/supabase/server"
 import { syncTransactions } from "@/lib/plaid-sync"
+import { encrypt } from "@/lib/encryption"
 
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req, "pay")
@@ -60,13 +61,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2b. Insertar el item en nuestra DB
+    // 2b. Insertar el item en nuestra DB con access_token encriptado
     const { data: item, error: itemErr } = await sb
       .from("plaid_items")
       .insert({
         uid:               auth.uid,
         plaid_item_id:     plaidItemId,
-        access_token:      accessToken,
+        access_token:      encrypt(accessToken),
         institution_id:    body.institution?.id   ?? null,
         institution_name:  body.institution?.name ?? null,
         logo:              logoDataUrl,

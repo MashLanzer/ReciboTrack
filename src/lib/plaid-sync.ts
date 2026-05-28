@@ -16,6 +16,7 @@
 import type { Transaction } from "plaid"
 import { getPlaid } from "@/lib/plaid"
 import { getSupabase } from "@/lib/supabase/server"
+import { maybeDecrypt, encrypt, looksLikePlaintextPlaidToken } from "@/lib/encryption"
 
 export interface SyncResult {
   added:    number
@@ -93,6 +94,11 @@ export async function syncTransactions(itemId: string): Promise<SyncResult> {
     throw new Error(`[plaid-sync] item ${itemId} no encontrado: ${itemErr?.message}`)
   }
 
+  // Decriptar el access_token. Si está en texto plano (legacy pre-encryption),
+  // hacemos lazy migration: lo reencriptamos en DB al final del sync.
+  const accessToken = maybeDecrypt(item.access_token)
+  const needsEncryptionMigration = looksLikePlaintextPlaidToken(item.access_token)
+
   // Calcular rango de fechas
   const today = new Date()
   const endDate = today.toISOString().slice(0, 10)
@@ -113,7 +119,7 @@ export async function syncTransactions(itemId: string): Promise<SyncResult> {
   let safety = 0
   while (safety++ < 100) {  // hasta 10k tx
     const res = await plaid.transactionsGet({
-      access_token: item.access_token,
+      access_token: accessToken,
       start_date:   startDate,
       end_date:     endDate,
       options:      { offset, count },
@@ -149,17 +155,20 @@ export async function syncTransactions(itemId: string): Promise<SyncResult> {
     }
   }
 
-  // Marcar el item como sincronizado
-  await sb
-    .from("plaid_items")
-    .update({
-      last_synced_at:  new Date().toISOString(),
-      status:          "active",
-      error_code:      null,
-      error_message:   null,
-      updated_at:      new Date().toISOString(),
-    })
-    .eq("id", itemId)
+  // Marcar el item como sincronizado.
+  // Lazy migration de encryption: si el token estaba en plano, lo reescribimos
+  // encriptado en este mismo update (sin roundtrip extra).
+  const updatePayload: Record<string, unknown> = {
+    last_synced_at:  new Date().toISOString(),
+    status:          "active",
+    error_code:      null,
+    error_message:   null,
+    updated_at:      new Date().toISOString(),
+  }
+  if (needsEncryptionMigration) {
+    updatePayload.access_token = encrypt(accessToken)
+  }
+  await sb.from("plaid_items").update(updatePayload).eq("id", itemId)
 
   return { added: totalAdded, modified: 0, removed: 0, cursor: null }
 }

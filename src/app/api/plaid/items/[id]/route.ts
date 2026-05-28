@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
 import { getPlaid } from "@/lib/plaid"
 import { getSupabase } from "@/lib/supabase/server"
+import { maybeDecrypt } from "@/lib/encryption"
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -38,7 +39,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
   // Revocar el item en Plaid (mejor esfuerzo — si falla, igual borramos local)
   try {
-    await getPlaid().itemRemove({ access_token: item.access_token })
+    await getPlaid().itemRemove({ access_token: maybeDecrypt(item.access_token) })
   } catch (err) {
     console.error("[plaid/items DELETE] itemRemove failed", err)
   }
