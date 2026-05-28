@@ -21,13 +21,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
-import { TrendingUp, TrendingDown, Minus, Plus, Trash2, Target, AlertTriangle, Check, FileDown, Loader2, BarChart2, Landmark, FileText } from "lucide-react"
+import { TrendingUp, TrendingDown, Minus, Plus, Trash2, Target, AlertTriangle, Check, FileDown, Loader2, BarChart2, Landmark, FileText, CreditCard } from "lucide-react"
 import { haptic } from "@/lib/haptic"
 import { exportMonthlyPDF } from "@/components/expenses/export-utils"
 import { useUpdateUserSettings } from "@/hooks/use-user-settings"
 import { ShareSummary } from "@/components/expenses/share-summary"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FinancialHealth } from "@/components/analytics/financial-health"
+import { CreditOverview } from "@/components/analytics/credit-overview"
 import { ErrorBoundary }  from "@/components/ui/error-boundary"
 import { AiMonthlySummary } from "@/components/analytics/ai-monthly-summary"
 import { AiSuggestions } from "@/components/analytics/ai-suggestions"
@@ -132,12 +133,12 @@ export default function AnalyticsPage() {
     return { year: n.getFullYear(), month: n.getMonth() }
   })
 
-  const [activeTab, setActiveTab] = useState<"resumen" | "metas" | "finanzas" | "informes">("resumen")
+  const [activeTab, setActiveTab] = useState<"resumen" | "metas" | "finanzas" | "informes" | "credito">("resumen")
   const [animatingTab, setAnimatingTab] = useState<string | null>(null)
   const prevTabRef = useRef(activeTab)
 
   // ── Swipe between tabs on touch devices ───────────────────────────────────
-  const TABS_ORDER = ["resumen", "metas", "finanzas", "informes"] as const
+  const TABS_ORDER = ["resumen", "metas", "finanzas", "informes", "credito"] as const
   const tabSwipeStartX = useRef<number | null>(null)
 
   function onTabAreaTouchStart(e: React.TouchEvent) {
@@ -420,6 +421,7 @@ export default function AnalyticsPage() {
     { id: "metas",    label: "Metas",    Icon: Target     },
     { id: "finanzas", label: "Finanzas", Icon: Landmark   },
     { id: "informes", label: "Informes", Icon: FileText   },
+    { id: "credito",  label: "Crédito",  Icon: CreditCard },
   ] as const
 
   return (
@@ -549,32 +551,6 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* ── Asesor IA — chat interactivo ── */}
-      <Suspense fallback={<Skeleton className="h-40 rounded-xl" />}>
-        <ErrorBoundary label="Asesor financiero IA">
-          <AskFinance
-            context={{
-              monthTotal: selectedTotal,
-              prevMonthTotal: comparedTotal,
-              topCategories: categoryComparison.slice(0, 5).map((c) => ({ name: c.name, total: c.current })),
-              savingsRate: undefined,
-            }}
-          />
-        </ErrorBoundary>
-      </Suspense>
-
-      {/* ── Resumen IA del mes ── */}
-      <AiMonthlySummary
-        expenses={selected.map((e) => ({ total: e.total, merchant: e.merchant, category: e.category }))}
-        categoryBreakdown={categoryComparison.map((c) => ({ name: c.name, total: c.current, delta: c.delta }))}
-        month={selLabel}
-      />
-
-      {/* ── Sugerencias de ahorro con IA ── */}
-      <AiSuggestions
-        expenses3months={all.map((e) => ({ total: e.total, merchant: e.merchant, category: e.category }))}
-      />
-
       {/* ── Tendencia 6 meses (clickable to select month) ── */}
       <Card>
         <CardHeader className="pb-1">
@@ -583,7 +559,7 @@ export default function AnalyticsPage() {
         </CardHeader>
         <CardContent className="px-2 pb-3">
           <ResponsiveContainer width="100%" height={130}>
-            <BarChart data={trendData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}
+            <BarChart data={trendData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}
               onClick={(d: any) => { if (d?.activePayload?.[0]) setSelectedOffset((d.activePayload[0].payload as typeof trendData[0]).offset) }}>
               <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.06} vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -627,7 +603,7 @@ export default function AnalyticsPage() {
           <div className="px-2 pt-1 pb-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-2 mb-1">Gasto acumulado por día</p>
             <ResponsiveContainer width="100%" height={160}>
-              <LineChart data={cumulativeData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+              <LineChart data={cumulativeData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.06} vertical={false} />
                 <XAxis dataKey="day" tick={{ fontSize: 9 }} axisLine={false} tickLine={false}
                   tickFormatter={(v) => v % 5 === 0 || v === 1 ? String(v) : ""} />
@@ -664,7 +640,7 @@ export default function AnalyticsPage() {
             <div className="px-2 pb-2 border-t pt-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-2 mb-1">Por categoría</p>
               <ResponsiveContainer width="100%" height={160}>
-                <BarChart data={comparisonChartData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }} barGap={2}>
+                <BarChart data={comparisonChartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }} barGap={2}>
                   <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.06} vertical={false} />
                   <XAxis dataKey="name" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 9 }} axisLine={false} tickLine={false} width={30}
@@ -680,43 +656,45 @@ export default function AnalyticsPage() {
             </div>
           )}
 
-          {/* Comparison table */}
-          <table className="w-full text-sm border-t">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground px-4 py-2">Categoría</th>
-                <th className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground px-2 py-2 capitalize">{format(comparedMonth, "MMM", { locale: es })}</th>
-                <th className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground px-2 py-2 capitalize">{format(selectedMonth, "MMM", { locale: es })}</th>
-                <th className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground px-4 py-2">Δ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {categoryComparison.map((cat, i) => (
-                <tr key={cat.id} className={i % 2 === 0 ? "bg-muted/20" : ""}>
-                  <td className="px-4 py-2">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: cat.color }} />
-                      <span className="text-xs">{cat.icon}</span>
-                      <span className="text-xs font-medium truncate max-w-[90px]">{cat.name}</span>
-                    </div>
-                  </td>
-                  <td className="text-right px-2 py-2 tabular-nums text-xs text-muted-foreground">{cat.prev > 0 ? formatCurrency(cat.prev) : "—"}</td>
-                  <td className="text-right px-2 py-2 tabular-nums text-xs font-semibold">{cat.current > 0 ? formatCurrency(cat.current) : "—"}</td>
-                  <td className="text-right px-4 py-2">
-                    {cat.prev > 0 || cat.current > 0 ? <DeltaBadge value={cat.delta} /> : <span className="text-xs text-muted-foreground">—</span>}
-                  </td>
+          {/* Comparison table — scrollable on mobile */}
+          <div className="overflow-x-auto border-t">
+            <table className="w-full text-sm" style={{ minWidth: 380 }}>
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">Categoría</th>
+                  <th className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground px-2 py-2 capitalize">{format(comparedMonth, "MMM", { locale: es })}</th>
+                  <th className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground px-2 py-2 capitalize">{format(selectedMonth, "MMM", { locale: es })}</th>
+                  <th className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">Δ</th>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t bg-muted/30">
-                <td className="px-4 py-2 text-xs font-semibold">Total</td>
-                <td className="text-right px-2 py-2 tabular-nums text-xs text-muted-foreground">{formatCurrency(comparedTotal)}</td>
-                <td className="text-right px-2 py-2 tabular-nums text-xs font-bold">{formatCurrency(selectedTotal)}</td>
-                <td className="text-right px-4 py-2"><DeltaBadge value={percentChange(selectedTotal, comparedTotal)} /></td>
-              </tr>
-            </tfoot>
-          </table>
+              </thead>
+              <tbody>
+                {categoryComparison.map((cat, i) => (
+                  <tr key={cat.id} className={i % 2 === 0 ? "bg-muted/20" : ""}>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: cat.color }} />
+                        <span className="text-xs">{cat.icon}</span>
+                        <span className="text-xs font-medium truncate max-w-[100px]">{cat.name}</span>
+                      </div>
+                    </td>
+                    <td className="text-right px-2 py-2 tabular-nums text-xs text-muted-foreground whitespace-nowrap">{cat.prev > 0 ? formatCurrency(cat.prev) : "—"}</td>
+                    <td className="text-right px-2 py-2 tabular-nums text-xs font-semibold whitespace-nowrap">{cat.current > 0 ? formatCurrency(cat.current) : "—"}</td>
+                    <td className="text-right px-3 py-2 whitespace-nowrap">
+                      {cat.prev > 0 || cat.current > 0 ? <DeltaBadge value={cat.delta} /> : <span className="text-xs text-muted-foreground">—</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t bg-muted/30">
+                  <td className="px-3 py-2 text-xs font-semibold">Total</td>
+                  <td className="text-right px-2 py-2 tabular-nums text-xs text-muted-foreground whitespace-nowrap">{formatCurrency(comparedTotal)}</td>
+                  <td className="text-right px-2 py-2 tabular-nums text-xs font-bold whitespace-nowrap">{formatCurrency(selectedTotal)}</td>
+                  <td className="text-right px-3 py-2"><DeltaBadge value={percentChange(selectedTotal, comparedTotal)} /></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </CardContent>
       </Card>
 
@@ -889,9 +867,26 @@ export default function AnalyticsPage() {
         </CardContent>
       </Card>
 
-      <ExpenseForecast />
-
-      <MonthlyComparisonChart />
+      {/* ── IA: Asistente financiero ── */}
+      <Suspense fallback={<Skeleton className="h-40 rounded-2xl" />}>
+        <ErrorBoundary label="Asistente financiero">
+          <AskFinance context={{
+            monthTotal: selectedTotal,
+            prevMonthTotal: comparedTotal,
+            topCategories: categoryComparison.slice(0, 5).map(c => ({ name: c.name, total: c.current })),
+          }} />
+        </ErrorBoundary>
+      </Suspense>
+      <ErrorBoundary label="Resumen IA mensual">
+        <AiMonthlySummary
+          expenses={selected.map(e => ({ total: e.total, merchant: e.merchant, category: e.category }))}
+          categoryBreakdown={categoryComparison.map(c => ({ name: c.name, total: c.current, delta: c.delta }))}
+          month={selLabel}
+        />
+      </ErrorBoundary>
+      <ErrorBoundary label="Sugerencias IA">
+        <AiSuggestions expenses3months={all.map(e => ({ total: e.total, merchant: e.merchant, category: e.category }))} />
+      </ErrorBoundary>
 
       </>)} {/* END TAB: RESUMEN */}
 
@@ -978,6 +973,14 @@ export default function AnalyticsPage() {
         </CardContent>
       </Card>
 
+      {/* ── Proyección y predicción ── */}
+      <ExpenseForecast />
+      <Suspense fallback={<Skeleton className="h-48 rounded-2xl" />}>
+        <ErrorBoundary label="Predicción mensual">
+          <MonthlyPrediction />
+        </ErrorBoundary>
+      </Suspense>
+
       </>)} {/* END TAB: METAS */}
 
       {/* ════════════════════ TAB: INFORMES ════════════════════ */}
@@ -1061,8 +1064,11 @@ export default function AnalyticsPage() {
             <ErrorBoundary label="Proyección del año">
               <YearProjection />
             </ErrorBoundary>
-            <ErrorBoundary label="Predicción mensual">
-              <MonthlyPrediction />
+            <ErrorBoundary label="Gráfico avanzado">
+              <AdvancedChart expenses={all} />
+            </ErrorBoundary>
+            <ErrorBoundary label="Timeline de gastos">
+              <SpendingTimeline expenses={all} days={30} />
             </ErrorBoundary>
             <ErrorBoundary label="Informe de IVA">
               <VATReport />
@@ -1091,25 +1097,35 @@ export default function AnalyticsPage() {
             <ErrorBoundary label="Estado de resultados P&L">
               <PersonalPL />
             </ErrorBoundary>
-            <ErrorBoundary label="Mapa de gasto por ciudad">
-              <CitySpendingMap expenses={all} />
-            </ErrorBoundary>
-            <ErrorBoundary label="Optimizador de presupuesto">
-              <BudgetOptimizer expenses={selected} />
+            <ErrorBoundary label="Comparativa mensual">
+              <MonthlyComparisonChart />
             </ErrorBoundary>
             <ErrorBoundary label="Flujo de caja">
               <CashFlowChart />
             </ErrorBoundary>
-            <ErrorBoundary label="Gráfico avanzado">
-              <AdvancedChart expenses={all} />
-            </ErrorBoundary>
-            <ErrorBoundary label="Timeline de gastos">
-              <SpendingTimeline expenses={all} days={30} />
+            <ErrorBoundary label="Optimizador de presupuesto">
+              <BudgetOptimizer expenses={selected} />
             </ErrorBoundary>
             <ErrorBoundary label="Grupos por tipo de gasto">
               <ExpenseTypeGroups expenses={all} categories={categories} />
             </ErrorBoundary>
+            <ErrorBoundary label="Mapa de gasto por ciudad">
+              <CitySpendingMap expenses={all} />
+            </ErrorBoundary>
           </div>
+        </Suspense>
+      )}
+
+      {/* ════════════════════ TAB: CRÉDITO ════════════════════ */}
+      {activeTab === "credito" && (
+        <Suspense fallback={
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-40 rounded-2xl" />)}
+          </div>
+        }>
+          <ErrorBoundary label="Crédito">
+            <CreditOverview />
+          </ErrorBoundary>
         </Suspense>
       )}
 

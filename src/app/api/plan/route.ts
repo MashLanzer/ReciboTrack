@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     .lte("date", monthEnd)
 
   const expensesThisMonth = count ?? 0
-  const canAddExpenses = plan === "pro" || expensesThisMonth < limits.maxExpenses
+  const canAddExpenses = plan === "pro" || expensesThisMonth < limits.maxExpensesPerMonth
 
   return NextResponse.json({
     plan,
