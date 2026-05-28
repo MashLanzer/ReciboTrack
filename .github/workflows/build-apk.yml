@@ -41,6 +41,11 @@ jobs:
         run: |
           sed -i "s|org.gradle.java.home=.*|org.gradle.java.home=$JAVA_HOME|" android/gradle.properties
 
+      - name: Decode keystore
+        run: |
+          base64 -d android/app/recibotrack.keystore > android/app/recibotrack.keystore.bin
+          mv android/app/recibotrack.keystore.bin android/app/recibotrack.keystore
+
       - name: Build release APK
         run: |
           cd android
