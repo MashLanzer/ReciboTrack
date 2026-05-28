@@ -21,18 +21,11 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Set up JDK 21
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '17'
           distribution: 'temurin'
-
-      - name: Install Android SDK components
-        run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-            "platforms;android-36" \
-            "build-tools;34.0.0"
 
       - name: Install npm dependencies and sync Capacitor
         run: |
@@ -62,9 +55,11 @@ jobs:
           mv android/app/recibotrack.keystore.bin android/app/recibotrack.keystore
 
       - name: Build release APK
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
           cd android
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease --stacktrace
 
       - name: Rename APK
         run: |
