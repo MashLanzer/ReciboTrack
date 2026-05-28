@@ -13,7 +13,8 @@ import { ViewToggle, type ViewMode } from "@/components/expenses/view-toggle"
 import { ShareSummary }          from "@/components/expenses/share-summary"
 import { ImportStatementButton } from "@/components/expenses/import-statement-button"
 import { BankImportDialog }      from "@/components/expenses/bank-import-dialog"
-import { BankConnectCard }       from "@/components/expenses/bank-connect-card"
+// BankConnectCard (Belvo) — oculto hasta implementación LATAM futura
+// import { BankConnectCard } from "@/components/expenses/bank-connect-card"
 import { useUIPrefs }            from "@/hooks/use-ui-prefs"
 import { useExportExpensesCSV }  from "@/hooks/use-export"
 import { Download, Building2 }   from "lucide-react"
@@ -139,11 +140,6 @@ export default function ExpensesPage() {
       </div>
 
       <ViewPanel view={view} />
-
-      {/* Bank connections */}
-      <div className="mt-6">
-        <BankConnectCard />
-      </div>
 
       {/* Archived expenses */}
       <div className="mt-6">
