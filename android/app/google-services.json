@@ -14,6 +14,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "431478633687-7amo9obo3p3hqiqne7ltvcqgu7ho4so0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.recibotrack.app",
+            "certificate_hash": "766beaba63d08a24fef8c9a279a12e87134b17d9"
+          }
+        },
+        {
+          "client_id": "431478633687-kiqvi1md2l11gvk9ipsu4ausn0h97v1e.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.recibotrack.app",
+            "certificate_hash": "1aeca2241f57f9b1ba034ea3c4dfbea6eb0ca933"
+          }
+        },
+        {
           "client_id": "431478633687-bhdpcn45863gcfh55d8f4uqivfutnfqq.apps.googleusercontent.com",
           "client_type": 3
         }
