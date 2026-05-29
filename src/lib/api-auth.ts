@@ -3,7 +3,8 @@
  *
  * Authentication: verifica el Firebase ID token adjunto en el header
  *   Authorization: Bearer <idToken>
- * usando la Firebase REST API (accounts:lookup), sin necesitar Service Account.
+ * usando Firebase Admin SDK (verifyIdToken), que valida el JWT localmente
+ * con JWKS cacheados — sin llamada de red en cada request.
  *
  * Rate limiting: ventana deslizante en memoria (Map). Se reinicia cuando el
  * servidor se reinicia — suficiente para producción serverless con Vercel
@@ -15,6 +16,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
+import { getAdminAuth } from "@/lib/firebase/admin"
 import { getSupabase } from "@/lib/supabase/server"
 
 // ─── Rate limit store ────────────────────────────────────────────────────────
@@ -65,68 +67,36 @@ function checkRateLimit(uid: string, group: keyof typeof LIMITS): boolean {
 
 const profileCreated = new Set<string>()
 
-// ─── Token verification via Firebase REST API ────────────────────────────────
-
-interface FirebaseTokenInfo {
-  localId:      string  // Firebase UID
-  email?:       string
-  displayName?: string  // Firebase lo llama displayName en accounts:lookup
-  photoUrl?:    string  // Firebase lo llama photoUrl (sin mayúscula)
-  emailVerified?: boolean
-}
-
-interface FirebaseLookupResponse {
-  users?: FirebaseTokenInfo[]
-  error?: { message: string }
-}
+// ─── Token verification via Firebase Admin SDK ───────────────────────────────
 
 interface VerifiedToken {
-  uid:         string
-  email?:      string
+  uid:          string
+  email?:       string
   displayName?: string
-  photoUrl?:   string
+  photoUrl?:    string
 }
 
 /**
- * Verifies a Firebase ID token using the REST accounts:lookup endpoint.
+ * Verifies a Firebase ID token using the Admin SDK (verifyIdToken).
+ * Validates the JWT signature locally with cached JWKS — no network call
+ * after the keys are cached (refreshed automatically every ~1h).
  * Returns user info on success, null on failure.
  */
 async function verifyFirebaseToken(idToken: string): Promise<VerifiedToken | null> {
-  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY
-  if (!apiKey) {
-    console.error("[api-auth] NEXT_PUBLIC_FIREBASE_API_KEY not set")
-    return null
-  }
-
   try {
-    const res = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
-        signal: AbortSignal.timeout(5_000),
-      }
-    )
-
-    const data = (await res.json()) as FirebaseLookupResponse
-
-    if (!res.ok || data.error) {
-      // Common errors: TOKEN_EXPIRED, USER_NOT_FOUND, INVALID_ID_TOKEN
-      return null
-    }
-
-    const user = data.users?.[0]
-    if (!user?.localId) return null
-
+    const decoded = await getAdminAuth().verifyIdToken(idToken)
     return {
-      uid:         user.localId,
-      email:       user.email,
-      displayName: user.displayName,
-      photoUrl:    user.photoUrl,
+      uid:          decoded.uid,
+      email:        decoded.email,
+      displayName:  decoded.name,   // Firebase Admin: 'name' claim = display name
+      photoUrl:     decoded.picture, // Firebase Admin: 'picture' claim = photo URL
     }
   } catch (err) {
-    console.error("[api-auth] Token verification failed:", err)
+    // Common errors: auth/id-token-expired, auth/argument-error, auth/invalid-id-token
+    const code = (err as { code?: string }).code ?? ""
+    if (!code.includes("expired") && !code.includes("invalid")) {
+      console.error("[api-auth] Token verification error:", err)
+    }
     return null
   }
 }

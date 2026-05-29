@@ -10,6 +10,9 @@
  *
  * NUNCA importar desde código client-side ("use client").
  * Solo usar en API routes (/app/api/...) y Server Components.
+ *
+ * Nota: Firebase Admin SDK verifica tokens JWT localmente usando JWKS cacheados
+ * — no hace llamadas de red en cada verificación (solo refresca las claves cada ~1h).
  */
 
 import * as admin from "firebase-admin"
@@ -40,13 +43,7 @@ function initAdmin(): admin.app.App {
   })
 }
 
-/** Firestore Admin — accede sin restricciones de reglas de seguridad */
-export function getAdminDb(): admin.firestore.Firestore {
-  initAdmin()
-  return admin.firestore()
-}
-
-/** Firebase Admin Auth — para lookups de usuarios por email, etc. */
+/** Firebase Admin Auth — verifica tokens y consulta usuarios */
 export function getAdminAuth(): admin.auth.Auth {
   initAdmin()
   return admin.auth()
