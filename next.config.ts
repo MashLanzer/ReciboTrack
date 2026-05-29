@@ -43,7 +43,7 @@ const nextConfig: NextConfig = {
               // open.er-api.com para tasas de cambio de moneda
               "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.googleapis.com https://open.er-api.com https://vercel.live https://*.vercel.live wss://*.vercel.live",
               "worker-src 'self' blob:",
-              "frame-src 'none' https://vercel.live",
+              "frame-src https://vercel.live",
               "object-src 'none'",
               "base-uri 'self'",
             ].join("; "),
