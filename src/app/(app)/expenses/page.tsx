@@ -108,6 +108,7 @@ export default function ExpensesPage() {
           {/* Acciones secundarias — sólo en desktop (son features avanzadas) */}
           <div className="hidden md:flex items-center gap-2">
             <ImportStatementButton />
+            {/* Conectar banco — oculto hasta completar integración (próxima versión)
             <Button
               variant="outline"
               size="icon"
@@ -118,6 +119,7 @@ export default function ExpensesPage() {
             >
               <Building2 className="h-4 w-4" />
             </Button>
+            */}
             <ShareSummary />
             <Button
               variant="outline"

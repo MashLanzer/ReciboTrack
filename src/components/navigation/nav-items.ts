@@ -15,7 +15,7 @@ export const MORE_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: "Finanzas",
     items: [
-      { href: "/banks",             label: "Bancos",       icon: Banknote },
+      // { href: "/banks", label: "Bancos", icon: Banknote }, // Próximamente
       { href: "/income",            label: "Ingresos",     icon: TrendingUp },
       { href: "/recurring",         label: "Recurrentes",  icon: RefreshCw },
       { href: "/recurring-income",  label: "Ing. Recur.",  icon: Repeat },
