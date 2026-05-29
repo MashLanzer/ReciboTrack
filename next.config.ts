@@ -34,13 +34,16 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' https://apis.google.com https://www.gstatic.com",
+              // 'unsafe-eval' requerido por librerías de charts (Recharts) y Workbox SW
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://vercel.live https://*.vercel.live",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob: https://firebasestorage.googleapis.com https://lh3.googleusercontent.com",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://fcmregistrations.googleapis.com",
+              "font-src 'self' https://fonts.gstatic.com https://vercel.live",
+              "img-src 'self' data: blob: https://firebasestorage.googleapis.com https://lh3.googleusercontent.com https://vercel.live",
+              // googleapis.com amplio para Firebase Auth (token refresh, lookup, etc.)
+              // open.er-api.com para tasas de cambio de moneda
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.googleapis.com https://open.er-api.com https://vercel.live https://*.vercel.live wss://*.vercel.live",
               "worker-src 'self' blob:",
-              "frame-src 'none'",
+              "frame-src 'none' https://vercel.live",
               "object-src 'none'",
               "base-uri 'self'",
             ].join("; "),
