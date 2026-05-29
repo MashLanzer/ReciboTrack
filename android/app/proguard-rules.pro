@@ -45,3 +45,8 @@
 -dontwarn okhttp3.**
 -dontwarn okio.**
 -dontwarn retrofit2.**
+
+# ── Facebook SDK (capacitor-firebase-authentication lo incluye aunque no uses
+#    Facebook login — R8 falla buscando estas clases al minificar) ─────────────
+-dontwarn com.facebook.**
+-keep class com.facebook.** { *; }
