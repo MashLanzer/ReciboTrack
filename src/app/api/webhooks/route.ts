@@ -2,6 +2,21 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/api-auth"
 import { getSupabase } from "@/lib/supabase/server"
 
+// Bloquea IPs privadas, loopback y link-local para prevenir SSRF
+function isSafeWebhookUrl(raw: string): boolean {
+  try {
+    const parsed = new URL(raw)
+    if (!["http:", "https:"].includes(parsed.protocol)) return false
+    const host = parsed.hostname
+    if (
+      /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|::1$|0\.0\.0\.0)/.test(host)
+    ) return false
+    return true
+  } catch {
+    return false
+  }
+}
+
 // ── GET — listar webhooks del usuario ─────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
@@ -38,14 +53,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "La URL es requerida" }, { status: 400 })
   }
 
-  // Validar formato de URL
-  try {
-    const parsed = new URL(body.url)
-    if (!["http:", "https:"].includes(parsed.protocol)) {
-      return NextResponse.json({ error: "La URL debe ser http o https" }, { status: 400 })
-    }
-  } catch {
-    return NextResponse.json({ error: "URL inválida" }, { status: 400 })
+  // Validar URL: protocolo y bloqueo de IPs privadas (anti-SSRF)
+  if (!isSafeWebhookUrl(body.url)) {
+    return NextResponse.json({ error: "URL inválida o no permitida" }, { status: 400 })
   }
 
   const sb = getSupabase()

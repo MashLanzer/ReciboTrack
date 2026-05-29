@@ -29,7 +29,6 @@ import { getSupabase } from "@/lib/supabase/server"
 const VAPID_PUBLIC_KEY  = process.env.VAPID_PUBLIC_KEY  ?? ""
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY ?? ""
 const VAPID_SUBJECT     = process.env.VAPID_SUBJECT     ?? "mailto:admin@recibotrack.app"
-const CRON_SECRET       = process.env.CRON_SECRET       ?? ""
 
 function setupVapid() {
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
@@ -57,10 +56,16 @@ function todayKey(): string {
 
 export async function GET(req: NextRequest) {
   // Verificar que la llamada viene de Vercel Cron o tiene el secret correcto
-  const authHeader = req.headers.get("authorization") ?? ""
-  const cronHeader  = req.headers.get("x-vercel-cron-signature") ?? ""
+  const CRON_SECRET = process.env.CRON_SECRET
+  if (!CRON_SECRET) {
+    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 })
+  }
 
-  if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}` && !cronHeader) {
+  const authHeader = req.headers.get("authorization") ?? ""
+  const hasVercelSignature = req.headers.get("x-vercel-cron-signature") !== null
+  const hasBearer = authHeader === `Bearer ${CRON_SECRET}`
+
+  if (!hasVercelSignature && !hasBearer) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 })
   }
 

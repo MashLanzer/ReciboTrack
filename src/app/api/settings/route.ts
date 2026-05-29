@@ -4,8 +4,34 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { requireAuth } from "@/lib/api-auth"
 import { getSupabase } from "@/lib/supabase/server"
+
+// Solo los campos que el usuario puede modificar — campos sensibles (plan, uid, etc.) no están aquí
+const SettingsPatchSchema = z.object({
+  defaultCurrency:         z.string().length(3).optional(),
+  defaultPaymentMethod:    z.string().nullable().optional(),
+  defaultCategory:         z.string().optional(),
+  reminderDaysBefore:      z.number().int().min(0).max(30).optional(),
+  compactView:             z.boolean().optional(),
+  weekStartsOn:            z.number().int().min(0).max(6).optional(),
+  onboardingCompleted:     z.boolean().optional(),
+  accentColor:             z.string().optional(),
+  deductibleCategories:    z.array(z.string()).optional(),
+  autoTheme:               z.boolean().optional(),
+  categoryLimits:          z.record(z.string(), z.number()).optional(),
+  monthlyBudget:           z.number().nullable().optional(),
+  monthStartDay:           z.number().int().min(1).max(28).optional(),
+  notificationsEnabled:    z.boolean().optional(),
+  notifyRecurring:         z.boolean().optional(),
+  notifyWeeklySummary:     z.boolean().optional(),
+  hiddenDefaultCategories: z.array(z.string()).optional(),
+  sheetsLastUrl:           z.string().url().nullable().optional(),
+  sheetsLastSyncedAt:      z.string().nullable().optional(),
+  handle:                  z.string().nullable().optional(),
+  hasExportedPDF:          z.boolean().optional(),
+}).strict()
 
 const DEFAULTS = {
   defaultCurrency:         "USD",
@@ -55,9 +81,15 @@ export async function PATCH(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
   const { uid } = auth
 
-  let body: Record<string, unknown>
-  try { body = (await req.json()) as Record<string, unknown> }
+  let raw: unknown
+  try { raw = await req.json() }
   catch { return NextResponse.json({ error: "Body inválido" }, { status: 400 }) }
+
+  const parsed = SettingsPatchSchema.safeParse(raw)
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Campos inválidos", details: parsed.error.flatten() }, { status: 400 })
+  }
+  const body = parsed.data
 
   const sb = getSupabase()
 

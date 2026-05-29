@@ -60,6 +60,9 @@ jobs:
       - name: Build release APK
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          VERSION_CODE: ${{ github.run_number }}
         run: |
           cd android
           ./gradlew assembleRelease
