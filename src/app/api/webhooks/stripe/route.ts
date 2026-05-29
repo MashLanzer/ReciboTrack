@@ -32,12 +32,12 @@ function getPeriodDates(sub: Stripe.Subscription): { start: string; end: string 
  * $1.99 y se setee STRIPE_PRO_PRICE_ID, se distinguirá correctamente.
  */
 function planFromPriceId(priceId: string | null | undefined): Plan {
-  if (!priceId) return "premium"
+  if (!priceId) return "free"
   if (priceId === process.env.STRIPE_PRO_PRICE_ID)     return "pro"
   if (priceId === process.env.STRIPE_PREMIUM_PRICE_ID) return "premium"
-  // Fallback: si no matchea ninguno, asumimos el plan más alto que existió
-  // (= legacy $4.99 product que ahora mapea a Premium).
-  return "premium"
+  // Fallback seguro: price ID desconocido → "free" para no otorgar acceso premium inválido
+  console.warn(`[stripe-webhook] price_id desconocido: ${priceId}`)
+  return "free"
 }
 
 function planFromSubscription(sub: Stripe.Subscription): Plan {
