@@ -1,0 +1,294 @@
+name: BuddyRent — Setup & Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_migrations:
+        description: 'Run Supabase DB migrations'
+        required: true
+        default: 'true'
+        type: boolean
+      deploy_functions:
+        description: 'Deploy Supabase Edge Functions'
+        required: true
+        default: 'true'
+        type: boolean
+      build_app:
+        description: 'Build Expo app (EAS)'
+        required: true
+        default: 'false'
+        type: boolean
+      platform:
+        description: 'Build platform (if build_app = true)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - ios
+          - android
+
+env:
+  SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # JOB 1: Validate secrets exist before doing anything
+  # ─────────────────────────────────────────────────────────────
+  validate-secrets:
+    name: ✅ Validate Secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required secrets
+        run: |
+          MISSING=()
+          [ -z "${{ secrets.SUPABASE_PROJECT_ID }}"     ] && MISSING+=("SUPABASE_PROJECT_ID")
+          [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}"   ] && MISSING+=("SUPABASE_ACCESS_TOKEN")
+          [ -z "${{ secrets.SUPABASE_DB_PASSWORD }}"    ] && MISSING+=("SUPABASE_DB_PASSWORD")
+          [ -z "${{ secrets.STRIPE_SECRET_KEY }}"       ] && MISSING+=("STRIPE_SECRET_KEY")
+          [ -z "${{ secrets.EXPO_TOKEN }}"              ] && MISSING+=("EXPO_TOKEN")
+
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "❌ Missing required secrets:"
+            for s in "${MISSING[@]}"; do echo "   • $s"; done
+            echo ""
+            echo "Add them at: Settings → Secrets → Actions"
+            exit 1
+          fi
+          echo "✅ All required secrets present"
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 2: Run Supabase DB migrations
+  # ─────────────────────────────────────────────────────────────
+  database-setup:
+    name: 🗄️ Database Migrations
+    runs-on: ubuntu-latest
+    needs: validate-secrets
+    if: ${{ inputs.run_migrations == true }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        run: |
+          curl -fsSL https://github.com/supabase/cli/releases/download/v1.200.3/supabase_linux_amd64.tar.gz \
+            | tar xz -C /usr/local/bin supabase
+          supabase --version
+
+      - name: Link Supabase project
+        run: |
+          cd buddyrent
+          echo "${{ secrets.SUPABASE_DB_PASSWORD }}" | supabase link \
+            --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} \
+            --password stdin
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Run migrations
+        run: |
+          cd buddyrent
+          supabase db push --password ${{ secrets.SUPABASE_DB_PASSWORD }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Create Storage buckets
+        run: |
+          BASE_URL="https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co"
+          SERVICE_KEY="${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
+
+          # avatars bucket (public)
+          curl -sX POST "$BASE_URL/storage/v1/bucket" \
+            -H "Authorization: Bearer $SERVICE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"id":"avatars","name":"avatars","public":true,"file_size_limit":5242880,"allowed_mime_types":["image/jpeg","image/png","image/webp"]}' \
+            | jq '.name // .error'
+
+          # verifications bucket (private)
+          curl -sX POST "$BASE_URL/storage/v1/bucket" \
+            -H "Authorization: Bearer $SERVICE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"id":"verifications","name":"verifications","public":false,"file_size_limit":10485760,"allowed_mime_types":["image/jpeg","image/png"]}' \
+            | jq '.name // .error'
+
+          echo "✅ Storage buckets configured"
+
+      - name: Seed sample data (optional)
+        run: |
+          cd buddyrent
+          echo "ℹ️  Seed file available at supabase/seed.sql"
+          echo "ℹ️  Run manually if you want sample buddy profiles"
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 3: Deploy Supabase Edge Functions
+  # ─────────────────────────────────────────────────────────────
+  deploy-functions:
+    name: ⚡ Deploy Edge Functions
+    runs-on: ubuntu-latest
+    needs: database-setup
+    if: ${{ inputs.deploy_functions == true && always() && needs.validate-secrets.result == 'success' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        run: |
+          curl -fsSL https://github.com/supabase/cli/releases/download/v1.200.3/supabase_linux_amd64.tar.gz \
+            | tar xz -C /usr/local/bin supabase
+
+      - name: Link project
+        run: |
+          cd buddyrent
+          echo "${{ secrets.SUPABASE_DB_PASSWORD }}" | supabase link \
+            --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} \
+            --password stdin
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Set Edge Function secrets
+        run: |
+          cd buddyrent
+          supabase secrets set \
+            STRIPE_SECRET_KEY="${{ secrets.STRIPE_SECRET_KEY }}" \
+            STRIPE_WEBHOOK_SECRET="${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
+            DAILY_API_KEY="${{ secrets.DAILY_API_KEY }}" \
+            SUPABASE_SERVICE_ROLE_KEY="${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Deploy create-payment-intent
+        run: |
+          cd buddyrent
+          supabase functions deploy create-payment-intent --no-verify-jwt
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Deploy stripe-webhook
+        run: |
+          cd buddyrent
+          supabase functions deploy stripe-webhook --no-verify-jwt
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Deploy create-video-room
+        run: |
+          cd buddyrent
+          supabase functions deploy create-video-room
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Print webhook URL
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📌 Configure this Stripe webhook URL:"
+          echo "   https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co/functions/v1/stripe-webhook"
+          echo ""
+          echo "   Events to enable:"
+          echo "   • payment_intent.succeeded"
+          echo "   • payment_intent.payment_failed"
+          echo "   • account.updated"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 4: Build Expo app (EAS Build)
+  # ─────────────────────────────────────────────────────────────
+  build-app:
+    name: 📱 Build App (EAS)
+    runs-on: ubuntu-latest
+    needs: [database-setup, deploy-functions]
+    if: ${{ inputs.build_app == true && always() && needs.validate-secrets.result == 'success' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: buddyrent/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd buddyrent
+          npm ci
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Create .env file
+        run: |
+          cd buddyrent
+          cat > .env.local << EOF
+          EXPO_PUBLIC_SUPABASE_URL=https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          EXPO_PUBLIC_DAILY_API_KEY=${{ secrets.DAILY_API_KEY_PUBLIC }}
+          EXPO_PUBLIC_APP_ENV=production
+          EOF
+
+      - name: Create eas.json if missing
+        run: |
+          cd buddyrent
+          if [ ! -f eas.json ]; then
+            cat > eas.json << 'EOF'
+          {
+            "cli": { "version": ">= 10.0.0" },
+            "build": {
+              "development": {
+                "developmentClient": true,
+                "distribution": "internal"
+              },
+              "preview": {
+                "distribution": "internal",
+                "android": { "buildType": "apk" }
+              },
+              "production": {
+                "autoIncrement": true
+              }
+            },
+            "submit": {
+              "production": {}
+            }
+          }
+          EOF
+          fi
+
+      - name: Build for ${{ inputs.platform }}
+        run: |
+          cd buddyrent
+          eas build --platform ${{ inputs.platform }} --profile preview --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 5: Summary report
+  # ─────────────────────────────────────────────────────────────
+  summary:
+    name: 📋 Summary
+    runs-on: ubuntu-latest
+    needs: [validate-secrets, database-setup, deploy-functions, build-app]
+    if: always()
+    steps:
+      - name: Print setup summary
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🤝 BuddyRent Setup Summary"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Secrets:    ${{ needs.validate-secrets.result }}"
+          echo "Database:   ${{ needs.database-setup.result }}"
+          echo "Functions:  ${{ needs.deploy-functions.result }}"
+          echo "App Build:  ${{ needs.build-app.result }}"
+          echo ""
+          echo "Supabase dashboard:"
+          echo "  https://supabase.com/dashboard/project/${{ secrets.SUPABASE_PROJECT_ID }}"
+          echo ""
+          echo "Next steps:"
+          echo "  1. Copy Stripe webhook URL from job logs"
+          echo "  2. Configure Stripe Connect in dashboard"
+          echo "  3. Set Supabase Auth Site URL to: buddyrent://auth/callback"
+          echo "  4. Enable Supabase Realtime for: messages, matches, bookings"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
