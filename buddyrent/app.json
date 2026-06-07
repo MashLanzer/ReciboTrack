@@ -1,0 +1,64 @@
+{
+  "expo": {
+    "name": "BuddyRent",
+    "slug": "buddyrent",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FF6B35"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.buddyrent.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "BuddyRent uses your camera for identity verification and video calls.",
+        "NSPhotoLibraryUsageDescription": "BuddyRent accesses your photos to set your profile picture.",
+        "NSLocationWhenInUseUsageDescription": "BuddyRent uses your location to find buddies near you.",
+        "NSMicrophoneUsageDescription": "BuddyRent uses your microphone for video verification calls."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FF6B35"
+      },
+      "package": "com.buddyrent.app",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        { "cameraPermission": "Allow BuddyRent to access your camera." }
+      ],
+      [
+        "expo-image-picker",
+        { "photosPermission": "Allow BuddyRent to access your photos." }
+      ],
+      [
+        "expo-location",
+        { "locationWhenInUsePermission": "Allow BuddyRent to use your location." }
+      ]
+    ],
+    "scheme": "buddyrent",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
